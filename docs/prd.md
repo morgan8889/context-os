@@ -1,6 +1,7 @@
 # Context-OS — Product Requirements Document
 
-> **Status:** Draft (rewrite in progress). Source: see `docs/plans/2026-05-17-prd-enrichment-design.md`.
+> **Status:** Canonical. Rewrite v1.0 (2026-05-17). This file is the authoritative PRD; the vault inbox holds a forwarding pointer only.
+> **Source:** Design memo at `docs/plans/2026-05-17-prd-enrichment-design.md`; execution plan at `docs/plans/2026-05-17-prd-rewrite-plan.md`; original vault PRD archived at `<vault>/00-INBOX/context-os-v0.md`.
 > **Constitution:** This PRD is governed by `.specify/memory/constitution.md` v1.1.0+.
 > **Last updated:** 2026-05-17
 
