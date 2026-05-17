@@ -23,7 +23,42 @@
 ---
 
 ## 1. Executive Summary
-<!-- TBD -->
+
+Context-OS is an AI-native operational intelligence platform. It is a single
+system that holds an organization's goals, workflows, decisions, agents, and
+dependencies as a living graph; uses AI agents to synthesize, route, and
+recommend on top of that graph; and presents the result through interactive
+topology surfaces designed for operational cognition rather than record
+display. The platform's job is to compress the coordination overhead that
+sits between strategic intent and execution — the manual synthesis, the
+status gathering, the dependency surprises, the architecture decisions
+that disappear from memory the moment they are made.
+
+It serves three audiences. The **Strategic Operator** — a VP or Head of
+Engineering, Head of Architecture, or similar — sets intent, governs
+autonomy, approves consequential decisions, and reads briefings the
+platform drafts on their behalf. The **Domain Practitioner** — a staff or
+principal engineer, an architect, an initiative owner — submits work,
+participates in reviews, and reaches into organizational memory for
+rationale and prior decisions. The **Platform Operator** — at MVP, the
+author dogfooding the system — directs the product, designs evaluations,
+and curates the closed beta.
+
+Three commitments separate this from conventional ops, PM, and EA tools.
+First, the platform models **intent**, not tasks: goals and outcomes are
+first-class, tasks are derived. Second, AI is the **operational layer**,
+not a feature: agents orchestrate work, draft synthesis, surface risks,
+and execute under explicit autonomy levels — humans retain governance.
+Third, **visualization is cognition**: the primary interface is topology
+(graphs, flow maps, scenario overlays), not dashboards or CRUD forms.
+
+The product is pre-revenue and in initial build. MVP scope targets a
+**closed beta with three to five organizations** over roughly eight
+months, built by one human leveraging advanced LLM coding and design
+agents. The dogfooding domain is enterprise architecture and PMO
+leadership — the author's own work — used as a validation surface, not
+as a commercial commitment. The commercial wedge is a hypothesis (see
+§9.6) to be falsified or confirmed against closed-beta evidence.
 
 ## 2. Vision & Thesis
 ### 2.1 What this replaces
