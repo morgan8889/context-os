@@ -367,7 +367,209 @@ users don't need.
   the platform)?
 
 ## 5. Product Modules
-<!-- TBD: one subsection per module, 7 total -->
+
+The platform is composed of seven engines. Each owns a slice of the
+graph, exposes a set of capabilities, and declares its AI-vs-human
+ownership boundary. MVP ships a deliberate subset; the rest is deferred
+to post-beta or future.
+
+### 5.1 Intent Engine
+
+**Purpose.** Capture and maintain strategic intent — what the
+organization is trying to do, and how that decomposes into initiatives.
+
+**Capabilities.** Goal hierarchy, initiative mapping, outcome tracking,
+priority modeling, constraints management, intent decomposition,
+goal-to-workflow linkage.
+
+**Owned data.** `Goal`, `Initiative`, `Capability` (organizational
+function), `Constraint`. Read-only references to `Workflow` and
+`Decision`.
+
+**AI/human boundary.** Goal setting and prioritization are human-only
+(Constitution Principle III; product principle Intent Over Tasks). AI
+proposes decomposition, surfaces alignment gaps, flags conflicting
+priorities — never enacts them.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Goal hierarchy + initiative graph | MVP   |
+| Outcome tracking            | MVP        |
+| Priority modeling           | MVP (basic — score field per item) |
+| Constraints management      | MVP        |
+| AI-driven intent decomposition | Post-beta |
+| Strategy map visualization  | Post-beta  |
+
+### 5.2 Operational Flow Engine
+
+**Purpose.** Model how work moves through the organization — workflow
+topology, ownership, latency, bottlenecks.
+
+**Capabilities.** Workflow topology mapping, human-vs-AI ownership
+tracking, latency analysis, approval bottleneck detection, operational
+telemetry, flow health scoring, escalation path tracking.
+
+**Owned data.** `Workflow`, workflow step state, `Signal` ingestion
+queue, telemetry attached to flow nodes.
+
+**AI/human boundary.** AI runs the workflows under declared autonomy
+levels (§3.3); humans gate at the autonomy boundary. AI proposes flow
+optimizations; humans approve structural workflow changes.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Workflow topology view ("very good" tier, per §6.3) | MVP |
+| Human-vs-AI ownership tracking | MVP     |
+| Latency + bottleneck telemetry  | MVP    |
+| Escalation path tracking    | MVP        |
+| Flow health scoring         | Post-beta  |
+| Workflow river visualization | Post-beta |
+
+### 5.3 Organizational Memory Engine
+
+**Purpose.** Persistent, semantically-aware organizational knowledge —
+the substrate every other engine reads from.
+
+**Capabilities.** Decision graph, rationale capture, semantic linking,
+historical context retrieval, relationship modeling, knowledge
+evolution tracking, pattern recognition, architecture memory.
+
+**Owned data.** `Decision`, `Memory`, `Context`, `Dependency`,
+`Artifact`. All other engines reference this engine for historical
+state.
+
+**AI/human boundary.** Humans create decisions and rationale; AI
+embeds, links, and retrieves. AI proposes pattern matches and
+historical analogs; humans validate before acceptance into the
+canonical graph.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Memory graph substrate (Postgres + AGE + pgvector) | MVP |
+| Decision Graph view ("very good" tier, per §6.3) | MVP |
+| Rationale capture + alternatives field | MVP |
+| Semantic retrieval (vector + graph) | MVP |
+| Pattern recognition surfaces | Post-beta |
+| Knowledge evolution timeline | Post-beta |
+
+### 5.4 Agent Orchestration Engine
+
+**Purpose.** Coordinate AI and human agents — routing, autonomy
+enforcement, tool permissions, agent telemetry.
+
+**Capabilities.** Multi-agent coordination, role-based AI systems,
+agent routing, autonomy controls, tool permissions, workflow
+delegation, agent telemetry, agent communication graph.
+
+**Owned data.** `Agent` (identity, role, tool permissions, autonomy
+declaration), agent action log, agent communication edges.
+
+**AI/human boundary.** Routing logic is rule-based with AI proposals
+allowed. Autonomy levels are human-declared and human-modifiable;
+agents cannot self-elevate (Constitution Principle III).
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Two agents (Operational Synthesizer, Dependency Mapper) | MVP |
+| Tool permissions per agent  | MVP        |
+| Autonomy declaration per agent | MVP     |
+| Action log + reversal paths | MVP        |
+| Agent orchestration UI      | Post-beta (agents configured in code in MVP) |
+| Multi-agent coordination graph | Post-beta |
+
+### 5.5 Simulation Engine
+
+**Purpose.** Predict downstream operational impact of changes.
+
+**Capabilities.** Dependency simulation, staffing impact analysis,
+roadmap impact forecasting, delivery risk prediction, organizational
+overload modeling, architecture drift prediction, capacity simulation,
+escalation forecasting.
+
+**Owned data.** `Simulation` runs and their inputs, scenario snapshots.
+
+**AI/human boundary.** AI runs simulations on operator request; humans
+interpret and act. Autonomy level 1 (recommendation) only.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Engine hooks (graph queryable for simulation inputs) | MVP |
+| All simulation capabilities | Post-beta  |
+
+The Simulation Engine is intentionally MVP-light. Its value depends on
+data depth that only accumulates after closed beta runs for several
+months; shipping it in MVP would mean shipping a feature that can't be
+evaluated honestly.
+
+### 5.6 Cognitive Load Engine
+
+**Purpose.** Understand organizational attention and mental overhead —
+where humans are saturated, where coordination is breaking down.
+
+**Capabilities.** Attention tracking, context fragmentation detection,
+coordination overhead scoring, decision fatigue indicators,
+organizational load balancing, meeting burden analysis, cognitive
+bottleneck detection.
+
+**Owned data.** Derived metrics from telemetry across other engines; no
+new primitives owned exclusively.
+
+**AI/human boundary.** AI surfaces patterns; humans decide
+interventions.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| All capabilities            | Post-beta  |
+
+Like Simulation, Cognitive Load is data-hungry. The engine ships
+post-beta with a clear analytics surface; MVP collects the telemetry
+that will feed it.
+
+### 5.7 Visualization Layer
+
+**Purpose.** Render the platform's state as topology, flow, and
+overlay — the primary user surface (Constitution Principle IV).
+
+**Capabilities.** Initiative Galaxy, Workflow Topology, Decision Graph,
+strategy maps, scenario overlays, cognitive heatmaps, agent activity
+streams, architecture topology views.
+
+**Owned data.** No graph data; reads from every other engine. Owns
+view-state (layout positions, user-specific filters, overlay
+preferences).
+
+**AI/human boundary.** AI proposes layouts and groupings; humans
+direct the view. Visualization is read-mostly in MVP; later phases
+allow inline editing of graph state.
+
+**MVP cut.**
+
+| Capability                  | Status     |
+|-----------------------------|------------|
+| Initiative Galaxy ("world-class" tier, per §6.3) | MVP |
+| Workflow Topology view ("very good" tier) | MVP |
+| Decision Graph view ("very good" tier) | MVP  |
+| Strategy maps, scenario overlays, heatmaps, agent streams | Post-beta |
+
+### 5.8 Open Questions
+
+- **OQ-017** Should the Cognitive Load Engine sit beside the other
+  engines or be a presentation layer over them? Current design treats
+  it as a peer engine because it has its own retention/decay logic.
+- **OQ-018** Does the Visualization Layer warrant its own engine, or
+  should view-state live with the engines whose data it renders?
 
 ## 6. Platform Architecture
 ### 6.1 Stack decisions
