@@ -1338,20 +1338,202 @@ trigger, to avoid thrash, unless the trigger is severe.
   falsification criterion 2 in §9.6. Resolves during closed beta.
 
 ## 9. Dogfooding Domain: Enterprise Architecture / PMO
+
 ### 9.1 Why this is the validation domain
-<!-- TBD -->
+
+**The dogfooding domain is where we live and where we validate. It is
+not a commercial commitment.** The first market may turn out to be
+enterprise architecture and PMO leadership; it may turn out to be
+something adjacent (§9.6). The platform's design must not foreclose
+either outcome.
+
+The author's lived role is architecture and PMO leadership, so this
+domain is where insight is sharpest, where the workflows are
+concretely known, and where the platform can be tested against real
+artifacts daily. Dogfooding lets us learn things paying users would
+not tell us: how the briefing draft breaks on edge cases nobody
+admits in a sales call; how the dependency map gets wrong in the
+specific way that costs a quarter; whether the operator actually
+opens the platform on Monday morning, or only when reminded.
+
+Validation here unlocks the right to ship, not the right to monetize.
+Closed beta participants (§9.6 ICP) test whether the dogfooding
+lessons generalize beyond one person's work pattern.
+
 ### 9.2 Domain ontology mapped to core primitives
-<!-- TBD -->
+
+Per Constitution Principle VII (Domain-Adapter Extensibility), the
+core graph stays domain-agnostic. Architecture/PMO concepts are
+adapters onto the primitives in §3.1.
+
+| Domain entity          | Maps to (core primitives)                                |
+|------------------------|----------------------------------------------------------|
+| Capability             | `Capability` (1:1)                                       |
+| System (technical)     | `Capability` + `Constraint` (rendered as a System node)  |
+| Initiative             | `Initiative` (1:1)                                       |
+| Portfolio              | `Initiative` grouping (typed edge: `in-portfolio`)       |
+| Vendor                 | `Agent` (external) + `Capability` (provided)             |
+| Team                   | `Agent` group (typed edge: `member-of`)                  |
+| Architecture Review    | `Workflow` + (often) one `Decision` output               |
+| ADR                    | `Decision` with `rationale`, `alternatives`, predecessor/successor edges |
+| Risk                   | `Risk` (1:1)                                             |
+| Roadmap                | `Initiative` sequence over time + `Constraint` on dates  |
+| Dependency             | `Dependency` (typed: blocks / informs / consumes / implements) |
+| Standard               | `Constraint` (governance) + `Memory` (reference content) |
+
+No domain-specific schema in the core graph. Adapters are read/write
+modules that render domain views over primitives and accept domain-
+shaped writes that decompose into primitive mutations.
+
 ### 9.3 Validation workflows
-<!-- TBD -->
+
+Two workflows are the operational test bed for the platform. Both are
+specified per §7's workflow contract. Domain-specific eval and
+failure-mode notes appear here in addition to the workflow specs.
+
+#### 9.3.1 Executive Briefing (MVP — see §7.2.1 for full contract)
+
+**Domain-specific evaluation.**
+- Briefing accept-as-is rate by author across 30 days
+- False-positive risk rate (briefing flags a risk the operator
+  overrides as not-a-risk)
+- Manual edit distance from LLM output to final
+- Dependency-call accuracy (claimed dependencies verifiable in graph
+  state)
+
+**Domain-specific failure modes.**
+- Hallucinated stakeholders — caught by `Agent`-table lookup
+- Stale dependency claims — caught by edge-freshness check
+- Missed escalations — caught by counterfactual eval on known cases
+- Wrong-version standards citations — caught by `Standard` version
+  pinning
+
+#### 9.3.2 Architecture Review (post-MVP — see §7.2.2 for full contract)
+
+**Domain-specific evaluation.**
+- Architect-team accept rate of impacted-system map
+- Conflicts caught vs. missed against human-only baseline
+- Standards-drift detection precision and recall
+- Time-to-first-draft from doc submission
+
+**Domain-specific failure modes.**
+- Wrong system identified as impacted
+- Conflict missed against existing ADR
+- Spurious conflict raised against superseded ADR
+- Standards comparison against wrong version
+
 ### 9.4 Data sources
-<!-- TBD -->
+
+**MVP (3):** Jira, GitHub, Slack. All normalize to the core ontology
+at ingest time per Constitutional Architectural Constraint; raw
+payloads retained as `Artifact` records.
+
+**Post-MVP (5):** Confluence, Google Drive, Calendar, architecture
+documents (PDF / Markdown), roadmap spreadsheets.
+
+| Source           | MVP? | Primary entity types ingested                  |
+|------------------|------|-------------------------------------------------|
+| Jira             | Yes  | `Initiative`, `Workflow` steps, `Risk`         |
+| GitHub           | Yes  | `Artifact` (PRs, commits), `Workflow` ties     |
+| Slack            | Yes  | `Signal` (threads in designated channels)      |
+| Confluence       | Post-beta | `Memory` (pages), `Decision` (ADR pages) |
+| Google Drive     | Post-beta | `Artifact` (docs), `Memory` (references) |
+| Calendar         | Post-beta | `Signal` (meetings as signals)           |
+| Architecture docs | Post-beta | `Memory`, `Decision`, `Constraint`      |
+| Roadmap sheets   | Post-beta | `Initiative` time sequencing             |
+
 ### 9.5 Dogfood success metrics
-<!-- TBD -->
+
+Three metric blocks, measured on the dogfooding operator's own work.
+
+**Operational metrics** — measured against the author's pre-platform
+baseline.
+
+| Metric                           | Baseline (today) | Target (Phase 2 end) |
+|----------------------------------|------------------|----------------------|
+| Time-to-briefing (minutes)       | 60 (manual)      | < 5 (AI-assisted)    |
+| Coordination follow-ups per week | TBD (capture wk 1) | −50%               |
+| Architecture-review cycle time   | TBD (capture wk 1) | −30%               |
+
+**Intelligence metrics** — measured against held-out eval set.
+
+| Metric                            | Target                   |
+|-----------------------------------|--------------------------|
+| Dependency detection precision    | ≥ 70%                    |
+| Dependency detection recall       | ≥ 50%                    |
+| Risk prediction usefulness rating | ≥ 60% rated "would have caught" |
+| Briefing accept-as-is rate        | ≥ 40% (edited rate < 60%) |
+
+**Experience metrics** — self-reported, weekly journal.
+
+| Metric                                          | Format         |
+|-------------------------------------------------|----------------|
+| Cognitive overload rating (1–5)                 | Likert weekly  |
+| Operational visibility confidence (1–5)         | Likert weekly  |
+| "Would I keep using this if I weren't building it?" | Y/N weekly |
+
+If the experience metrics trend negative for three consecutive weeks
+during Phase 2 or 3, the product direction is wrong; trigger a
+direction review.
+
 ### 9.6 Commercial hypothesis (to falsify in closed beta)
-<!-- TBD -->
+
+> **Hypothesis.** The commercial wedge is **engineering leadership at
+> Series B–D companies (50–500 engineers) running architecture and
+> PMO functions**. The buyer is a VP or Head of Engineering, Head of
+> Architecture, or EA-reporting-to-CTO. They pay $X–$Y per seat per
+> month because the platform replaces the recurring cost of manual
+> operational synthesis, dependency tracking, and architecture-review
+> coordination.
+
+**ICP indicators** (used to qualify closed-beta participants):
+- 50–500 engineers, distributed across ≥ 3 teams
+- Has an EA function, architecture-review board, or equivalent
+  governance ritual
+- Uses Jira (or Linear, with adapter) + GitHub + Slack as primary
+  tools
+- Leadership reports > 2 hours per week on operational synthesis
+  (briefings, status, dependency tracking)
+
+**Falsification criteria.** Any one of these flips the hypothesis at
+end of closed beta:
+1. **ICP fit fails.** Fewer than 2 of 5 beta orgs match the ICP
+   definition despite recruiting effort. (The pain isn't where we
+   said it was.)
+2. **Value rejection.** Orgs love the product but rate willingness-to-
+   pay below $X per seat per month (target $X to be set during
+   recruiting, per OQ-010). (The value cap is wrong; needs different
+   positioning or pricing model.)
+3. **Function mismatch.** Orgs engage but the most-used surfaces are
+   non-engineering (e.g., they ask for sales-pipeline or marketing-
+   operations views, not architecture reviews). (The function is
+   wrong, even if the company size is right.)
+4. **Buyer mismatch.** Engineering leaders see the value but the
+   actual buying authority sits with COO/CFO/IT. (The sales motion is
+   harder than projected.)
+
+**Plan-B candidates** (pre-named, not pre-ranked):
+- Consulting firms (architecture and transformation practices) buying
+  per-client
+- Internal EA teams at large enterprises (above 500 engineers) —
+  slower sales, larger contracts
+- Engineering operations / DevEx teams at adjacent sizing
+- Cross-functional ops at PE-backed rollups (high coordination tax by
+  construction)
+
+**Decision artifact.** At end of closed beta, the dogfooding operator
+publishes a wedge decision memo (committed in this repo at
+`docs/decisions/`) referencing the falsification evidence, naming the
+chosen wedge, and explaining what shifted.
+
 ### 9.7 Open Questions
-<!-- TBD -->
+
+- **OQ-003** Does the commercial-wedge hypothesis (Series B–D
+  engineering leadership) survive closed-beta evidence?
+- **OQ-004** Is the author's day-to-day actually representative
+  enough of the broader market to validate the platform thesis?
+- **OQ-005** How long does the "validate, don't sell" stance hold
+  before commercial pressure forces a wedge choice?
 
 ## 10. Phased Build Plan
 <!-- TBD: four phases -->
