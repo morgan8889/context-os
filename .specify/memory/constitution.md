@@ -1,11 +1,15 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: TEMPLATE (uninitialized) → 1.0.0
-Rationale: Initial ratification. Establishes the first governed version of
-the constitution from the placeholder template.
+Version change: 1.0.0 → 1.1.0
+Rationale: MINOR bump. Relaxes the Architectural Constraint mandating
+polyglot physical persistence to allow a single-store option
+(PostgreSQL + pgvector + Apache AGE) for MVP, with explicit sunset
+triggers. This is a relaxation of an existing constraint, not removal of
+a principle or governance rule. Driven by the solo + AI-assisted MVP
+build model documented in docs/plans/2026-05-17-prd-enrichment-design.md.
 
-Principles defined (7):
+Principles (unchanged, 7):
   I.   Intent Over Tasks
   II.  Persistent Semantic Memory (NON-NEGOTIABLE)
   III. Human Governance, AI Execution (NON-NEGOTIABLE)
@@ -14,27 +18,32 @@ Principles defined (7):
   VI.  Observable Autonomy (NON-NEGOTIABLE)
   VII. Domain-Adapter Extensibility
 
-Sections defined:
-  - Core Principles
-  - Architectural Constraints
+Modified sections:
+  - Architectural Constraints — first bullet ("Polyglot persistence is
+    required") replaced with a logical-vs-physical formulation plus
+    sunset triggers.
+
+Unchanged sections:
+  - Core Principles (all seven)
   - Development Workflow & Quality Gates
   - Governance
 
 Templates status:
-  ✅ .specify/templates/plan-template.md      — Constitution Check gate is
-       principle-agnostic; pulls from this file at plan-time. No edits needed.
-  ✅ .specify/templates/spec-template.md      — No principle-name references;
-       compatible as-is.
-  ✅ .specify/templates/tasks-template.md     — No principle-name references;
-       task categorization remains compatible.
-  ✅ .specify/templates/checklist-template.md — Generic; no edits required.
-  ⚠ .specify/templates/commands/*.md          — Pending review; verify no
-       outdated principle references when commands are next exercised.
-  ⚠ README.md / docs/quickstart.md            — Not yet present in repo; will
-       be authored against this constitution.
+  ✅ .specify/templates/plan-template.md      — Constitution Check gate
+       principle-agnostic; no edits needed.
+  ✅ .specify/templates/spec-template.md      — Compatible.
+  ✅ .specify/templates/tasks-template.md     — Compatible.
+  ✅ .specify/templates/checklist-template.md — Compatible.
+  ⚠ .specify/templates/commands/*.md          — Pending review at next use.
+  ⚠ README.md / docs/quickstart.md            — Not yet present in repo.
+
+Prior-version note:
+  Initial ratification 2026-05-17 at v1.0.0 (constitution from template).
+  v1.1.0 amended same day during PRD enrichment brainstorming session;
+  no policy in force between versions required a migration plan.
 
 Deferred items:
-  - None. RATIFICATION_DATE set to first authoring date.
+  - None. RATIFICATION_DATE remains 2026-05-17 (immutable).
 -->
 
 # Context-OS Constitution
@@ -148,11 +157,25 @@ the system in its seed domain.
 
 The following constraints are binding on all implementation work:
 
-- **Polyglot persistence is required**. Structured operational data lives in
-  a relational store (PostgreSQL); the organizational memory graph lives in a
-  graph store (Neo4j or TypeDB); semantic retrieval lives in a vector store
-  (pgvector, Qdrant, or Weaviate). No single store MAY be load-bearing for
-  all three roles.
+- **Logically polyglot persistence is required; physical polyglotism is
+  optional below sunset triggers.** The three persistence roles — structured
+  operational data, organizational memory graph, and semantic retrieval —
+  MUST remain logically distinct (separate schemas, separate query paths,
+  separate access modules). They MAY be served by a single physical store
+  during MVP if that store provides first-class capability for each role.
+  PostgreSQL with `pgvector` (vector role) and Apache AGE (graph role) is
+  the sanctioned single-store option. Each role MUST be addressable through
+  its own module so that splitting to dedicated stores later is a deployment
+  change, not a rewrite. **Sunset triggers** that REQUIRE splitting at least
+  one role onto a dedicated store: (a) graph query p95 latency exceeds 500ms
+  on representative production workloads despite tuning; (b) vector
+  retrieval recall@k falls below 70% on the canonical eval set; (c) the
+  organizational memory graph exceeds ~5M nodes or ~25M edges in a single
+  tenant; (d) any of pgvector or AGE proves unmaintained or incompatible
+  with a required Postgres version upgrade. When a trigger fires, the role
+  involved MUST migrate to a dedicated store (Neo4j/TypeDB for graph,
+  Qdrant/Weaviate for vector) before the next non-trivial feature ships
+  against the affected surface.
 - **Workflow orchestration MUST be durable**. Long-running AI and human
   workflows MUST survive process restarts and partial failures via a durable
   orchestrator (e.g., Temporal, LangGraph). Ad-hoc in-memory orchestration
@@ -220,4 +243,4 @@ agent system prompts), this constitution wins.
 - Runtime agent and workflow behavior MUST be re-evaluated against this
   constitution whenever a NON-NEGOTIABLE principle is amended.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-17 | **Last Amended**: 2026-05-17
+**Version**: 1.1.0 | **Ratified**: 2026-05-17 | **Last Amended**: 2026-05-17
