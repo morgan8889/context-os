@@ -1843,4 +1843,38 @@ from named references (Linear, Vercel) at design review. Very-good =
 defensible against alternatives but not the demo moment. See §6.3.
 
 ## 13. Open Questions Index
-<!-- TBD: aggregated from all section-level Open Questions -->
+
+Every section-level Open Question, aggregated. All entries are open as
+of this draft. When an OQ resolves, the resolution is recorded in
+`docs/decisions/` and the entry here is updated.
+
+| OQ     | Question                                                                                          | Section | Status |
+|--------|---------------------------------------------------------------------------------------------------|---------|--------|
+| OQ-001 | Does Postgres + AGE handle our graph query patterns at org-scale, or migrate to Neo4j post-beta?  | §6.7    | Open   |
+| OQ-002 | Sigma sufficient at >50k nodes on Initiative Galaxy, or license Cosmograph for that view?         | §6.7    | Open   |
+| OQ-003 | Does the commercial-wedge hypothesis (Series B–D engineering leadership) survive closed-beta evidence? | §9.7 | Open   |
+| OQ-004 | Is the author's day-to-day representative enough of the broader market to validate the platform thesis? | §9.7 | Open |
+| OQ-005 | How long does the "validate, don't sell" stance hold before commercial pressure forces a wedge call? | §9.7 | Open |
+| OQ-006 | Do LLM design agents reach the world-class bar on Initiative Galaxy unaided, or is a contract designer required? | §8.7 | Open |
+| OQ-007 | Does the 2-agent MVP carry the demo, or is a third agent required for closed-beta credibility?    | §7.4    | Open   |
+| OQ-008 | Normalize ingestion to the ontology at ingest time, or store raw and project at query time?       | §6.7    | Open   |
+| OQ-009 | Is "very good" Workflow Topology + Decision Graph defensible vs Linear/Notion, or do we promote one to world-class? | §8.7 | Open |
+| OQ-010 | Pricing model and target price per seat (required for §9.6 falsification criterion 2)             | §8.7    | Open   |
+| OQ-011 | Is the 0–5 autonomy ladder granular enough, or do we need sub-levels?                             | §3.4    | Open   |
+| OQ-012 | Can a single workflow span multiple autonomy levels, or must each step declare its own discretely? | §3.4   | Open   |
+| OQ-013 | Should "Context" be a primitive or an attribute of other primitives?                              | §3.4    | Open   |
+| OQ-014 | Is the Domain Practitioner persona an MVP target or post-beta?                                    | §4.4    | Open   |
+| OQ-015 | Does the Platform Operator persona persist past MVP, or get absorbed into Strategic Operator?     | §4.4    | Open   |
+| OQ-016 | What additional personas may surface in closed beta (e.g., "Reviewer-Only" stakeholders)?         | §4.4    | Open   |
+| OQ-017 | Should the Cognitive Load Engine be a peer engine or a presentation layer over others?            | §5.8    | Open   |
+| OQ-018 | Does the Visualization Layer warrant its own engine, or should view-state live with each engine?  | §5.8    | Open   |
+| OQ-019 | G6 (AntV) prototype spike — does its built-in behavior surface flip the topology library decision? | §6.7   | Open   |
+| OQ-020 | Final managed-OTEL-collector vendor pick (Grafana Cloud, Honeycomb, Tempo self-hosted)             | §6.7    | Open   |
+| OQ-021 | Should one agent participate at different autonomy levels in different workflows, or mint workflow-specific agent identities? | §7.4 | Open |
+| OQ-022 | How are agent tool permissions versioned and reviewed when they expand?                            | §7.4    | Open   |
+
+**Resolution discipline.** When an OQ resolves:
+1. Write a decision memo under `docs/decisions/OQ-NNN-<slug>.md`
+2. Update the relevant section in this PRD to reflect the resolution
+3. Mark the OQ here as `Resolved (→ link to memo)`
+4. Update the `Last updated` date in the PRD header
