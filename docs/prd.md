@@ -61,12 +61,105 @@ as a commercial commitment. The commercial wedge is a hypothesis (see
 §9.6) to be falsified or confirmed against closed-beta evidence.
 
 ## 2. Vision & Thesis
+
 ### 2.1 What this replaces
-<!-- TBD -->
+
+Conventional operational tooling was built around five failure modes the
+platform exists to retire.
+
+**Manual coordination** — status meetings whose purpose is to extract what
+Jira and Slack already contain, weekly executive briefings that take an
+afternoon to write by hand, follow-up loops on decisions that nobody can
+find in writing. The coordination tax compounds with org size and pulls
+operators away from judgment work into clerical work.
+
+**Static records** — Jira tickets, Confluence pages, Notion docs, ADR
+markdown. Each is correct on the day it was written and decays from then
+on. Nothing in the tooling notices when a ticket's stated dependency no
+longer matches the code, when an ADR contradicts a newer one, or when a
+roadmap commitment is invalidated by a staffing change three teams over.
+
+**Siloed systems** — engineering work in Jira, code in GitHub, decisions
+in Confluence, conversations in Slack, calendars elsewhere. No single
+surface reflects organizational state; humans become the integration
+layer, paying the cost in attention.
+
+**Fragmented human memory** — architecture decisions that nobody re-reads,
+the rationale for an old "we picked Postgres because X" lost when the
+person who picked it leaves, the same conflict surfacing every quarter
+because nobody remembers it was already resolved.
+
+**Explicit, brittle workflows** — pre-defined approval chains, hand-rolled
+routing rules, ticket templates that don't adapt to context. Every
+process exception becomes a coordination ticket of its own.
+
+The platform's premise is that these are not separate problems. They are
+the same problem — the absence of a persistent, semantically-aware,
+agent-native operational layer — and they will not be solved by adding
+more dashboards or another ticket type to the existing tools.
+
 ### 2.2 Why AI-native, why now
-<!-- TBD -->
+
+**AI-native** means designed *around* AI as the operational layer, not
+*with* AI features bolted onto a record-keeping system. The distinction
+is structural. An AI-native platform routes work to agents and humans
+under explicit autonomy controls, holds context in a form agents can
+reason over directly, and treats AI output as governed state rather than
+suggestion text in a panel.
+
+Three capability shifts make this newly viable. **Persistent semantic
+context** — vector retrieval combined with structured graph state lets
+agents recover the relevant slice of organizational history for any
+query, where two years ago context was lost between sessions. **Dynamic
+workflow orchestration** — agent frameworks (LangGraph, Temporal-style
+durable workflows, tool-use protocols) make long-running multi-step AI
+behavior reliable enough to put in production paths. **Continuous
+reasoning over organizational state** — modern LLM agents can synthesize,
+compare, and propose against tens of thousands of tokens of operational
+context per call, with cost curves that make weekly briefings and daily
+risk scans economically routine.
+
+The moment is now and not earlier because reliable agentic execution is
+new — twelve months ago, agents hallucinated tools and lost state across
+turns; today, properly evaluated agents complete multi-step operational
+tasks at quality that survives external review. The moment is now and
+not later because category-defining platforms get built in the eighteen
+months after a capability becomes reliable, before incumbents retrofit.
+
+What the platform does **not** claim: it is not AGI, it does not propose
+autonomy without governance, and it does not replace judgment. Every
+agent operates under a declared autonomy level (Constitution Principle
+III); every consequence-bearing action is reversible, auditable, or
+human-gated.
+
 ### 2.3 What "operational cognition" means concretely
-<!-- TBD -->
+
+Operational cognition is the capacity to perceive, reason about, and act
+on the state of an operating organization with the same fluency a senior
+operator brings to a domain they know cold. It is the opposite of
+reading reports.
+
+Three concrete moments show what this looks like in use. **Pre-meeting
+briefing** — five minutes before a leadership review, the platform
+surfaces the three risks that have moved since last week, the two
+decisions waiting on the operator, and the one dependency that just
+became newly load-bearing. The operator walks in with context, not
+homework. **Dependency discovery before the blocker** — a roadmap change
+on team A triggers an agent's pass over the dependency graph; team C's
+Q3 commitment is now at risk because of a contract they didn't know
+existed, and they hear about it the same day, not in week 8. **ADR
+retrieval grounded in current state** — an architect raising a proposal
+sees, surfaced next to the design doc, the three prior ADRs that
+constrain or contradict the proposal, with their rationale and the
+people who made them — without searching, without hoping.
+
+Operational cognition is distinct from dashboards in three ways: it is
+*push* not pull (the platform brings the relevant slice to the operator,
+not the operator to a query interface); it is *living* not static (state
+updates continuously, not on refresh); and it is *reasoning* not record
+(the surface presents conclusions and proposals, not raw rows). This is
+the rationale behind Constitution Principle IV (Visualization as
+Cognition) and the topology-first interface commitments in §6.3.
 
 ## 3. Conceptual Model
 ### 3.1 Universal cognitive primitives
