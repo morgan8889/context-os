@@ -21,11 +21,12 @@ governance, or telemetry — re-read the relevant principle:
   in the memory graph; no transient state is authoritative.
 - **III. Human Governance, AI Execution** — every AI action declares an
   explicit autonomy level (0–5); ≤3 must be reversible/auditable/gated; 4–5
-  must publish escalation criteria.
+  must publish escalation criteria and remain interruptible at any time.
 - **V. Evaluation-First** — agents and workflows ship with eval suites before
   any non-dev deployment.
 - **VI. Observable Autonomy** — every action emits OTEL-compatible traces
-  with autonomy level, inputs, outputs, rationale, cost, governance markers.
+  with agent identity, autonomy level, inputs, outputs, rationale, latency,
+  cost, and governance markers.
 
 ## Workflow
 
