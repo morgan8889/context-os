@@ -572,20 +572,238 @@ allow inline editing of graph state.
   should view-state live with the engines whose data it renders?
 
 ## 6. Platform Architecture
+
+This section commits to decisions. Where the source PRD listed
+candidates, this section names a single pick per layer with a "When
+we'd revisit" trigger. Decisions are biased by three constraints: solo
+build, advanced-LLM coding and design leverage, and closed-beta as the
+MVP bar (§8.1).
+
 ### 6.1 Stack decisions
-<!-- TBD -->
+
+| Layer                | Decided                                          |
+|----------------------|--------------------------------------------------|
+| Frontend framework   | Next.js (App Router) + Zustand                   |
+| Topology viz (large) | Sigma + Graphology + forceatlas2-worker          |
+| Topology viz (hierarchical) | dagre layout via Graphology              |
+| Topology viz (structured)   | React Flow with custom node/edge components |
+| Charts / overlays    | Apache ECharts primary, Visx for bespoke         |
+| Canvas (deferred)    | TLDraw — only if a workflow demands it           |
+| 3D (deferred)        | react-three-fiber + drei — post-MVP              |
+| Motion (everyday)    | Framer Motion                                    |
+| Motion (set-piece)   | GSAP                                             |
+| Design system        | Radix UI + Tailwind + custom motion/color tokens |
+| Backend              | Python + FastAPI                                 |
+| Data layer           | PostgreSQL + pgvector + Apache AGE (single store) |
+| Workflow orchestration | LangGraph (agents) + Postgres-backed queue (durable workflows) |
+| Agent runtime        | Claude API primary, OpenAI API fallback          |
+| Observability (LLM)  | Langfuse                                         |
+| Observability (app)  | OpenTelemetry → managed collector                |
+| Auth + multi-tenant  | Clerk                                            |
+| Deploy (backend)     | Fly.io or Railway                                |
+| Deploy (frontend)    | Vercel                                           |
+
+Per-pick rationale (Decided / Why / When we'd revisit) for the most
+load-bearing choices follows in §6.2–§6.6.
+
 ### 6.2 Data layer topology
-<!-- TBD -->
+
+**Decided.** PostgreSQL as the single physical store, extended with
+`pgvector` (semantic retrieval) and Apache AGE (graph queries). Three
+logical roles — relational, graph, vector — addressed through separate
+schemas and separate access modules. Splitting to dedicated stores is a
+deployment change, not a rewrite.
+
+**Why over alternatives.** Solo build cannot operate Postgres + Neo4j +
+Qdrant at closed-beta quality. The most defensible architectural move
+is to consolidate the persistence surface and pay the polyglot tax
+*if* and *when* sunset triggers fire — not before. The constitution
+was amended to v1.1.0 to permit this; see Architectural Constraints,
+first bullet.
+
+**When we'd revisit (per constitution sunset triggers).**
+- Graph query p95 > 500ms on representative workloads despite tuning
+- Vector recall@k < 70% on the canonical eval set
+- Single-tenant graph exceeds ~5M nodes or ~25M edges
+- `pgvector` or AGE proves unmaintained or blocks a Postgres upgrade
+
+When a trigger fires, the affected role migrates to a dedicated store
+(Neo4j or TypeDB for graph; Qdrant or Weaviate for vector) before the
+next non-trivial feature ships against that surface.
+
+**Module shape.** Three Python modules — `memory.relational`,
+`memory.graph`, `memory.vector` — each exposing a query interface
+independent of underlying engine. Adapters live behind these
+interfaces.
+
+**Open Question OQ-008**: normalize ingestion to the ontology at ingest
+time vs. store raw vendor payloads and project at query time. Current
+design: normalize at ingest (constitutional Architectural Constraint
+on integration ingestion). Raw payloads retained as `Artifact` records
+for audit; queries hit normalized state.
+
 ### 6.3 Visualization architecture
-<!-- TBD -->
+
+The Visualization Layer is the single most distinguishing surface of
+the platform (Constitution Principle IV; product principle
+Visualization as Cognition). Architecturally it is also the highest-
+risk surface for a solo build. This subsection details the strategy.
+
+**Substrate model: M1 (one library per view type).** Three substrate
+models were considered:
+- M1: best-in-class library per view type, unified by a shared design system
+- M2: one unified WebGL substrate (react-three-fiber or PixiJS) under all views
+- M3: canvas-first (TLDraw-style infinite canvas) as the primary paradigm
+
+M1 was picked. M2 would consume the entire solo MVP budget on
+foundation work before any feature shipped. M3 fits ops cognition
+poorly because analytical overlays require first-class chart and
+table affordances M3 fights. M1 trades unified rendering for unified
+*design language* — coherence achieved through tokens and motion
+discipline, not engine.
+
+**Per view type:**
+
+| View type                          | Substrate                              | Rationale |
+|------------------------------------|----------------------------------------|-----------|
+| Initiative Galaxy (large, force)   | Sigma + Graphology + forceatlas2-worker | Layout polymorphism, MIT, strong AI training corpus, customization ceiling |
+| Workflow Topology (structured)     | React Flow + custom nodes              | Best DX for declarative graphs; status/ownership rendering is native |
+| Decision Graph (hierarchical/temporal) | dagre via Graphology, rendered with Sigma or React Flow | Decisions have predecessors and alternatives — dagre fits |
+| Analytical overlays (charts)       | Apache ECharts                         | World-class chart variety, dark-mode native, GPU options |
+| 3D / spatial (deferred)            | react-three-fiber + drei               | Real 3D ops UX rarely beats 2D + depth cues — defer |
+| Free-form canvas (deferred)        | TLDraw                                 | Adds a paradigm users must learn; defer until needed |
+
+**Design system commitments.** A "world-class" claim is checkable. The
+platform commits to:
+- **Type**: variable-font hierarchy (Inter Variable or Geist); tabular
+  numerics; explicit scale 12 / 13 / 14 / 16 / 20 / 24 / 32 / 48
+- **Color**: dark-first; semantic palette for severity, autonomy,
+  status, ownership; WCAG AA contrast; OKLCH-based scales
+- **Component primitives**: Radix UI + Tailwind + thin custom layer
+  (the Linear / Vercel playbook). No generic component kits.
+- **Iconography**: Lucide as base + custom set for primitives (Goal,
+  Autonomy, Risk, Signal)
+- **Motion tokens**: duration scale, easing curves, choreography rules
+  ("topology pans before overlays fade")
+- **Density modes**: comfortable / dense / focus, explicitly switchable
+- **Accessibility**: keyboard-first graph navigation; screen-reader
+  narration of topology state
+
+**Design references (named, to resist generic LLM defaults):**
+- Motion / restraint / density: **Linear**
+- Typography / dark-first: **Vercel**, **Arc**
+- Large-graph rendering aesthetic: **Cosmograph demos**, **Kumu**, **GitHub Next**
+- Canvas interaction: **Figma**, **TLDraw**
+- Analytical overlays: **Observable**, **nivo**
+
+**Visualization tiering rule.** MVP ships **one world-class surface**
+(Initiative Galaxy) plus **two "very good" surfaces** (Workflow
+Topology, Decision Graph). "Very good" means feature-complete,
+defensible against Linear and Notion, no compromises on data fidelity
+— but not the demo-moment surface that carries the product story.
+World-class means: side-by-side with the named references at internal
+design review, no one can tell which is production; demo-able for 60
+seconds with zero narration.
+
+**Sigma vs Cosmograph trade-off.** Cosmograph (GPU-accelerated, force-
+only, polished out of the box) is the most natural Initiative Galaxy
+choice. Sigma + Graphology (more code, more customization, MIT, large
+training corpus) was picked instead. Four trade-offs decide it:
+- **Layout polymorphism**: Cosmograph does only force-directed; our
+  view set includes hierarchical (Decision Graph) and structured
+  (Workflow Topology) — one library cannot serve all
+- **License**: Cosmograph requires a commercial license for closed-
+  beta SaaS; Sigma is MIT
+- **Customization ceiling for "interaction and detail"**: Sigma allows
+  custom node "programs" (shaders), lasso, marquee, edge bundling;
+  Cosmograph styling is prop-driven only
+- **AI-agent ergonomics**: Sigma has a large training corpus; LLM
+  agents complete Sigma tasks more reliably
+
+**G6 (AntV)** is documented as a half-day prototype spike before final
+commit. If its built-in behaviors (lasso, minimap, edge bundling,
+hierarchical layouts) save weeks of custom work, the decision may flip
+to G6. **Cosmograph** remains on the table as a deferred upgrade
+specifically for Initiative Galaxy if Sigma's force layout does not
+sing at target scale (>50k nodes); documented as a Phase 3 spike (§10).
+
 ### 6.4 Agent runtime
-<!-- TBD -->
+
+**Decided.** Claude API as primary; OpenAI API as fallback for failover
+and comparison evals. Single primary keeps the eval surface manageable
+(Constitution Principle V).
+
+**Why over alternatives.** Multi-provider in primary path doubles
+prompt engineering, eval suite size, and tool-use compatibility work.
+A single primary with a tested fallback gives operational resilience
+without doubling cost.
+
+**When we'd revisit.** Provider failure on a critical capability that
+the fallback handles meaningfully better; a third provider releases a
+capability we cannot match through the primary.
+
 ### 6.5 Workflow orchestration
-<!-- TBD -->
+
+**Decided.** **LangGraph** for agent orchestration (stateful,
+programmable graphs of agent + tool calls). **Postgres-backed queue**
+for durable workflow execution (delayed retries, schedule, exactly-
+once semantics).
+
+**Why over alternatives.** Temporal is the correct long-term choice
+for durable workflows but is ops-heavy for solo MVP. n8n / OpenClaw /
+CrewAI overlap with LangGraph for our use case; LangGraph wins on
+programmability and state inspection. A Postgres queue (Apache
+`pgmq`-style) is sufficient at MVP scale and aligns with the single-
+store data decision (§6.2).
+
+**When we'd revisit.** Workflow durability needs exceed what Postgres
+queue + LangGraph can offer reliably (sub-second retry-budget
+guarantees, cross-region replication, complex saga patterns). Trigger:
+operational pain at closed beta or evidence of message loss.
+
+**Constitutional requirement honored.** Workflows must be durable
+across process restarts (Architectural Constraint). Postgres-backed
+queue satisfies this.
+
 ### 6.6 Observability
-<!-- TBD -->
+
+**Decided.**
+- **Langfuse** for LLM-specific traces (prompts, tool calls, retrieval,
+  agent decisions, cost, latency, eval results)
+- **OpenTelemetry** for application traces (HTTP, DB, queue) → managed
+  collector (Grafana Cloud, Honeycomb, or similar — final choice
+  deferred to Phase 4)
+- **Postgres** for structured action logs and audit trails
+
+**Why.** Constitutional Principle VI (Observable Autonomy) requires
+that every agent action emit structured traces with: agent identity,
+autonomy level, inputs, outputs, rationale, latency, cost, and
+governance markers. Langfuse covers the LLM-specific fields; OTEL
+covers everything else. Operators must reconstruct any AI-driven
+outcome from telemetry alone.
+
+**When we'd revisit.** If trace volume exceeds Langfuse's
+self-hosted tier capacity, evaluate Phoenix (Arize) or roll a Postgres-
+backed trace store ourselves.
+
+**Architectural Constraint honored.** Telemetry stack is OTEL-
+compatible. Agent-specific telemetry (Langfuse) is in addition to, not
+in place of, OTEL.
+
 ### 6.7 Open Questions
-<!-- TBD -->
+
+- **OQ-001** Does Postgres + AGE handle our graph query patterns at
+  org-scale, or do we migrate to Neo4j post-beta?
+- **OQ-002** Sigma sufficient at >50k nodes on Initiative Galaxy, or
+  license Cosmograph for that view specifically?
+- **OQ-008** Normalize ingestion to the ontology at ingest time vs.
+  store raw vendor schemas and project at query time. Current
+  default: normalize at ingest, retain raw as `Artifact`. Confirm
+  during Phase 1.
+- **OQ-019** G6 (AntV) prototype spike outcome — does its built-in
+  behavior surface flip the topology library decision?
+- **OQ-020** Final managed-OTEL-collector vendor pick (Grafana Cloud,
+  Honeycomb, Tempo self-hosted) deferred to Phase 4.
 
 ## 7. AI-Native Workflow Model
 ### 7.1 Generic workflow contract
