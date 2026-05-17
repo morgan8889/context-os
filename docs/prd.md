@@ -806,14 +806,225 @@ in place of, OTEL.
   Honeycomb, Tempo self-hosted) deferred to Phase 4.
 
 ## 7. AI-Native Workflow Model
+
 ### 7.1 Generic workflow contract
-<!-- TBD -->
+
+Every workflow shipped on the platform must declare seven elements
+before it is enabled in any environment beyond development
+(Constitution Principle V). The contract is uniform; specializations
+live inside the fields, not in the structure.
+
+**1. Inputs.** Typed list of signals, artifacts, and graph entities the
+workflow consumes. Each input declares its source (ingestion adapter
+or graph query) and any required freshness window.
+
+**2. Outputs.** Typed list of artifacts produced and graph mutations
+performed. Each output declares its target persistence path and any
+downstream workflows it triggers.
+
+**3. Agents.** The set of AI and human agents that participate, with
+each agent's declared autonomy level for this workflow (§3.3). One
+agent may participate at different levels in different workflows.
+
+**4. Human gates.** Where in the step sequence humans must approve,
+review, or be notified. Maps to the autonomy ladder — a level-2 step
+needs an approval gate; a level-3 step needs a post-execution review
+surface; a level-4 step needs an escalation rule.
+
+**5. Evaluation criteria.** Metrics that judge whether the workflow
+produces good output. Must be measurable, with a baseline established
+during Phase 2. Eval suites cover representative inputs, golden
+outputs, failure modes, and governance-relevant edge cases. The
+workflow may not be promoted past development without its eval suite
+passing.
+
+**6. Failure modes.** Named, with detection and recovery rules. At
+minimum: hallucinated content, stale inputs, missed escalations,
+agent-tool errors, partial completion across retries.
+
+**7. Telemetry surface.** Every step emits a structured trace
+conforming to the platform schema (Constitution Principle VI). The
+contract specifies any workflow-specific fields beyond the standard
+set (agent identity, autonomy level, inputs, outputs, rationale,
+latency, cost, governance markers).
+
 ### 7.2 Three canonical workflows
-<!-- TBD -->
+
+#### 7.2.1 Executive Briefing (MVP)
+
+**Inputs.** Jira issue activity (last 7 days), GitHub PR + commit
+activity (last 7 days), Slack thread activity in designated channels
+(last 7 days), prior Briefing artifact (most recent), open Decisions
+awaiting operator action, recent Risks, current Initiative state.
+
+**Outputs.** Markdown briefing (sections: progress, risks, decisions
+awaiting you, dependencies that moved, escalations), `Artifact`
+record in graph, optional Slack-or-email delivery. Side-effect:
+flagged risks become `Risk` graph entries; flagged dependencies update
+the dependency edges.
+
+**Agents.** **Operational Synthesizer** (autonomy level 2: drafts,
+operator approves). **Dependency Mapper** (level 1: surfaces, doesn't
+modify graph without operator action).
+
+**Human gates.** Operator approves the briefing draft before delivery.
+Operator confirms any new Risk entries before they become graph state.
+
+**Evaluation criteria.**
+- Briefing accept-as-is rate ≥ 40% (edited rate < 60%)
+- Manual-edit distance from LLM output to final, median < 25% token churn
+- False-positive risk rate < 20% (operator overrides risk flag)
+- Median draft-to-approval latency < 5 minutes operator time
+
+**Failure modes.**
+- Hallucinated stakeholders (someone named who doesn't exist) →
+  detected by name-lookup against `Agent` table
+- Stale dependency claims (relationship since severed) → detected by
+  freshness check on `Dependency` edges
+- Missed escalations (risk crossing threshold not flagged) → detected
+  by counterfactual eval on known-escalation cases
+- Citation errors (claim attributed to wrong artifact) → detected by
+  retrieval-source consistency check
+
+**Telemetry surface.** Standard schema + briefing-specific fields:
+input-signal count per source, retrieval hit-rate, agent token cost
+total, edit distance post-approval, downstream-action count.
+
+#### 7.2.2 Architecture Review (post-beta)
+
+**Inputs.** Design document (markdown or PDF), Jira epic, system
+diagram, ADR history relevant to impacted systems, current
+architecture standards, security requirements, dependency change list.
+
+**Outputs.** Impacted-system map (graph fragment), drift assessment
+against standards, conflict report against prior ADRs, draft
+recommendations, risk assessment, `Decision` candidate (pending
+human ratification).
+
+**Agents.** **Architecture Analyst** (level 2: drafts, architect
+approves). **Dependency Mapper** (level 1).
+
+**Human gates.** Architect ratifies impacted-system map. Architecture
+review board approves final `Decision`. AI-drafted recommendations are
+suggestions; humans own the call.
+
+**Evaluation criteria.**
+- Architect-team accept rate of impacted-system map ≥ 70%
+- Conflicts caught vs. missed (against human-only baseline) — at
+  least parity by week 6 of run-in; improvement target ≥ 25% post-beta
+- Standards-drift detection precision ≥ 70%, recall ≥ 50%
+- Time-to-first-draft < 10 minutes from doc submission
+
+**Failure modes.**
+- Wrong system identified as impacted → detected by reviewer feedback
+- Conflict missed against existing ADR → detected by post-decision audit
+- Spurious conflict raised against superseded ADR → detected by ADR
+  status check
+- Standards comparison against wrong version of the standard
+
+**Telemetry surface.** Standard schema + review-specific fields:
+retrieved-ADR count and similarity scores, standards-version
+references, reviewer agreement deltas, decision outcome.
+
+#### 7.2.3 Portfolio Dependency Intelligence (post-beta)
+
+**Inputs.** Full Initiative graph, current Roadmap state, recent
+Decisions affecting initiatives, staffing changes, all Dependency
+edges with timestamps.
+
+**Outputs.** Hidden-dependency report (newly inferred edges),
+cascading-delay forecast, overlapping-initiative warnings, ownership
+ambiguity flags, delivery risk propagation visualization.
+
+**Agents.** **Dependency Mapper** (level 2: proposes new graph edges
+for review). **Operational Synthesizer** (level 1: surfaces the
+report).
+
+**Human gates.** Operator reviews proposed new dependency edges before
+they enter the canonical graph. Operator confirms overlapping-initiative
+warnings before they become tracked Risks.
+
+**Evaluation criteria.**
+- Dependency detection precision ≥ 70%, recall ≥ 50% on held-out set
+- Cascade prediction usefulness rated ≥ 3/5 by operator weekly
+- Ownership ambiguity flag rate calibrated such that ≥ 60% of flags
+  result in operator action
+
+**Failure modes.** Spurious dependency inference; missed cascading
+delays; over-flagging ownership ambiguity to noise level.
+
+**Telemetry surface.** Standard schema + portfolio-specific fields:
+graph-walk depth, inference confidence scores, prediction-vs-outcome
+deltas (tracked over rolling windows).
+
 ### 7.3 Agent role definitions
-<!-- TBD -->
+
+**MVP agents (2):**
+
+#### Operational Synthesizer (MVP)
+- **Responsibilities.** Generate briefings, summarize operational
+  state, synthesize across signal sources, draft decision proposals.
+- **Default autonomy level.** 2 (drafts, human approves).
+- **Tool permissions.** Read: all graph entities, retrieval indices.
+  Write: `Artifact` records (drafts), proposed `Decision` and `Risk`
+  entries (pending approval). No external system writes without an
+  approval gate.
+- **Source workflows.** Executive Briefing (7.2.1), Portfolio
+  Dependency Intelligence (7.2.3).
+- **Evaluation criteria.** Inherits per-workflow eval criteria; plus
+  cross-workflow consistency check (does the same fact surface
+  identically across briefings and dependency reports?).
+
+#### Dependency Mapper (MVP)
+- **Responsibilities.** Discover dependencies between initiatives,
+  systems, and decisions; predict delivery impacts; map organizational
+  coupling.
+- **Default autonomy level.** 1 (surfaces, does not modify graph).
+  Escalates to level 2 within Portfolio Dependency Intelligence
+  workflow where graph mutation is the purpose.
+- **Tool permissions.** Read: graph (all), telemetry (latency, flow
+  health). Write: proposed `Dependency` edges (pending approval).
+- **Source workflows.** Executive Briefing, Portfolio Dependency
+  Intelligence, Architecture Review (when shipped).
+- **Evaluation criteria.** Dependency precision/recall on held-out
+  set; false-positive cost (operator-rejection rate).
+
+**Post-beta agents (2):**
+
+#### Architecture Analyst (post-beta)
+- **Responsibilities.** Review design proposals, identify conflicts
+  with prior ADRs and standards, detect architecture drift, suggest
+  alignment.
+- **Default autonomy level.** 2 (drafts, architect approves).
+- **Tool permissions.** Read: ADR history, standards documents,
+  architecture topology. Write: `Decision` candidates (pending).
+- **Source workflows.** Architecture Review (7.2.2).
+- **Evaluation criteria.** Per Architecture Review workflow.
+
+#### Governance Coordinator (post-beta)
+- **Responsibilities.** Route approvals, monitor workflows, escalate
+  blocked items, coordinate architecture reviews.
+- **Default autonomy level.** 3 (executes routing with post-action
+  review).
+- **Tool permissions.** Read: workflow state, agent registry. Write:
+  routing actions, notifications, escalation triggers.
+- **Source workflows.** Architecture Review; cross-cutting governance
+  for all workflows post-beta.
+- **Evaluation criteria.** Routing accuracy, escalation timing,
+  operator override rate (low rate signals trust; high rate signals
+  miscalibration).
+
 ### 7.4 Open Questions
-<!-- TBD -->
+
+- **OQ-007** Does the 2-agent MVP carry the demo, or is a third agent
+  (e.g., Architecture Analyst) required for closed-beta credibility?
+- **OQ-021** Should a single agent participate at different autonomy
+  levels in different workflows, or should we mint workflow-specific
+  agent identities (e.g., `synthesizer-briefing-l2` vs
+  `synthesizer-dependency-l1`)? Current design: one agent identity,
+  per-workflow autonomy declaration.
+- **OQ-022** How are tool permissions versioned and reviewed? When
+  agent permissions expand, what is the review process?
 
 ## 8. MVP Definition
 ### 8.1 MVP success bar
