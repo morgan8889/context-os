@@ -162,14 +162,108 @@ the rationale behind Constitution Principle IV (Visualization as
 Cognition) and the topology-first interface commitments in §6.3.
 
 ## 3. Conceptual Model
+
 ### 3.1 Universal cognitive primitives
-<!-- TBD -->
+
+The platform models everything an organization does, decides, owns, and
+worries about with a small set of universal primitives. Domain-specific
+concepts — ADRs, capability maps, OKRs, sprints — are adapters onto
+these primitives, not parallel schemas (Constitution Principle VII).
+This is the move that makes one platform serve multiple domains; the
+core graph stays domain-agnostic.
+
+| Primitive    | Description                                  | MVP-relevant? |
+|--------------|----------------------------------------------|---------------|
+| Goal         | Desired outcome                              | Yes           |
+| Initiative   | Coordinated effort against one or more goals | Yes           |
+| Workflow     | Execution sequence with agents and gates     | Yes           |
+| Signal       | Incoming information or event                | Yes           |
+| Agent        | Human or AI actor                            | Yes           |
+| Artifact     | Output or generated content                  | Yes           |
+| Decision     | Choice with rationale, alternatives, consequences | Yes      |
+| Constraint   | Governance or limitation                     | Yes           |
+| Dependency   | Typed relationship between entities          | Yes           |
+| Capability   | Organizational function                      | Yes           |
+| Risk         | Predicted or active issue                    | Yes           |
+| Context      | Dynamic semantic state attached to anything  | Yes           |
+| Memory       | Persistent organizational knowledge          | Yes           |
+| Autonomy     | Declared AI authority level on a workflow    | Yes           |
+| Simulation   | Predicted future operational state           | Post-beta     |
+
+Domain mappings (Architecture Review → Workflow + Decision, ADR →
+Decision, Portfolio → Initiative grouping, etc.) are listed in §9.2.
+
 ### 3.2 Design principles
-<!-- TBD -->
+
+These are the *product* principles that guide what the platform does and
+refuses to do. They sit alongside the seven *engineering* principles in
+the constitution — the constitution governs how the system is built;
+these principles govern what it is.
+
+**Intent Over Tasks.** Goals and outcomes are first-class. Tasks are
+derived projections of intent through workflows. No orphan tasks exist
+in the graph. *Forbids*: ticket-first thinking, work items without a
+traceable parent goal.
+
+**Dynamic Context.** Context evolves continuously as signals arrive,
+workflows run, decisions land, and AI reasoning updates state. Context
+is a live attribute, not a snapshot. *Forbids*: stale-by-design
+documents, weekly refreshes as the primary update model.
+
+**Human Governance.** Humans govern autonomy levels, approval policies,
+escalation, trust boundaries, and strategic priorities. AI never
+acquires governance authority. *Forbids*: autonomy escalation without
+explicit human declaration; agents that grant themselves permissions.
+
+**AI as Operational Layer.** AI is the orchestrator, analyst,
+synthesizer, monitor, planner, and recommender — not a feature panel
+beside the real product. Workflows route to agents by default and to
+humans by exception. *Forbids*: "AI assistant" framing that treats
+agents as advisory peripherals.
+
+**Visualization as Cognition.** Primary surfaces are topology, flow
+maps, and scenario overlays — designed for spatial reasoning and
+multi-dimensional state perception. Dashboards and CRUD forms are not
+primary. *Forbids*: spreadsheet-style listings as headline interfaces;
+read-only KPI dashboards as the operator's main view.
+
+Each product principle has an engineering counterpart in the
+constitution: Intent Over Tasks ↔ Principle I; Dynamic Context ↔
+Principle II (Persistent Semantic Memory); Human Governance ↔ Principle
+III; AI as Operational Layer ↔ Principle V (Evaluation-First) and VI
+(Observable Autonomy); Visualization as Cognition ↔ Principle IV.
+
 ### 3.3 Autonomy ladder (0–5)
-<!-- TBD -->
+
+Every AI-driven action declares an autonomy level. The level determines
+who decides, who reviews, and what telemetry is required. The ladder is
+canonical — features must not invent parallel taxonomies (per
+constitutional Architectural Constraint).
+
+| Level | Name             | Example action                              | Human gate                  | Telemetry required          |
+|-------|------------------|---------------------------------------------|-----------------------------|-----------------------------|
+| 0     | Human only       | Drafting an executive memo by hand          | N/A                         | Standard app traces         |
+| 1     | AI recommendation | Surface "this might be a risk" inline      | Operator reads, ignores or acts | Recommendation rationale + retrieval |
+| 2     | AI drafts, human approves | Generate briefing for review        | Operator approves before send | Draft + edit distance      |
+| 3     | AI executes with review  | Route an approval request, post a Slack DM | Human reviews post-execution  | Action log + reversal path |
+| 4     | AI autonomous with escalation | Reassign a task, update a roadmap field | Escalation rule fires on edge cases | Action + escalation criteria + tripwire log |
+| 5     | Fully autonomous | Background monitoring jobs, scheduled syncs | None during run; periodic audit | Full trace; interruptible at any time |
+
+Constitutional commitments: levels 0–3 must be reversible, auditable, or
+human-gated (Principle III); levels 4–5 must publish escalation
+criteria and remain interruptible. **MVP uses levels 1–3 only**; level 4
+appears in post-beta for non-consequential automation; level 5 is
+reserved for ambient monitoring and is not on the MVP roadmap.
+
 ### 3.4 Open Questions
-<!-- TBD -->
+
+- **OQ-011** Is the 0–5 ladder granular enough, or do we need sub-levels
+  (e.g., 2a for AI drafts that send unless rejected within N hours)?
+- **OQ-012** Can a single workflow span multiple autonomy levels, or
+  must each step declare its own level discretely?
+- **OQ-013** Should "Context" be a primitive or an attribute of other
+  primitives? Current design treats it as a primitive because context
+  itself has provenance, ownership, and decay.
 
 ## 4. User & Operator Personas
 ### 4.1 Strategic Operator
