@@ -1027,20 +1027,315 @@ deltas (tracked over rolling windows).
   agent permissions expand, what is the review process?
 
 ## 8. MVP Definition
+
 ### 8.1 MVP success bar
-<!-- TBD -->
+
+MVP is **closed beta with three to five organizations** beyond the
+dogfooding org. "Closed beta" means: each beta org has at least one
+Strategic Operator persona using the platform weekly, with their org's
+real Jira + GitHub + Slack data flowing through ingestion, real
+briefings being generated against that data, and real Decisions being
+captured. The bar is *survives contact with outside operators* — not
+*the author thinks it's good*.
+
+The "personal daily driver" bar (one user, the author) was rejected as
+too soft: it doesn't force the multi-tenant, auth, onboarding, and
+support investments that make the product credible. The "public-facing
+showcase" bar was rejected as too hard: it requires marketing
+investment and visual polish budget incompatible with solo build. The
+"first design partner" bar (one external org) was considered and
+upgraded to 3–5 because the wedge hypothesis (§9.6) needs that many
+data points to falsify or confirm.
+
 ### 8.2 Build Model
-<!-- TBD -->
+
+The MVP is built by **one human (the author) leveraging advanced LLM
+coding agents and AI design tools across the stack**. The PRD's
+architectural choices reflect this: libraries with strong AI training
+corpora are preferred (Sigma over Cosmograph partly for this reason);
+design system tokens are iterated with AI assistance; component
+implementations are LLM-generated and human-reviewed.
+
+**The human's load-bearing contributions are: direction-setting,
+taste, evaluation design, and integration coherence.** Everything
+else is LLM leverage.
+
+This is not a stylistic note — it is the constraint that determines
+every other decision in this section. Cuts in §8.3 are sized against
+solo-with-AI throughput, not team capacity. Kill criteria (§8.6)
+include LLM-design ceiling triggers.
+
 ### 8.3 In-scope features with acceptance criteria
-<!-- TBD -->
+
+Each MVP feature is specified with four blocks: **Functional
+acceptance**, **Qualitative bar**, **Evaluation**, **Out of scope for
+MVP**. Per Constitution Principle V, evaluation criteria are
+established before the feature is enabled past development.
+
+#### 8.3.1 Organizational memory graph (substrate)
+
+**Functional acceptance.**
+- PostgreSQL + pgvector + Apache AGE deployed; all three roles
+  addressable through their module interfaces (§6.2)
+- Core primitives from §3.1 persistable with type-safe write paths
+- Graph queries: 1-hop neighbors, k-hop traversal, edge filtering by
+  type and timestamp
+- Vector retrieval: cosine similarity over `Memory` and `Artifact`
+  embeddings; top-k with score
+- Rationale field on `Decision` records is non-optional
+- Provenance captured on every write (source agent or human, timestamp,
+  upstream signal reference)
+
+**Qualitative bar.** None — substrate, not user-facing.
+
+**Evaluation.**
+- Performance benchmark suite (query latencies under realistic
+  graph sizes) committed; runs in CI
+- Schema-shape regression tests for every primitive
+
+**Out of scope for MVP.** Graph algorithms beyond traversal (PageRank,
+community detection); query-time vs. ingest-time projection toggle.
+
+#### 8.3.2 Ingestion: Jira + GitHub + Slack
+
+**Functional acceptance.**
+- OAuth flows complete for each of Jira, GitHub, Slack
+- Incremental sync (delta since last cursor) with at-least-once delivery
+- Normalization to core ontology at ingest (Architectural Constraint):
+  Jira issue → `Initiative` or `Workflow` step or `Risk` per type
+  config; GitHub PR → `Artifact` linked to Workflow; Slack thread →
+  `Signal` with provenance
+- Raw payloads retained as `Artifact` records for audit
+- Re-ingest of an item must update without duplicating
+
+**Qualitative bar.** None — backend.
+
+**Evaluation.**
+- Round-trip test per source: ingest 100 known items, verify
+  normalized graph state matches expected
+- Latency: incremental sync completes within 60s for a 7-day window
+- Failure-mode tests: vendor rate-limit, OAuth expiry, malformed payload
+
+**Out of scope for MVP.** Confluence, Drive, Calendar, custom file
+sources, real-time webhook subscriptions (poll-based sync only at
+MVP).
+
+#### 8.3.3 Two agents: Operational Synthesizer + Dependency Mapper
+
+**Functional acceptance.**
+- Both agents implemented per §7.3
+- Each agent's eval suite committed and passing on golden dataset
+- Telemetry per Constitution Principle VI (agent identity, autonomy
+  level, inputs, outputs, rationale, latency, cost, governance
+  markers)
+- Tool permission scopes enforced
+- Reversal path documented and tested for any write action
+
+**Qualitative bar.** Briefings drafted by Synthesizer are usable
+without re-writing (operator accepts as-is or with minor edits) on
+≥ 40% of runs by week 14 of Phase 2.
+
+**Evaluation.**
+- Eval suite per §7.2.1 and §7.2.3 evaluation criteria
+- Cross-workflow consistency check
+- Per-week trend on accept-as-is rate logged
+
+**Out of scope for MVP.** Architecture Analyst and Governance
+Coordinator agents.
+
+#### 8.3.4 Initiative Galaxy (world-class tier)
+
+**Functional acceptance.**
+- Renders ≥ 10k nodes and ≥ 30k edges at ≥ 30fps on M-series Mac and
+  2-year-old Windows laptop
+- Force layout converges within 5s on a full org-scale graph
+- Lasso selection on touch, mouse, and keyboard
+- Time-travel scrubber animates between two snapshots in < 500ms
+- Overlays (load, risk, autonomy, ownership) compose without
+  triggering re-layout
+- Read-mostly: node properties viewable; editing deferred to detail
+  pane (post-MVP for inline edit)
+
+**Qualitative bar.**
+- Side-by-side with Linear's graph view at internal design review,
+  no one can tell which is the production product
+- Demo-able for 60 seconds with zero explanation needed
+- Three internal design reviews completed before closed beta; each
+  documented with feedback resolution
+
+**Evaluation.**
+- Performance benchmark suite committed; runs in CI on representative
+  test graph
+- Design-review notes archived as a `docs/design-reviews/` set
+- Frame-rate regression test in CI on a fixed graph
+
+**Out of scope for MVP.** 3D mode, real-time multi-user cursors,
+inline editing of node properties.
+
+#### 8.3.5 Workflow Topology view (very-good tier)
+
+**Functional acceptance.**
+- Renders workflows from §5.2 with status, ownership, autonomy
+  markers per node
+- Bottleneck and latency overlays
+- Filter by team, initiative, status
+- Up to 500 nodes render with sub-second interaction
+
+**Qualitative bar.** Defensible against Linear's project views and
+Notion's database views in a side-by-side; no data fidelity gaps.
+
+**Evaluation.**
+- Visual regression tests at three viewports (mobile-landscape, laptop,
+  large display)
+- Manual review against reference set (§6.3 design references)
+
+**Out of scope for MVP.** Workflow editing in the view, ML-driven
+bottleneck attribution.
+
+#### 8.3.6 Decision Graph view (very-good tier)
+
+**Functional acceptance.**
+- Renders `Decision` records with predecessor/alternatives/dependents
+  edges using dagre layout
+- Search and filter by date range, author, impacted system
+- Rationale and alternatives visible on hover or pane
+- Up to 1000 decisions render readably (collapsing/expanding clusters
+  when density exceeds threshold)
+
+**Qualitative bar.** Defensible against Confluence + manual ADR lists
+in a side-by-side; surfacing of rationale and alternatives is the
+differentiator.
+
+**Evaluation.**
+- Visual regression tests
+- Search precision: known-decision lookup completes in < 2s
+
+**Out of scope for MVP.** Decision drafting UI within the graph view
+(write happens via workflow or admin module).
+
+#### 8.3.7 Executive Briefing workflow E2E
+
+**Functional acceptance.**
+- Per §7.2.1 inputs/outputs/agents/gates/telemetry
+- Operator can trigger a briefing on demand and on schedule
+- Approval surface presents the draft with edit-in-place and approve/
+  reject controls
+- Approved briefing emits the configured delivery (Slack DM or email)
+- Telemetry captured per Constitution Principle VI
+
+**Qualitative bar.** Operator uses it weekly for four consecutive
+weeks during Phase 2 with accept-as-is rate ≥ 40%.
+
+**Evaluation.** Per §7.2.1 evaluation criteria.
+
+**Out of scope for MVP.** Recurring scheduling beyond weekly; multi-
+recipient routing rules; localization.
+
+#### 8.3.8 Human approval surface
+
+**Functional acceptance.**
+- Inbox-style UI listing pending approvals across workflows
+- Each approval shows: source workflow, draft artifact, agent
+  identity, autonomy level, reversal path
+- Approve / reject / edit actions with audit trail
+- Notification on Slack and email for new pending approvals
+
+**Qualitative bar.** Approval flow does not add ceremony — operator
+should clear five pending approvals in under three minutes when
+content is good.
+
+**Evaluation.** Usability test with the dogfooding operator over four
+weeks; time-to-clear-inbox metric tracked.
+
+**Out of scope for MVP.** Delegation, batch operations, custom
+approval rules.
+
 ### 8.4 Explicitly out of scope
-<!-- TBD -->
+
+Deferred to post-beta or future. These are real cuts, not omissions.
+
+- **Simulation Engine** (full module) — see §5.5
+- **Cognitive Load Engine** (full module) — see §5.6
+- **Agent Orchestration UI** — agents configured in code in MVP
+- **Architecture Review workflow** — post-beta workflow (§7.2.2)
+- **Portfolio Dependency Intelligence workflow** — post-beta (§7.2.3)
+- **Architecture Analyst and Governance Coordinator agents**
+- **External marketplace** (third-party agents, integrations beyond
+  the MVP three)
+- **Mobile apps**
+- **Real-time voice coordination**
+- **Advanced organizational digital twin**
+- **Enterprise-scale permissions** (SSO/SAML, custom RBAC)
+- **On-prem deployment**
+- **White-labeling and custom domains**
+- **Billing and subscription flows** (closed beta is free)
+- **Advanced search** (vector + keyword fusion ships; faceted
+  enterprise search does not)
+- **Notification routing rules** (Slack DM and email only)
+- **Multi-language UI**
+- **Inline graph editing** (read-mostly views in MVP)
+
 ### 8.5 Solo-build feasibility audit
-<!-- TBD -->
+
+The numbers are the schedule. The schedule is the load-bearing risk.
+
+| Feature                                | Effort | Load-bearing risk           |
+|----------------------------------------|--------|-----------------------------|
+| Memory graph (Postgres + AGE + pgvector) | 3 wk | AGE maturity                |
+| Ingestion (Jira + GitHub + Slack)      | 3 wk   | OAuth per vendor            |
+| Two agents + eval suites               | 5 wk   | Eval-data acquisition       |
+| Initiative Galaxy (world-class, Sigma) | 5 wk   | World-class qualitative bar |
+| Workflow Topology view                 | 3 wk   | Custom node design          |
+| Decision Graph view                    | 2 wk   | Layout legibility >100 decisions |
+| Executive Briefing workflow E2E        | 3 wk   | Output quality variance     |
+| Human approval surface                 | 1 wk   | None significant            |
+| Auth + multi-tenant (Clerk)            | 2 wk   | None significant            |
+| Deploy + observability                 | 1 wk   | None significant            |
+| Buffer (30%)                           | 8 wk   | Unknown unknowns            |
+| **Total**                              | **36 wk (~8.3 months)** | |
+
+Audit assumes the Build Model (§8.2): one human + advanced LLM coding
+and design agents. With LLM leverage removed, this estimate is not
+representative; with team scaling added, the estimate shrinks but the
+load-bearing risks remain.
+
 ### 8.6 Kill criteria
-<!-- TBD -->
+
+Explicit replan triggers. If any of these fire, scope is cut or
+replanned at the next phase boundary — not at the moment of the
+trigger, to avoid thrash, unless the trigger is severe.
+
+- **AGE proves immature on real query patterns** → drop AGE, model
+  the graph in plain Postgres with adjacency tables; +2 wk.
+- **Sigma cannot hit the world-class bar on Galaxy within 6 wk** →
+  prototype Cosmograph for Galaxy specifically; +2 wk plus license
+  cost.
+- **LLM design output not at world-class on Galaxy by week 14** →
+  hire contract designer for 4 wk on Galaxy direction-setting, OR
+  demote Galaxy to "very good," replan demo around Workflow Topology
+  + Briefing.
+- **Solo velocity falls below estimate by week 8** → cut to one
+  ingestion source (Jira only) and one agent.
+- **Workflow Topology consumes > 5 wk despite "very good" tier** →
+  cut Decision Graph view from MVP.
+- **Both new structured views together > 8 wk combined** → revisit at
+  week 12 with hard cut-or-keep decision; preserve Galaxy + one of
+  the two structured views, not both.
+- **Closed-beta recruitment stalls** → narrow to 1–2 orgs (limited
+  beta); treat as wedge-hypothesis test with smaller sample (Plan-B
+  candidates per §9.6).
+
 ### 8.7 Open Questions
-<!-- TBD -->
+
+- **OQ-006** Do LLM design agents reach the world-class bar on
+  Initiative Galaxy unaided, or is a contract designer required?
+  Resolves by week 14 (kill criterion above).
+- **OQ-009** Is "very good" Workflow Topology + Decision Graph
+  actually defensible against Linear/Notion, or do we need to promote
+  one of them to world-class to compete? Resolves in design reviews
+  during Phase 3.
+- **OQ-010** Pricing model and target price per seat. Required for
+  falsification criterion 2 in §9.6. Resolves during closed beta.
 
 ## 9. Dogfooding Domain: Enterprise Architecture / PMO
 ### 9.1 Why this is the validation domain
