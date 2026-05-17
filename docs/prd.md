@@ -1696,7 +1696,58 @@ dashboards, continuous-eval, documentation.
   flow; defer non-critical setup steps to manual support
 
 ## 11. Future Vision
-<!-- TBD -->
+
+Closed beta is the right level of ambition for MVP. What lies beyond it
+is not aspirational — every capability named here has a thread back to
+the conceptual model in §3 and a primitive it would use.
+
+**Post-beta (the year after MVP completes).**
+- **Architecture Review workflow** ships as a daily-driver workflow
+  (§7.2.2), with the Architecture Analyst and Governance Coordinator
+  agents (§7.3)
+- **Portfolio Dependency Intelligence workflow** ships against full
+  closed-beta data (§7.2.3)
+- **Simulation Engine** module ships with dependency simulation,
+  delivery-risk prediction, and staffing impact analysis (§5.5) — now
+  feasible because closed-beta data depth is sufficient to evaluate
+- **Cognitive Load Engine** ships against accumulated telemetry, with
+  attention topology, decision fatigue indicators, and meeting burden
+  surfaces (§5.6)
+- **Workflow river** and **agent activity streams** visualizations
+  ship as additional topology surfaces
+- **Inline graph editing** moves from view-only to direct manipulation
+  for selected views
+- **Confluence, Drive, Calendar, and document ingestion** expand the
+  source surface (§9.4)
+
+**2–3 year horizon (if validation succeeds).**
+- **Organizational digital twin** — the closed-beta validation proves
+  that organizations can be modeled as living graphs; this scales the
+  capability and adds simulation depth
+- **Additional domains via adapters** — engineering operations,
+  consulting practice management, investment research, household
+  operations — all built as adapters over the core ontology
+  (Constitution Principle VII), not as parallel products
+- **Autonomy levels 4–5** for non-consequential automation (ambient
+  monitoring, scheduled syncs) under strong governance scaffolding —
+  not earlier, not without it (Constitution Principle III)
+- **Strategic simulation platform** — scenario-based planning where
+  operators run "what if" against the full operational graph and see
+  predicted cascades
+- **Cross-organization operational intelligence** — federated patterns
+  across multiple beta orgs surface industry-wide signals while
+  preserving tenant isolation
+
+**Explicitly never.** A few capabilities are not on the roadmap by
+principle, not by sequencing:
+- The platform makes no AGI claims and proposes no path to AGI
+- No autonomy level is enabled without governance scaffolding adequate
+  to it (Principle III)
+- No replacement of human judgment on consequence-bearing decisions —
+  the platform's role is to *raise* the quality of judgment, not to
+  remove it from the loop
+- No vendor-specific lock-in inside the core graph (Principle VII) —
+  domain support arrives as adapters, never as schema deformations
 
 ## 12. Glossary
 <!-- TBD -->
