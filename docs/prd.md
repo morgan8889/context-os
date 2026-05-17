@@ -1750,7 +1750,97 @@ principle, not by sequencing:
   domain support arrives as adapters, never as schema deformations
 
 ## 12. Glossary
-<!-- TBD -->
+
+Definitions for terms used in this PRD that may not be universally
+familiar to a build-team reader. Core primitive entries are short;
+the full description for each primitive is in §3.1.
+
+**Agent.** A human or AI actor that participates in workflows. See
+§3.1.
+
+**Artifact.** An output or generated content captured in the graph
+(briefing, doc, PR record, raw ingested payload). See §3.1.
+
+**Autonomy level.** Declared AI authority on a workflow, 0–5. See
+§3.3.
+
+**Capability.** An organizational function (e.g., "billing", "incident
+response"). See §3.1.
+
+**Closed beta.** The MVP success bar: 3–5 organizations beyond the
+dogfooding org, with real operators using the platform weekly. See
+§8.1.
+
+**Constraint.** A governance limitation or rule (e.g., a standard,
+a budget). See §3.1.
+
+**Context.** Dynamic semantic state attached to graph entities; has
+provenance and decay. See §3.1.
+
+**Decision.** A choice with rationale, alternatives, and consequences.
+ADRs are a domain adaptation. See §3.1 and §9.2.
+
+**Dependency.** A typed relationship between entities (`blocks`,
+`informs`, `consumes`, `implements`, etc.). See §3.1.
+
+**Dogfooding domain.** The domain in which the platform is validated
+during MVP — enterprise architecture and PMO leadership. Distinct from
+the commercial wedge (§9.6). See §9.
+
+**Eval suite.** Behavioral test set for an AI agent or workflow:
+representative inputs, golden outputs, failure modes, governance edge
+cases. Required before any agent or workflow ships past development
+(Constitution Principle V).
+
+**Goal.** A desired outcome. First-class primitive; tasks derive from
+goals via initiatives and workflows. See §3.1.
+
+**ICP (Ideal Customer Profile).** The set of organizational
+characteristics that define the target commercial customer in the
+wedge hypothesis. See §9.6.
+
+**Initiative.** A coordinated effort against one or more goals. See
+§3.1.
+
+**Memory.** Persistent organizational knowledge (decisions, rationale,
+relationship history). See §3.1.
+
+**MVP.** Minimum viable product. For this platform: closed beta with
+3–5 orgs over ~8 months, built solo with LLM leverage. See §8.
+
+**Platform Operator.** The dogfooding persona — the author of this
+PRD running the platform on their own work. See §4.3.
+
+**Primitive.** One of 15 universal cognitive entities the platform
+uses to model an organization (Goal, Initiative, Workflow, Signal,
+Agent, Artifact, Decision, Constraint, Dependency, Capability, Risk,
+Context, Memory, Autonomy, Simulation). See §3.1.
+
+**Risk.** A predicted or active issue. See §3.1.
+
+**Signal.** Incoming information or event from an ingestion source.
+See §3.1.
+
+**Simulation.** Predicted future operational state. Post-beta. See
+§3.1 and §5.5.
+
+**Strategic Operator.** Primary user persona: engineering/architecture
+leadership at a Series B–D company. See §4.1.
+
+**Wedge hypothesis.** The commercial hypothesis to be falsified or
+confirmed during closed beta — currently: Series B–D engineering
+leadership. See §9.6.
+
+**Workflow.** An execution sequence with declared agents, autonomy
+levels, gates, evaluation, and failure modes. See §3.1 and §7.
+
+**Workflow contract.** The seven-element specification every workflow
+must declare before shipping past development. See §7.1.
+
+**World-class vs very-good (visualization tiers).** The tiering rule
+for MVP UI work. World-class = headline demo surface, indistinguishable
+from named references (Linear, Vercel) at design review. Very-good =
+defensible against alternatives but not the demo moment. See §6.3.
 
 ## 13. Open Questions Index
 <!-- TBD: aggregated from all section-level Open Questions -->
