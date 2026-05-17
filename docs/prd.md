@@ -266,14 +266,105 @@ reserved for ambient monitoring and is not on the MVP roadmap.
   itself has provenance, ownership, and decay.
 
 ## 4. User & Operator Personas
+
 ### 4.1 Strategic Operator
-<!-- TBD -->
+
+**Profile.** VP or Head of Engineering, Head of Architecture, or
+EA-reporting-to-CTO at a Series B–D company (50–500 engineers, ≥3
+teams). Owns delivery, governance, and cross-functional coordination.
+
+**Day-to-day.**
+- 1:1s with team leads and peer executives
+- Architecture and design reviews (chairing or attending)
+- Weekly or biweekly executive briefings to peers
+- Roadmap reconciliation across initiatives and quarters
+- Escalation handling and exception governance
+
+**Cognitive load.** High and context-switching. They hold 5–10 active
+initiatives, 20–50 in-flight decisions, and a constantly-shifting model
+of who-owns-what across teams. The bottleneck is attention, not effort.
+
+**Pain points.**
+- Synthesis is manual: each briefing is an afternoon of grep + memory
+- Dependencies surface late, often as crisis tickets in week 6
+- Architecture decisions evaporate; the same conflict resurfaces yearly
+- Follow-up is constant clerical work that pulls them out of judgment
+- Tools don't talk; they are the integration layer
+
+**What they want.**
+- Briefings drafted *for* them, not *by* them
+- Dependencies surfaced before they become blockers
+- Memory of *why* decisions were made, retrievable in context
+- A governance surface that adds visibility without adding ceremony
+
+**How MVP serves them.** Executive Briefing workflow + Initiative Galaxy
++ organizational memory graph cover the primary daily-driver use case.
+They are the central beta-user persona.
+
 ### 4.2 Domain Practitioner
-<!-- TBD -->
+
+**Profile.** Staff or principal engineer, architect, or initiative owner
+inside the Strategic Operator's organization. Authors design docs,
+participates in reviews, owns systems.
+
+**Day-to-day.**
+- Authoring or reviewing design docs and ADRs
+- Submitting work for architecture review
+- Reconciling implementation against architectural intent
+- Owning one or more systems and the decisions that touch them
+
+**Pain points.**
+- Reviews are slow and ceremony-heavy
+- Prior decisions are unfindable; standards drift goes unchecked
+- Implementation diverges from intent and no one notices until late
+- Search across Jira, Confluence, and Slack is inadequate
+
+**What they want.**
+- Faster, lower-ceremony architecture review
+- Searchable, semantically-linked decision history with rationale
+- AI pre-review that catches the easy stuff so humans focus on judgment
+- Surfacing of prior ADRs and constraints relevant to current work
+
+**How MVP serves them.** Decision Graph view + memory retrieval +
+Dependency Mapper agent are the primary surfaces. The Architecture
+Review workflow is post-MVP; Domain Practitioners get partial coverage
+in MVP via the briefing workflow and memory retrieval.
+
 ### 4.3 Platform Operator (dogfooder)
-<!-- TBD -->
+
+**Profile.** The author of this PRD. Architecture/PMO leadership role;
+runs the platform on their own organization first.
+
+**Role at MVP.** Dogfood user, product director, eval designer,
+closed-beta curator. Distinct from Strategic Operator only in
+relationship to the platform itself — they have privileged access,
+debugging surfaces, and the burden of getting product direction right.
+
+**What they need that real users don't.**
+- Direct database and graph access for debugging
+- Verbose telemetry surfaces and trace inspection
+- Eval-suite run UI and result diffing
+- Ability to ship experiments per-tenant for own org
+- A way to record, in the system, why product decisions were made
+  (the platform must eat its own dog food on Decision storage)
+
+**How MVP serves them.** Same product surfaces as Strategic Operator,
+plus an admin module gated behind a feature flag. The Platform Operator
+persona collapses into Strategic Operator at scale; it exists during
+MVP because the burden of dogfooding requires capabilities production
+users don't need.
+
 ### 4.4 Open Questions
-<!-- TBD -->
+
+- **OQ-014** Is the Domain Practitioner an MVP target or post-beta?
+  Current scope serves them partially; full coverage waits on
+  Architecture Review workflow.
+- **OQ-015** Does the Platform Operator persona persist past MVP, or is
+  it strictly a build-time construct that gets absorbed into Strategic
+  Operator once the product is stable?
+- **OQ-016** What additional persona may surface in closed beta (e.g.,
+  "Reviewer-Only" stakeholders who consume briefings but don't act in
+  the platform)?
 
 ## 5. Product Modules
 <!-- TBD: one subsection per module, 7 total -->
