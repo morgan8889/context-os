@@ -1536,7 +1536,164 @@ chosen wedge, and explaining what shifted.
   before commercial pressure forces a wedge choice?
 
 ## 10. Phased Build Plan
-<!-- TBD: four phases -->
+
+Four phases, sized against the 36-week feasibility audit (§8.5). Each
+phase has a goal, scope, exit criteria, named risks, and the kill
+criteria that apply at that phase boundary. Phase 3 carries the
+load-bearing risk; everything else exists to deliver Phase 3
+successfully and Phase 4 cleanly.
+
+### Phase 1 — Foundation (weeks 1–9, ~25%)
+
+**Goal.** Substrate ready. The platform can ingest from three sources
+and persist normalized semantic state. Auth and deploy are no longer
+load-bearing risks for the rest of the build.
+
+**Scope.**
+- Memory graph: PostgreSQL + pgvector + Apache AGE deployed; three
+  module interfaces (relational, graph, vector)
+- Ingestion: Jira, GitHub, Slack OAuth + incremental sync +
+  normalization to core ontology
+- Auth + multi-tenant: Clerk integration; tenant isolation at
+  query layer
+- Deploy: backend on Fly.io or Railway; frontend on Vercel
+- Observability scaffolding: Langfuse + OpenTelemetry collectors
+  wired; structured-log shape committed
+
+**Exit criteria.**
+- Author can run a full ingest against own org and see normalized
+  entities in the admin UI
+- Graph queries (1-hop, k-hop traversal, edge filtering) return
+  correct results on real data within performance budget
+- Vector retrieval over `Memory` and `Artifact` returns relevant
+  top-k for known queries
+- Auth + tenant isolation tested with two stub tenants
+
+**Risks.**
+- AGE maturity on real query patterns
+- OAuth complexity per vendor (especially Slack scopes)
+
+**Kill triggers active in this phase.**
+- AGE proves immature → drop to plain Postgres with adjacency
+  tables (+2 wk)
+- Velocity below estimate by week 8 → cut to one ingestion source
+
+### Phase 2 — Intelligence (weeks 10–18, ~25%)
+
+**Goal.** Two agents producing real outputs against real data, with
+evaluations in place and the Executive Briefing workflow running
+end-to-end.
+
+**Scope.**
+- Operational Synthesizer agent + tool permissions + telemetry
+- Dependency Mapper agent + tool permissions + telemetry
+- Eval suites for both agents (golden datasets, failure-mode tests,
+  governance-edge tests)
+- Executive Briefing workflow E2E (§7.2.1): on-demand and scheduled
+- Human approval surface (inbox + approve/reject/edit)
+- Briefing telemetry per Constitution Principle VI
+
+**Exit criteria.**
+- Author receives a useful weekly briefing for **4 consecutive weeks**
+- Manual-edit rate < 60% in those four weeks
+- Eval suites pass on golden datasets; tracked in CI
+- Approval surface clears the dogfooding operator's pending queue in
+  under 3 minutes when content is good
+
+**Risks.**
+- Output quality variance (the headline risk of Phase 2)
+- Eval-data scarcity (no golden set exists at start of phase; must be
+  built from the author's manual briefings)
+
+**Kill triggers active in this phase.**
+- Briefing accept rate < 40% by week 16 → simplify scope (single-
+  source briefing) and revisit prompt strategy
+- LLM design output not converging on Galaxy by week 14 (concurrent
+  with Phase 3 start of Galaxy work) → trigger Phase-3-level kill
+  per §8.6
+
+### Phase 3 — Cognition Surface (weeks 19–28, ~28%)
+
+**Goal.** The visualization layer that carries the demo. One
+world-class surface (Initiative Galaxy), two very-good surfaces
+(Workflow Topology, Decision Graph), a shared design system, and a
+motion language coherent across all three.
+
+This is the phase with the highest load-bearing risk. The "world-
+class" bar on Galaxy is the longest-tail uncertainty in the entire
+build.
+
+**Scope.**
+- Initiative Galaxy (Sigma + Graphology + forceatlas2-worker)
+- Workflow Topology view (React Flow + custom nodes)
+- Decision Graph view (dagre via Graphology, rendered via Sigma or
+  React Flow)
+- Design system: Radix + Tailwind + custom motion and color tokens
+- Motion language (set-piece transitions in GSAP; everyday in Framer
+  Motion)
+- Internal design reviews against named references (Linear, Vercel,
+  Cosmograph demos)
+
+**Exit criteria.**
+- Galaxy passes internal design review against reference set
+- Workflow Topology and Decision Graph ship at "very good" tier
+  (defensible vs Linear / Notion side-by-side)
+- Three internal design reviews completed and documented in
+  `docs/design-reviews/`
+- Demo-able for 60 seconds with zero narration
+- Performance benchmark suite for Galaxy passing in CI
+
+**Risks.**
+- World-class qualitative bar on Galaxy is the load-bearing risk
+- Cross-surface coherence (the three views feel like one product, not
+  three stitched components)
+- LLM design output drifting toward generic aesthetics
+
+**Kill triggers active in this phase.**
+- Galaxy not at world-class bar by week 26 → 4-week contract designer
+  on direction-setting, OR demote Galaxy to "very good" and replan
+  demo around Workflow Topology + Briefing
+- Workflow Topology consumes > 5 wk despite "very good" tier → cut
+  Decision Graph view from MVP
+- Both structured views combined > 8 wk → revisit at week 12 (Phase
+  2/3 boundary already passed) for hard cut-or-keep
+
+### Phase 4 — Closed Beta Readiness (weeks 29–36, ~22%)
+
+**Goal.** Survive contact with three to five outside organizations.
+Multi-tenant hardening, onboarding flow, support workflows, telemetry
+dashboards, continuous-eval, documentation.
+
+**Scope.**
+- Multi-tenant hardening (data isolation tests, tenant-scoped admin
+  surfaces)
+- Onboarding flow (org setup, integration connect, first briefing)
+- Support workflows (issue intake, debug-trace export, tenant impersonation
+  for the Platform Operator persona)
+- Telemetry dashboards (managed OTEL collector live; alerts on agent
+  failure rates and ingestion freshness)
+- Continuous-eval (golden datasets run nightly; regressions block
+  promotion)
+- Doc site (`docs/` rendered via a static-site generator; getting-
+  started + concepts + workflow references)
+
+**Exit criteria.**
+- First beta org onboarded successfully end-to-end
+- Second org in onboarding pipeline
+- Uptime ≥ 99% over trailing 30 days
+- All MVP feature evaluation criteria (§8.3) passing on dogfood org
+  data over a 4-week window
+
+**Risks.**
+- Schedule risk (Phase 4 consumes any prior overrun; the 30% buffer
+  in §8.5 mostly lives here)
+- ICP-fit risk (beta orgs harder to recruit than estimated)
+
+**Kill triggers active in this phase.**
+- Recruitment stalls → narrow to 1–2 orgs (limited beta); preserve
+  as wedge-hypothesis test with smaller sample
+- Onboarding takes > 1 week per org → cut scope of the onboarding
+  flow; defer non-critical setup steps to manual support
 
 ## 11. Future Vision
 <!-- TBD -->
