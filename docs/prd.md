@@ -422,7 +422,7 @@ optimizations; humans approve structural workflow changes.
 
 | Capability                  | Status     |
 |-----------------------------|------------|
-| Workflow topology view ("very good" tier, per §6.3) | MVP |
+| Workflow Topology view ("very good" tier, per §6.3) | MVP |
 | Human-vs-AI ownership tracking | MVP     |
 | Latency + bottleneck telemetry  | MVP    |
 | Escalation path tracking    | MVP        |
