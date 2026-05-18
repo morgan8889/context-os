@@ -716,6 +716,17 @@ platform commits to:
 - **Density modes**: comfortable / dense / focus, explicitly switchable
 - **Accessibility**: keyboard-first graph navigation; screen-reader
   narration of topology state
+- **View states**: every primary view has three states (empty,
+  activating, activated). Empty/activating states use a "placeholder-
+  grey" treatment for example/anticipated content — visually distinct
+  from live data, structurally identical. Every state surfaces exactly
+  one primary action. Loading is scoped to elements (e.g., ingest
+  progress bars), never as view-blocking overlays. Per-view AC
+  specifications in §8.3.10.
+- **Copy in topology**: state copy is honest about why empty — *"ingest
+  still discovering"* vs *"your team hasn't captured decisions yet"* are
+  distinct conditions with distinct next actions. Operator-language
+  guardrails per §8.3.9 apply.
 
 **Design references (named, to resist generic LLM defaults):**
 - Motion / restraint / density: **Linear**
