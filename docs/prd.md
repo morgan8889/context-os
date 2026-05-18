@@ -584,6 +584,13 @@ allow inline editing of graph state.
 | Decision Graph view ("very good" tier) | MVP  |
 | Strategy maps, scenario overlays, heatmaps, agent streams | Post-beta |
 
+**View states.** Every primary view (Initiative Galaxy, Workflow
+Topology, Decision Graph) has three states: empty, activating, and
+activated. State design — including the "placeholder-grey" treatment
+for example/anticipated content and the one-primary-action rule — is
+cross-cutting. See §6.3 for the design system commitments and §8.3.10
+for the cross-view feature spec.
+
 ### 5.8 Open Questions
 
 - **OQ-017** Should the Cognitive Load Engine sit beside the other
