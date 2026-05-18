@@ -929,6 +929,23 @@ Operator confirms any new Risk entries before they become graph state.
 input-signal count per source, retrieval hit-rate, agent token cost
 total, edit distance post-approval, downstream-action count.
 
+**First-run variant (week 1 only).** The first briefing for a newly-
+activated operator runs under modified contracts:
+
+- **Inputs**: same shape but smaller window — last 7 days of ingestion
+  only (one ingest cycle's worth), not the rolling 7-day window an
+  ongoing briefing receives
+- **Outputs**: briefing markdown carries an explicit header label
+  *"First briefing — low signal. Data accumulates over the week."*
+- **Eval**: accept-as-is target is ≥ 30%, not the ongoing ≥ 40%.
+  Cold-start is real; the bar accommodates it without abandoning quality
+  expectations
+- **Telemetry**: first-run briefings emit a `first_run: true` field on
+  their trace; activation metrics (§9.5) join against this for analysis
+- **Failure mode added**: "claims about week-over-week trends" — week 1
+  has no prior week to compare against. Detected by prompt-side
+  constraint and by output filter.
+
 #### 7.2.2 Architecture Review (post-beta)
 
 **Inputs.** Design document (markdown or PDF), Jira epic, system
