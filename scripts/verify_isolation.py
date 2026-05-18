@@ -34,8 +34,12 @@ async def run_verification() -> None:
 
     async with factory() as session:
         repo = TenantRepository(session)
-        tenant_a = await repo.create(clerk_org_id=tenant_a_clerk_id, name="Test Tenant A")
-        tenant_b = await repo.create(clerk_org_id=tenant_b_clerk_id, name="Test Tenant B")
+        tenant_a = await repo.create(
+            clerk_org_id=tenant_a_clerk_id, name="Test Tenant A"
+        )
+        tenant_b = await repo.create(
+            clerk_org_id=tenant_b_clerk_id, name="Test Tenant B"
+        )
         await session.commit()
 
     print(f"Created Tenant A: {tenant_a.id} ({tenant_a_clerk_id})")
@@ -136,7 +140,9 @@ async def run_verification() -> None:
                 k=10,
             )
         if results_b:
-            failures.append(f"FAIL: Tenant B sees {len(results_b)} vector results (expected 0)")
+            failures.append(
+                f"FAIL: Tenant B sees {len(results_b)} vector results (expected 0)"
+            )
         else:
             print("  vector search: PASS (0 results for Tenant B)")
     except Exception as e:

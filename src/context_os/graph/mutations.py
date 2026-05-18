@@ -219,7 +219,11 @@ async def upsert_pending_edge(
 
     cypher = """
     MATCH (a {id: $from_id, tenant_id: $tenant_id})
-    MERGE (a)-[r:DEPENDS_ON {to_source_id: $to_source_id, to_source: $to_source}]->(a)
+    MERGE (b:PendingNode {
+        source_id: $to_source_id, source: $to_source, tenant_id: $tenant_id
+    })
+    ON CREATE SET b.created_at = $created_at
+    MERGE (a)-[r:DEPENDS_ON]->(b)
     ON CREATE SET
         r.tenant_id = $tenant_id,
         r.dependency_type = $dependency_type,

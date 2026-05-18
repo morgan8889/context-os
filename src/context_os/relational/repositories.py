@@ -26,16 +26,19 @@ def _get_fernet() -> Fernet:
     return Fernet(settings.encryption_key.encode())
 
 
+_ZERO_UUID = "00000000-0000-0000-0000-000000000000"
+
+
 def _assert_tenant_id(tenant_id: str | uuid.UUID | None) -> None:
-    """Raise TenantIsolationError if tenant_id is empty or None.
+    """Raise TenantIsolationError if tenant_id is empty, None, or the zero UUID.
 
     Args:
         tenant_id: Tenant identifier to validate.
 
     Raises:
-        TenantIsolationError: If tenant_id is falsy or empty string.
+        TenantIsolationError: If tenant_id is falsy, empty string, or zero UUID.
     """
-    if not tenant_id:
+    if not tenant_id or str(tenant_id) == _ZERO_UUID:
         raise TenantIsolationError(
             code="tenant_isolation_error",
             message="tenant_id is required for all data operations",
