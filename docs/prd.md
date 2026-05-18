@@ -1747,10 +1747,15 @@ end of closed beta:
    pay below $X per seat per month (target $X to be set during
    recruiting, per OQ-010). (The value cap is wrong; needs different
    positioning or pricing model.)
-3. **Function mismatch.** Orgs engage but the most-used surfaces are
-   non-engineering (e.g., they ask for sales-pipeline or marketing-
-   operations views, not architecture reviews). (The function is
-   wrong, even if the company size is right.)
+3. **Function mismatch** — Two signals, either of which fires the
+   criterion:
+   (a) **Week-1 signal** (new, via §8.3.9 discovery survey): across
+   the first 3 beta orgs, < 30% name briefings as their top pain.
+   Pause recruiting; trigger early wedge memo.
+   (b) **End-of-beta signal** (original): orgs engage but the
+   most-used surfaces are non-engineering (e.g., sales-pipeline or
+   marketing-operations views, not architecture reviews). The function
+   is wrong, even if company size is right.
 4. **Buyer mismatch.** Engineering leaders see the value but the
    actual buying authority sits with COO/CFO/IT. (The sales motion is
    harder than projected.)
