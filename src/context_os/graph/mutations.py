@@ -246,6 +246,284 @@ async def upsert_pending_edge(
         # Pending edges are best-effort — don't fail ingest on missing target node
 
 
+# ── Phase 2: Graph promotion mutations ───────────────────────────────────────
+
+
+async def promote_briefing_to_artifact(
+    tenant_id: str,
+    approved_content: dict[str, Any],
+    approval_item_id: str,
+    operator_id: str,
+    age_pool: asyncpg.Pool,  # type: ignore[type-arg]
+    graph_name: str = "context_os",
+) -> str:
+    """Promote an approved briefing draft to an Artifact node in the canonical graph.
+
+    Writes an Artifact {subtype:'briefing'} node via AGE MERGE. Called only
+    after operator approval — never called directly by agents.
+
+    Args:
+        tenant_id: Clerk org ID for tenant isolation.
+        approved_content: The approved (possibly edited) briefing content dict.
+        approval_item_id: UUID string of the ApprovalItem row.
+        operator_id: Clerk user ID of the approving operator.
+        age_pool: AGE asyncpg pool.
+        graph_name: AGE graph name.
+
+    Returns:
+        UUID string of the created Artifact node.
+
+    Raises:
+        TenantIsolationError: If tenant_id is empty.
+    """
+    _assert_tenant_id(tenant_id)
+
+    import uuid
+
+    node_id = str(uuid.uuid4())
+    now = _now_iso()
+
+    window_start = approved_content.get("window_start", now)
+    window_end = approved_content.get("window_end", now)
+    window_days = approved_content.get("window_days", 7)
+    title = f"Weekly Briefing {window_start[:10]}–{window_end[:10]}"
+
+    import json as _json
+
+    content_text = _json.dumps(approved_content.get("sections", approved_content))
+
+    params: dict[str, Any] = {
+        "id": node_id,
+        "tenant_id": tenant_id,
+        "subtype": "briefing",
+        "title": title,
+        "content": content_text,
+        "window_start": str(window_start),
+        "window_end": str(window_end),
+        "window_days": str(window_days),
+        "approval_item_id": approval_item_id,
+        "operator_id": operator_id,
+        "approved_at": now,
+        "source": "internal",
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    cypher = """
+    MERGE (n:Artifact {id: $id, tenant_id: $tenant_id})
+    ON CREATE SET
+        n.subtype = $subtype,
+        n.title = $title,
+        n.content = $content,
+        n.window_start = $window_start,
+        n.window_end = $window_end,
+        n.window_days = $window_days,
+        n.approval_item_id = $approval_item_id,
+        n.operator_id = $operator_id,
+        n.approved_at = $approved_at,
+        n.source = $source,
+        n.created_at = $created_at,
+        n.updated_at = $updated_at
+    ON MATCH SET
+        n.updated_at = $updated_at,
+        n.content = $content
+    RETURN n.id AS id
+    """
+
+    try:
+        await run_cypher(
+            age_pool,
+            cypher,
+            params=params,
+            graph_name=graph_name,
+            columns=[("id", "agtype")],
+        )
+        logger.info(
+            "promote_briefing_to_artifact: tenant=%s node_id=%s", tenant_id, node_id
+        )
+    except Exception as e:
+        logger.error(
+            "promote_briefing_to_artifact failed: tenant=%s error=%s", tenant_id, e
+        )
+        raise
+
+    return node_id
+
+
+async def promote_risk_node(
+    tenant_id: str,
+    approved_content: dict[str, Any],
+    approval_item_id: str,
+    operator_id: str,
+    age_pool: asyncpg.Pool,  # type: ignore[type-arg]
+    graph_name: str = "context_os",
+) -> str:
+    """Promote an approved proposed_risk to a Risk node in the canonical graph.
+
+    Writes a Risk node via AGE MERGE. Called only after operator approval.
+
+    Args:
+        tenant_id: Clerk org ID.
+        approved_content: The approved risk content dict.
+        approval_item_id: UUID string of the ApprovalItem row.
+        operator_id: Clerk user ID of the approving operator.
+        age_pool: AGE asyncpg pool.
+        graph_name: AGE graph name.
+
+    Returns:
+        UUID string of the created Risk node.
+
+    Raises:
+        TenantIsolationError: If tenant_id is empty.
+    """
+    _assert_tenant_id(tenant_id)
+
+    import uuid
+
+    node_id = str(uuid.uuid4())
+    now = _now_iso()
+
+    params: dict[str, Any] = {
+        "id": node_id,
+        "tenant_id": tenant_id,
+        "description": approved_content.get("description", ""),
+        "severity": approved_content.get("severity", "medium"),
+        "status": "open",
+        "source": "internal",
+        "approval_item_id": approval_item_id,
+        "operator_id": operator_id,
+        "approved_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    cypher = """
+    MERGE (n:Risk {id: $id, tenant_id: $tenant_id})
+    ON CREATE SET
+        n.description = $description,
+        n.severity = $severity,
+        n.status = $status,
+        n.source = $source,
+        n.approval_item_id = $approval_item_id,
+        n.operator_id = $operator_id,
+        n.approved_at = $approved_at,
+        n.created_at = $created_at,
+        n.updated_at = $updated_at
+    ON MATCH SET
+        n.updated_at = $updated_at
+    RETURN n.id AS id
+    """
+
+    try:
+        await run_cypher(
+            age_pool,
+            cypher,
+            params=params,
+            graph_name=graph_name,
+            columns=[("id", "agtype")],
+        )
+        logger.info("promote_risk_node: tenant=%s node_id=%s", tenant_id, node_id)
+    except Exception as e:
+        logger.error("promote_risk_node failed: tenant=%s error=%s", tenant_id, e)
+        raise
+
+    return node_id
+
+
+async def promote_dependency_edge(
+    tenant_id: str,
+    approved_content: dict[str, Any],
+    approval_item_id: str,
+    operator_id: str,
+    age_pool: asyncpg.Pool,  # type: ignore[type-arg]
+    graph_name: str = "context_os",
+) -> str | None:
+    """Promote an approved proposed_dependency to a DEPENDS_ON edge in the canonical graph.
+
+    Writes a DEPENDS_ON edge with provenance properties via AGE MERGE.
+    Called only after operator approval. The Dependency Mapper NEVER calls this directly.
+
+    Args:
+        tenant_id: Clerk org ID.
+        approved_content: The approved dependency content dict with from_node_id, to_node_id.
+        approval_item_id: UUID string of the ApprovalItem row.
+        operator_id: Clerk user ID of the approving operator.
+        age_pool: AGE asyncpg pool.
+        graph_name: AGE graph name.
+
+    Returns:
+        None (edges don't have a separate UUID; from/to node IDs identify them).
+
+    Raises:
+        TenantIsolationError: If tenant_id is empty.
+    """
+    _assert_tenant_id(tenant_id)
+
+    from_node_id = approved_content.get("from_node_id", "")
+    to_node_id = approved_content.get("to_node_id", "")
+    confidence = str(approved_content.get("confidence", "0.0"))
+    evidence = approved_content.get("evidence", [])
+    now = _now_iso()
+
+    import json as _json
+
+    evidence_ids = _json.dumps(
+        [e.get("source_id", "") for e in evidence if isinstance(e, dict)]
+    )
+
+    params: dict[str, Any] = {
+        "from_id": from_node_id,
+        "to_id": to_node_id,
+        "tenant_id": tenant_id,
+        "mapper_confidence": confidence,
+        "evidence_item_ids": evidence_ids,
+        "approval_item_id": approval_item_id,
+        "operator_id": operator_id,
+        "approved_at": now,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    cypher = """
+    MATCH (a {id: $from_id, tenant_id: $tenant_id})
+    MATCH (b {id: $to_id, tenant_id: $tenant_id})
+    MERGE (a)-[r:DEPENDS_ON]->(b)
+    ON CREATE SET
+        r.tenant_id = $tenant_id,
+        r.mapper_confidence = $mapper_confidence,
+        r.evidence_item_ids = $evidence_item_ids,
+        r.approval_item_id = $approval_item_id,
+        r.operator_id = $operator_id,
+        r.approved_at = $approved_at,
+        r.created_at = $created_at,
+        r.updated_at = $updated_at
+    ON MATCH SET
+        r.updated_at = $updated_at,
+        r.operator_id = $operator_id
+    RETURN r
+    """
+
+    try:
+        await run_cypher(
+            age_pool,
+            cypher,
+            params=params,
+            graph_name=graph_name,
+            columns=[("r", "agtype")],
+        )
+        logger.info(
+            "promote_dependency_edge: tenant=%s from=%s to=%s",
+            tenant_id,
+            from_node_id,
+            to_node_id,
+        )
+    except Exception as e:
+        logger.error("promote_dependency_edge failed: tenant=%s error=%s", tenant_id, e)
+        raise
+
+    return None
+
+
 async def get_nodes_for_tenant(
     pool: asyncpg.Pool,  # type: ignore[type-arg]
     tenant_id: str,

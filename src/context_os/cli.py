@@ -29,11 +29,13 @@ graph_app = typer.Typer(help="Graph management commands")
 tenant_app = typer.Typer(help="Tenant management commands")
 auth_app = typer.Typer(help="OAuth token management commands")
 ingest_app = typer.Typer(help="Data ingest commands")
+eval_app = typer.Typer(help="Eval suite commands")
 
 app.add_typer(graph_app, name="graph")
 app.add_typer(tenant_app, name="tenant")
 app.add_typer(auth_app, name="auth")
 app.add_typer(ingest_app, name="ingest")
+app.add_typer(eval_app, name="eval")
 
 
 def _load_settings() -> object:
@@ -403,6 +405,209 @@ def ingest_all(
     """Run ingest for all configured sources (github, jira, slack)."""
     _load_settings()
     _run_ingest_command("all", tenant_id, full)
+
+
+# ── Eval commands ─────────────────────────────────────────────────────────────
+
+
+@eval_app.command("build-dataset")
+def eval_build_dataset(
+    eval_type: str = typer.Option(
+        ...,
+        "--type",
+        help="Dataset type: synthesizer | mapper",
+    ),
+    version: str = typer.Option(..., "--version", help="Semver version string"),
+    description: str = typer.Option(
+        "", "--description", help="Human-readable description"
+    ),
+    tenant_id: uuid.UUID = typer.Option(..., "--tenant-id", help="Tenant UUID"),
+    approval_item_ids: str = typer.Option(
+        "",
+        "--approval-item-ids",
+        help="Comma-separated ApprovalItem UUIDs (synthesizer only)",
+    ),
+) -> None:
+    """Build and persist a golden dataset from approved ApprovalItems.
+
+    For synthesizer datasets, fetches the specified approved briefing_draft
+    ApprovalItems and builds a golden dataset. For mapper datasets, builds
+    from recent proposed_dependency ApprovalItems.
+    """
+
+    async def _build() -> None:
+        from context_os.db.engine import close_db, get_session_factory, init_db
+        from context_os.eval.golden_dataset import (
+            build_mapper_dataset,
+            build_synthesizer_dataset,
+        )
+        from context_os.relational.repositories import (
+            ApprovalItemRepository,
+            GoldenDatasetRepository,
+        )
+
+        await init_db()
+        try:
+            factory = get_session_factory()
+            async with factory() as session:
+                golden_repo = GoldenDatasetRepository(session)
+                approval_repo = ApprovalItemRepository(session)
+
+                if eval_type == "synthesizer":
+                    item_ids = [
+                        iid.strip()
+                        for iid in approval_item_ids.split(",")
+                        if iid.strip()
+                    ]
+                    if not item_ids:
+                        # Fetch recent approved briefing_draft items
+                        items = await approval_repo.list_by_tenant(
+                            tenant_id=str(tenant_id),
+                            item_type="briefing_draft",
+                            status="approved",
+                            limit=20,
+                        )
+                        item_ids = [str(item.id) for item in items]
+
+                    dataset = await build_synthesizer_dataset(
+                        tenant_id=str(tenant_id),
+                        approval_item_ids=item_ids,
+                        injections=[],
+                        approval_repo=approval_repo,
+                        golden_repo=golden_repo,
+                        version=version,
+                        description=description,
+                    )
+
+                elif eval_type == "mapper":
+                    # Fetch recent approved proposed_dependency items as ground truth
+                    items = await approval_repo.list_by_tenant(
+                        tenant_id=str(tenant_id),
+                        item_type="proposed_dependency",
+                        status="approved",
+                        limit=50,
+                    )
+                    dependency_pairs = [
+                        {
+                            "from_node_id": item.content.get("from_initiative_id", ""),
+                            "to_node_id": item.content.get("to_initiative_id", ""),
+                            "ground_truth_exists": True,
+                            "evidence_signals": item.content.get("evidence", []),
+                        }
+                        for item in items
+                    ]
+                    dataset = await build_mapper_dataset(
+                        tenant_id=str(tenant_id),
+                        dependency_pairs=dependency_pairs,
+                        golden_repo=golden_repo,
+                        version=version,
+                        description=description,
+                    )
+
+                else:
+                    typer.echo(
+                        f"Unknown eval type: {eval_type!r}. "
+                        "Use 'synthesizer' or 'mapper'.",
+                        err=True,
+                    )
+                    raise typer.Exit(1)
+
+                await session.commit()
+                typer.echo(
+                    f"Dataset built: id={dataset.dataset_id} "
+                    f"records={len(dataset.records)}"
+                )
+        finally:
+            await close_db()
+
+    _load_settings()
+    asyncio.run(_build())
+
+
+@eval_app.command("run")
+def eval_run(
+    eval_type: str = typer.Option(
+        ...,
+        "--type",
+        help="Eval type: synthesizer | mapper",
+    ),
+    tenant_id: uuid.UUID = typer.Option(..., "--tenant-id", help="Tenant UUID"),
+    dataset_id: str = typer.Option(
+        "",
+        "--dataset-id",
+        help="Golden dataset UUID (uses latest if not provided)",
+    ),
+    compare_to: str = typer.Option(
+        "",
+        "--compare-to",
+        help="Prior EvalRun UUID for score delta comparison",
+    ),
+) -> None:
+    """Run the eval suite against the golden dataset.
+
+    Prints a scores table and exits non-zero if CI gates fail.
+    """
+
+    async def _run() -> None:
+        from context_os.db.engine import close_db, get_session_factory, init_db
+        from context_os.eval.golden_dataset import load_dataset
+        from context_os.eval.mapper_eval import MapperEvalRunner
+        from context_os.eval.synthesizer_eval import SynthesizerEvalRunner
+        from context_os.relational.repositories import GoldenDatasetRepository
+
+        await init_db()
+        gates_passed = True
+        try:
+            factory = get_session_factory()
+            async with factory() as session:
+                golden_repo = GoldenDatasetRepository(session)
+                dataset = await load_dataset(
+                    eval_type=eval_type,
+                    version="latest",
+                    repo=golden_repo,
+                )
+
+                compare_to_run_id = compare_to.strip() if compare_to.strip() else None
+
+                if eval_type == "synthesizer":
+                    runner = SynthesizerEvalRunner(tenant_id=str(tenant_id))
+                elif eval_type == "mapper":
+                    runner = MapperEvalRunner(tenant_id=str(tenant_id))
+                else:
+                    typer.echo(f"Unknown eval type: {eval_type!r}.", err=True)
+                    raise typer.Exit(1)
+
+                from context_os.core.errors import EvalError
+
+                try:
+                    result = await runner.run(
+                        dataset=dataset,
+                        session=session,
+                        compare_to_run_id=compare_to_run_id,
+                    )
+                    gates_passed = result.gates_passed
+                except EvalError as e:
+                    typer.echo(f"CI gate failed: {e.message}", err=True)
+                    gates_passed = False
+                    raise typer.Exit(1) from e
+
+            typer.echo(f"\nEval run complete: run_id={result.run_id}")
+            typer.echo(f"Gates passed: {result.gates_passed}")
+            typer.echo("\nScores:")
+            for metric, value in result.scores.items():
+                delta_str = ""
+                delta = result.score_deltas.get(metric)
+                if delta is not None:
+                    delta_str = f"  (Δ {delta:+.4f})"
+                typer.echo(f"  {metric}: {value:.4f}{delta_str}")
+        finally:
+            await close_db()
+
+        if not gates_passed:
+            raise typer.Exit(1)
+
+    _load_settings()
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

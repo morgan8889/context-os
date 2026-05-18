@@ -611,18 +611,30 @@ class EvalRunRepository:
         self,
         tenant_id: str,
         eval_type: str,
-        dataset_id: uuid.UUID,
         dataset_version: str,
+        dataset_id: uuid.UUID | None = None,
+        status: str = "running",
+        scores: dict[str, Any] | None = None,
+        gates_passed: bool | None = None,
         compared_to_run_id: uuid.UUID | None = None,
+        score_deltas: dict[str, Any] | None = None,
+        duration_ms: int | None = None,
+        error_detail: str | None = None,
     ) -> EvalRun:
-        """Create a new EvalRun in running state.
+        """Create a new EvalRun record.
 
         Args:
             tenant_id: Clerk org ID.
             eval_type: synthesizer | mapper.
-            dataset_id: FK to golden_datasets.id.
             dataset_version: Version string of the dataset.
+            dataset_id: Optional FK to golden_datasets.id.
+            status: Initial status (default "running").
+            scores: Initial scores dict (default empty).
+            gates_passed: Whether CI gates passed.
             compared_to_run_id: Optional FK to previous run for delta computation.
+            score_deltas: Optional score delta dict vs prior run.
+            duration_ms: Optional eval duration in milliseconds.
+            error_detail: Optional error message.
 
         Returns:
             The created EvalRun ORM instance.
@@ -634,9 +646,13 @@ class EvalRunRepository:
             eval_type=eval_type,
             dataset_id=dataset_id,
             dataset_version=dataset_version,
-            status="running",
-            scores={},
+            status=status,
+            scores=scores or {},
+            gates_passed=gates_passed,
             compared_to_run_id=compared_to_run_id,
+            score_deltas=score_deltas,
+            duration_ms=duration_ms,
+            error_detail=error_detail,
             created_at=datetime.now(UTC),
         )
         self._session.add(run)
@@ -756,7 +772,7 @@ class GoldenDatasetRepository:
         content: dict[str, Any],
         record_count: int,
         description: str | None = None,
-        built_from_approval_items: dict[str, Any] | None = None,
+        built_from_approval_items: list[Any] | dict[str, Any] | None = None,
     ) -> GoldenDataset:
         """Create a new GoldenDataset.
 
@@ -767,7 +783,7 @@ class GoldenDatasetRepository:
             content: Array of records serialized as JSONB.
             record_count: Number of records in content.
             description: Human-readable description of this dataset.
-            built_from_approval_items: List of approval_item UUIDs used.
+            built_from_approval_items: List of approval_item UUID strings used.
 
         Returns:
             The created GoldenDataset ORM instance.
@@ -814,25 +830,24 @@ class GoldenDatasetRepository:
 
     async def get_latest_by_type(
         self,
-        tenant_id: str,
         dataset_type: str,
+        tenant_id: str | None = None,
     ) -> GoldenDataset | None:
-        """Return the most recently created GoldenDataset for a tenant/type.
+        """Return the most recently created GoldenDataset for a type (and optionally tenant).
 
         Args:
-            tenant_id: Clerk org ID.
             dataset_type: synthesizer | mapper.
+            tenant_id: Optional Clerk org ID — if provided, scopes to that tenant.
 
         Returns:
             The newest GoldenDataset or None if none exist.
         """
-        _assert_tenant_id(tenant_id)
+        conditions = [GoldenDataset.dataset_type == dataset_type]
+        if tenant_id:
+            conditions.append(GoldenDataset.tenant_id == tenant_id)
         stmt = (
             select(GoldenDataset)
-            .where(
-                GoldenDataset.tenant_id == tenant_id,
-                GoldenDataset.dataset_type == dataset_type,
-            )
+            .where(*conditions)
             .order_by(GoldenDataset.created_at.desc())
             .limit(1)
         )

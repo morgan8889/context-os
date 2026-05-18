@@ -1,0 +1,139 @@
+{
+  "version": "1.0.0",
+  "dataset_type": "synthesizer",
+  "description": "5-record synthesizer golden dataset: 3 real-shaped records + 2 failure-mode injections",
+  "records": [
+    {
+      "window_start": "2026-05-11T00:00:00Z",
+      "window_end": "2026-05-18T00:00:00Z",
+      "draft_content": {
+        "sections": {
+          "progress": [{"text": "Auth service completed JWT migration. 12/12 stories delivered.", "source_ids": ["sig-001", "sig-002"]}],
+          "risks": [{"text": "Database migration script unreviewed.", "severity": "high", "source_ids": ["sig-003"]}],
+          "decisions": [{"text": "Adopted ruff for linting across all Python services.", "source_ids": ["sig-004"]}],
+          "dependencies": [{"text": "Auth service blocked on user-profile v2 API.", "source_ids": ["sig-005"]}],
+          "escalations": [{"text": "Database migration risk requires CTO sign-off.", "source_ids": ["sig-003"]}]
+        }
+      },
+      "approved_content": {
+        "sections": {
+          "progress": [{"text": "Auth service completed JWT migration. 12/12 stories delivered.", "source_ids": ["sig-001", "sig-002"]}],
+          "risks": [{"text": "Database migration script unreviewed.", "severity": "high", "source_ids": ["sig-003"]}],
+          "decisions": [{"text": "Adopted ruff for linting across all Python services.", "source_ids": ["sig-004"]}],
+          "dependencies": [{"text": "Auth service blocked on user-profile v2 API.", "source_ids": ["sig-005"]}],
+          "escalations": [{"text": "Database migration risk requires CTO sign-off.", "source_ids": ["sig-003"]}]
+        }
+      },
+      "accepted_as_is": true,
+      "edit_delta": null,
+      "failure_mode_injections": []
+    },
+    {
+      "window_start": "2026-05-04T00:00:00Z",
+      "window_end": "2026-05-11T00:00:00Z",
+      "draft_content": {
+        "sections": {
+          "progress": [{"text": "Platform team shipped observability dashboard v1.", "source_ids": ["sig-010"]}],
+          "risks": [{"text": "Slack ingest latency spike detected in prod.", "severity": "medium", "source_ids": ["sig-011"]}],
+          "decisions": [{"text": "Decided to use LangGraph for workflow orchestration.", "source_ids": ["sig-012"]}],
+          "dependencies": [{"text": "Observability dashboard depends on AGE graph schema stability.", "source_ids": ["sig-013"]}],
+          "escalations": []
+        }
+      },
+      "approved_content": {
+        "sections": {
+          "progress": [{"text": "Platform team shipped observability dashboard v1.", "source_ids": ["sig-010"]}],
+          "risks": [{"text": "Slack ingest latency spike detected in prod — P1 incident opened.", "severity": "high", "source_ids": ["sig-011"]}],
+          "decisions": [{"text": "Decided to use LangGraph for workflow orchestration.", "source_ids": ["sig-012"]}],
+          "dependencies": [{"text": "Observability dashboard depends on AGE graph schema stability.", "source_ids": ["sig-013"]}],
+          "escalations": [{"text": "P1 Slack ingest incident escalated to on-call.", "source_ids": ["sig-011"]}]
+        }
+      },
+      "accepted_as_is": false,
+      "edit_delta": {
+        "original_tokens": 45,
+        "final_tokens": 52,
+        "similarity_ratio": 0.92,
+        "changed_sections": ["risks", "escalations"]
+      },
+      "failure_mode_injections": []
+    },
+    {
+      "window_start": "2026-04-27T00:00:00Z",
+      "window_end": "2026-05-04T00:00:00Z",
+      "draft_content": {
+        "sections": {
+          "progress": [{"text": "No significant progress signals in this window.", "source_ids": []}],
+          "risks": [],
+          "decisions": [{"text": "Architecture review scheduled for next sprint.", "source_ids": ["sig-020"]}],
+          "dependencies": [],
+          "escalations": []
+        }
+      },
+      "approved_content": {
+        "sections": {
+          "progress": [{"text": "No significant progress signals in this window.", "source_ids": []}],
+          "risks": [],
+          "decisions": [{"text": "Architecture review scheduled for next sprint.", "source_ids": ["sig-020"]}],
+          "dependencies": [],
+          "escalations": []
+        }
+      },
+      "accepted_as_is": true,
+      "edit_delta": null,
+      "failure_mode_injections": []
+    },
+    {
+      "window_start": "2026-05-11T00:00:00Z",
+      "window_end": "2026-05-18T00:00:00Z",
+      "draft_content": {
+        "sections": {
+          "progress": [{"text": "John Nonexistent approved the critical deployment.", "source_ids": ["sig-030"]}],
+          "risks": [],
+          "decisions": [],
+          "dependencies": [],
+          "escalations": []
+        }
+      },
+      "approved_content": {},
+      "accepted_as_is": false,
+      "edit_delta": null,
+      "failure_mode_injections": [
+        {
+          "failure_mode": "hallucinated_stakeholder",
+          "injected_name": "John Nonexistent",
+          "description": "Stakeholder name not present in Actor nodes"
+        }
+      ]
+    },
+    {
+      "window_start": "2026-05-11T00:00:00Z",
+      "window_end": "2026-05-18T00:00:00Z",
+      "draft_content": {
+        "sections": {
+          "progress": [],
+          "risks": [],
+          "decisions": [],
+          "dependencies": [
+            {
+              "text": "Auth depends on legacy-db service (edge id: edge-stale-001).",
+              "edge_id": "edge-stale-001",
+              "source_ids": ["sig-040"]
+            }
+          ],
+          "escalations": []
+        }
+      },
+      "approved_content": {},
+      "accepted_as_is": false,
+      "edit_delta": null,
+      "failure_mode_injections": [
+        {
+          "failure_mode": "stale_dependency",
+          "edge_id": "edge-stale-001",
+          "description": "DEPENDS_ON edge last updated > 90 days ago"
+        }
+      ]
+    }
+  ]
+}
