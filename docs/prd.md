@@ -302,6 +302,26 @@ of who-owns-what across teams. The bottleneck is attention, not effort.
 + organizational memory graph cover the primary daily-driver use case.
 They are the central beta-user persona.
 
+**Week 1 (activation).** Same persona, distinct context. In their first
+seven days the operator has no platform-built mental model yet, no
+historical state, and limited patience: friction beyond value early kills
+adoption. Day-1 pain points are different from ongoing pain — uncertainty
+about what the platform does day-to-day, indecision about which sources
+to connect first, impatience for first useful output, anxiety about
+exposing org data to a new system.
+
+What they need in week 1 (distinct from ongoing wants in the main bullet
+list above):
+- An obvious next action at every step of onboarding
+- A defined time-to-value promise ("first useful briefing within 7 days")
+- Visible progress during initial ingest
+- Empty-state surfaces that teach, not just display blank canvas
+- Reassurance that data scope, retention, and access are what they
+  configured
+
+How MVP serves week-1 Strategic Operators: see the First-run experience
+feature spec at §8.3.9 and the Onboarding flow detail in §10 Phase 4.
+
 ### 4.2 Domain Practitioner
 
 **Profile.** Staff or principal engineer, architect, or initiative owner
@@ -564,6 +584,13 @@ allow inline editing of graph state.
 | Decision Graph view ("very good" tier) | MVP  |
 | Strategy maps, scenario overlays, heatmaps, agent streams | Post-beta |
 
+**View states.** Every primary view (Initiative Galaxy, Workflow
+Topology, Decision Graph) has three states: empty, activating, and
+activated. State design — including the "placeholder-grey" treatment
+for example/anticipated content and the one-primary-action rule — is
+cross-cutting. See §6.3 for the design system commitments and §8.3.10
+for the cross-view feature spec.
+
 ### 5.8 Open Questions
 
 - **OQ-017** Should the Cognitive Load Engine sit beside the other
@@ -571,6 +598,10 @@ allow inline editing of graph state.
   it as a peer engine because it has its own retention/decay logic.
 - **OQ-018** Does the Visualization Layer warrant its own engine, or
   should view-state live with the engines whose data it renders?
+- **OQ-024** When does the Workflows library become more than length-1?
+  Threshold: feature-completeness of either Architecture Review (§7.2.2)
+  or Portfolio Dependency Intelligence (§7.2.3) — both currently
+  post-beta.
 
 ## 6. Platform Architecture
 
@@ -689,6 +720,17 @@ platform commits to:
 - **Density modes**: comfortable / dense / focus, explicitly switchable
 - **Accessibility**: keyboard-first graph navigation; screen-reader
   narration of topology state
+- **View states**: every primary view has three states (empty,
+  activating, activated). Empty/activating states use a "placeholder-
+  grey" treatment for example/anticipated content — visually distinct
+  from live data, structurally identical. Every state surfaces exactly
+  one primary action. Loading is scoped to elements (e.g., ingest
+  progress bars), never as view-blocking overlays. Per-view AC
+  specifications in §8.3.10.
+- **Copy in topology**: state copy is honest about why empty — *"ingest
+  still discovering"* vs *"your team hasn't captured decisions yet"* are
+  distinct conditions with distinct next actions. Operator-language
+  guardrails per §8.3.9 apply.
 
 **Design references (named, to resist generic LLM defaults):**
 - Motion / restraint / density: **Linear**
@@ -890,6 +932,23 @@ Operator confirms any new Risk entries before they become graph state.
 **Telemetry surface.** Standard schema + briefing-specific fields:
 input-signal count per source, retrieval hit-rate, agent token cost
 total, edit distance post-approval, downstream-action count.
+
+**First-run variant (week 1 only).** The first briefing for a newly-
+activated operator runs under modified contracts:
+
+- **Inputs**: same shape but smaller window — last 7 days of ingestion
+  only (one ingest cycle's worth), not the rolling 7-day window an
+  ongoing briefing receives
+- **Outputs**: briefing markdown carries an explicit header label
+  *"First briefing — low signal. Data accumulates over the week."*
+- **Eval**: accept-as-is target is ≥ 30%, not the ongoing ≥ 40%.
+  Cold-start is real; the bar accommodates it without abandoning quality
+  expectations
+- **Telemetry**: first-run briefings emit a `first_run: true` field on
+  their trace; activation metrics (§9.5) join against this for analysis
+- **Failure mode added**: "claims about week-over-week trends" — week 1
+  has no prior week to compare against. Detected by prompt-side
+  constraint and by output filter.
 
 #### 7.2.2 Architecture Review (post-beta)
 
@@ -1156,6 +1215,16 @@ Coordinator agents.
   triggering re-layout
 - Read-mostly: node properties viewable; editing deferred to detail
   pane (post-MVP for inline edit)
+- Empty state (0 initiatives): renders a placeholder-grey constellation
+  surface with copy *"Your initiatives will appear here as Context-OS
+  reads your work. If sources are connected and this is still empty,
+  scope may need adjusting."* and primary action "Adjust source scope";
+  not a blank canvas
+- Activating state (1–9 initiatives during ingest): renders initiatives
+  as discovered; placeholder constellations resolve into real nodes as
+  they arrive; copy *"Discovering your initiatives. {N} found so far.
+  Estimated {time} remaining."* with primary action "Notify me when
+  done"
 
 **Qualitative bar.**
 - Side-by-side with Linear's graph view at internal design review,
@@ -1181,6 +1250,15 @@ inline editing of node properties.
 - Bottleneck and latency overlays
 - Filter by team, initiative, status
 - Up to 500 nodes render with sub-second interaction
+- Empty state (0 workflows): renders Executive Briefing workflow as a
+  dimmed seed node; copy *"Workflows derive from your team's
+  coordination patterns. Executive Briefing is active by default;
+  others appear as patterns emerge."*; primary action "View Executive
+  Briefing"
+- Activating state (1–9 workflows): renders without density-collapse
+  thresholds; faint anticipated workflows hinted; copy *"{N} workflows
+  mapped. More will be discovered."*; primary action "See what's been
+  discovered"
 
 **Qualitative bar.** Defensible against Linear's project views and
 Notion's database views in a side-by-side; no data fidelity gaps.
@@ -1202,6 +1280,14 @@ bottleneck attribution.
 - Rationale and alternatives visible on hover or pane
 - Up to 1000 decisions render readably (collapsing/expanding clusters
   when density exceeds threshold)
+- Empty state (0 decisions): renders two example decision nodes in
+  placeholder-grey; copy *"Decisions accumulate as your team captures
+  them. Context-OS proposes decisions from briefing reviews — each
+  approval becomes a decision in your graph."*; primary action "Capture
+  a decision manually"
+- Activating state (1–19 decisions): full dagre layout, no cluster
+  collapse; copy *"Your decision history is building. {N} captured so
+  far."*
 
 **Qualitative bar.** Defensible against Confluence + manual ADR lists
 in a side-by-side; surfacing of rationale and alternatives is the
@@ -1251,6 +1337,122 @@ weeks; time-to-clear-inbox metric tracked.
 **Out of scope for MVP.** Delegation, batch operations, custom
 approval rules.
 
+#### 8.3.9 First-run experience (Workflow-First Activation)
+
+The new operator's activation surface. Implements the seven-step
+journey from DESIGN at `docs/plans/2026-05-17-prd-new-user-amendment-design.md`.
+The activation moment is **approval of the first briefing**, not arrival
+at a populated view (per §3.2 product principle Intent Over Tasks).
+
+**Functional acceptance.**
+- Sign-up frame: lands the operator on a screen that states the
+  transformation thesis in plain language (before/after format per
+  §6.3 copy guardrails); no feature list
+- Discovery survey: one question after Clerk-mediated account creation,
+  five options (briefings, dependencies, decision retrieval,
+  architecture-review cycle time, something-else free-text); answer
+  captured per-org, feeds §9.6 falsification criterion #3
+- Integration connect wizard: three OAuth cards (Jira, GitHub, Slack)
+  framed as workflow-inputs; each card non-destructive; partial success
+  acceptable (skip-able per source with explicit warning)
+- Scope selection in workflow terms: *"Which initiatives should your
+  briefing cover?"* — projects (Jira) / repos (GitHub) / channels
+  (Slack) with active-in-last-90-days pre-checked
+- Ingest UX as workflow priming: progress bar with estimated time,
+  leave-and-return supported, completion notification by email;
+  completion summary copy *"Found {N} initiatives, {M} PRs, {K} active
+  threads. Drafting your first briefing now."*
+- First-briefing scheduling: triggered automatically at end of
+  ingest-completion day; uses the first-run variant of Executive
+  Briefing (per §7.2.1)
+- Activation moment: first-briefing approval emits an `activation_event`
+  trace; subsequent sessions present Initiative Galaxy / Workflow
+  Topology / Decision Graph in the nav (per §8.3.10 progressive
+  disclosure)
+- Mismatch handling: operators who picked a non-briefing pain in the
+  survey proceed with briefing flow + gentle forward-reference copy
+  *"You picked {X}. We're starting with briefings. Here's where {X}
+  sits."* with a single-line roadmap reference
+- Recovery paths: each step (OAuth failure, ingest stall, briefing
+  generation failure) has a documented recovery flow; total path
+  branching ≤ 1 layer per step
+- Time-to-completion: a new operator completes sign-up → integration
+  connect → first populated view in < 30 minutes active attention,
+  < 24 hours wall-clock
+
+**Qualitative bar.**
+- A new Strategic Operator completes onboarding without contacting
+  support
+- The activation moment (first briefing approval) feels earned, not
+  empty — the operator immediately sees something specific to their org
+- Empty intermediate states (during ingest) feel like progress, not
+  failure
+- The transformation thesis is named on entry and validated on exit
+  ("you just did in 5 minutes what used to take 60")
+
+**Evaluation.**
+- End-to-end timing test: sign-up email click → first populated view,
+  on representative source-data shapes; < 24 hours wall-clock,
+  < 30 minutes active attention
+- Dogfood-operator re-onboarding calibration: once during Phase 4 the
+  Platform Operator onboards themselves to a fresh tenant as if a new
+  operator; timings captured against §9.5 activation metrics block
+- Beta-cohort completion rate: ≥ 80% of recruited orgs activate
+
+**Out of scope for MVP.**
+- SSO / SAML
+- White-label or custom-domain onboarding
+- Team invitations beyond a single operator per org (additional
+  teammates added via Clerk admin only)
+- Custom integration adapters beyond Jira / GitHub / Slack
+- Bulk-import historical onboarding (e.g., "import last year's Jira"
+  as a backfill — only forward sync is supported)
+- Per-feature tours or in-product walkthroughs (the static doc-site
+  getting-started page is the documentation surface)
+
+#### 8.3.10 Empty / activating view states (cross-view)
+
+A cross-cutting feature spanning Initiative Galaxy (§8.3.4), Workflow
+Topology (§8.3.5), and Decision Graph (§8.3.6). Per-view ACs were
+appended to each view spec; this section specifies the cross-cutting
+contract.
+
+**Functional acceptance.**
+- Three states per view: empty (zero data), activating (partial data
+  during ingest or initial accumulation), activated (full data per
+  view's own acceptance criteria)
+- Placeholder-grey treatment: example/anticipated content rendered at
+  a defined neutral lightness level, structurally identical to live
+  content; clear visual delineation from live data without being a
+  blank canvas
+- One primary action per state: every state surfaces exactly one CTA;
+  never zero, never two
+- Honest copy: state copy names the specific reason for the state
+  ("ingest still discovering" vs "your team hasn't captured decisions
+  yet")
+- Loading scoped to elements: progress bars on ingest/sync operations
+  only; no view-blocking spinners
+- State transitions: graceful animation between empty → activating →
+  activated as data arrives; no flash-of-blank-content
+
+**Qualitative bar.**
+- Side-by-side with Linear or Notion empty states at internal review,
+  the Context-OS state surfaces communicate more about *what will be
+  here* and *what the operator can do*
+- Empty states feel like *the surface is ready for content*, not *the
+  surface is broken*
+
+**Evaluation.**
+- Visual regression tests for empty + activating states on each of the
+  three views at three viewports (mobile-landscape, laptop, large
+  display)
+- Copy review against §6.3 tone guardrails (operator-language,
+  specific not generic, honest about state)
+
+**Out of scope for MVP.**
+- State customization by operator (e.g., custom empty-state copy)
+- A/B testing of state copy or actions
+
 ### 8.4 Explicitly out of scope
 
 Deferred to post-beta or future. These are real cuts, not omissions.
@@ -1290,10 +1492,14 @@ The numbers are the schedule. The schedule is the load-bearing risk.
 | Decision Graph view                    | 2 wk   | Layout legibility >100 decisions |
 | Executive Briefing workflow E2E        | 3 wk   | Output quality variance     |
 | Human approval surface                 | 1 wk   | None significant            |
+| First-briefing low-signal handling (§7.2.1 variant) | 1 wk   | Cold-start eval framing |
+| Empty / activating view states (3 views, §8.3.10) | 2 wk   | Placeholder-grey consistency |
+| First-run experience (Workflow-First Activation, §8.3.9) | 3 wk   | Copy + journey UX bar |
+| Activation telemetry + admin surfaces | 1 wk   | Plumbing across services |
 | Auth + multi-tenant (Clerk)            | 2 wk   | None significant            |
 | Deploy + observability                 | 1 wk   | None significant            |
-| Buffer (30%)                           | 8 wk   | Unknown unknowns            |
-| **Total**                              | **36 wk (~8.3 months)** | |
+| Buffer (~17%)                          | 6 wk   | Unknown unknowns            |
+| **Total**                              | **41 wk (~9.5 months raw audit; ~42–43 wk phased per §10)** | |
 
 Audit assumes the Build Model (§8.2): one human + advanced LLM coding
 and design agents. With LLM leverage removed, this estimate is not
@@ -1325,6 +1531,18 @@ trigger, to avoid thrash, unless the trigger is severe.
 - **Closed-beta recruitment stalls** → narrow to 1–2 orgs (limited
   beta); treat as wedge-hypothesis test with smaller sample (Plan-B
   candidates per §9.6).
+- **Activation completion rate < 60% by week 36** (mid-Phase 4) →
+  drop fully-self-serve aspiration; fallback to founder-led + minimal
+  first-run safety (sensible empty states only); replan Phase 4 around
+  manual onboarding workflows. Saves ~3 wk on Phase 4.
+- **Activation median time > 60 min active attention by week 38** →
+  either the journey is wrong (tighten copy/steps) or the bar is
+  unrealistic; explicit replan decision with operator.
+- **Discovery survey reveals function mismatch by 3rd beta org**
+  (briefing-pain < 30% of answers across first 3 orgs) → trigger
+  early wedge memo (§9.6 falsification criterion #3 confirmed early);
+  pause recruiting until wedge decision is published; consider pivot
+  before completing the cohort.
 
 ### 8.7 Open Questions
 
@@ -1337,6 +1555,12 @@ trigger, to avoid thrash, unless the trigger is severe.
   during Phase 3.
 - **OQ-010** Pricing model and target price per seat. Required for
   falsification criterion 2 in §9.6. Resolves during closed beta.
+- **OQ-023** What's the right time-to-first-useful-briefing target —
+  1 day, 3 days, 7 days? Currently set to < 7 days (§9.5) but could be
+  tightened to < 3 days if cold-start agent quality permits.
+- **OQ-025** If activation completion lags (50–80% of cohort), is that
+  a leading indicator that triggers schedule extension, or a fixed
+  gate? Decision rule needs to be set before Phase 4 begins.
 
 ## 9. Dogfooding Domain: Enterprise Architecture / PMO
 
@@ -1477,6 +1701,24 @@ If the experience metrics trend negative for three consecutive weeks
 during Phase 2 or 3, the product direction is wrong; trigger a
 direction review.
 
+**Activation metrics** — measured against beta orgs during Phase 4 and
+against the Platform Operator's dogfood re-onboarding calibration.
+Visible to Platform Operator only.
+
+| Metric | Target |
+|---|---|
+| Sign-up email click → sign-up button click | observe, no target |
+| Sign-up → integration-connect complete (active attention) | < 15 min |
+| Connect-complete → ingest-complete (wall-clock) | < 30 min typical, < 24 hr worst |
+| Ingest-complete → first-briefing approval (active attention) | < 15 min |
+| Total wall-clock sign-up → activation | < 24 hr |
+| Total active attention sign-up → activation | < 30 min |
+| Activation completion rate (cohort) | ≥ 80% |
+| Drop-off at any single step | < 10% |
+| Day-1 support contact rate | < 30% of cohort |
+| Time from activation to 2nd-week briefing | scheduled 7 days; measure attended/edited rate at arrival |
+| Operator's first briefing accept-as-is rate | ≥ 30% (lower than ongoing ≥ 40%; cold-start is real) |
+
 ### 9.6 Commercial hypothesis (to falsify in closed beta)
 
 > **Hypothesis.** The commercial wedge is **engineering leadership at
@@ -1505,10 +1747,15 @@ end of closed beta:
    pay below $X per seat per month (target $X to be set during
    recruiting, per OQ-010). (The value cap is wrong; needs different
    positioning or pricing model.)
-3. **Function mismatch.** Orgs engage but the most-used surfaces are
-   non-engineering (e.g., they ask for sales-pipeline or marketing-
-   operations views, not architecture reviews). (The function is
-   wrong, even if the company size is right.)
+3. **Function mismatch** — Two signals, either of which fires the
+   criterion:
+   (a) **Week-1 signal** (new, via §8.3.9 discovery survey): across
+   the first 3 beta orgs, < 30% name briefings as their top pain.
+   Pause recruiting; trigger early wedge memo.
+   (b) **End-of-beta signal** (original): orgs engage but the
+   most-used surfaces are non-engineering (e.g., sales-pipeline or
+   marketing-operations views, not architecture reviews). The function
+   is wrong, even if company size is right.
 4. **Buyer mismatch.** Engineering leaders see the value but the
    actual buying authority sits with COO/CFO/IT. (The sales motion is
    harder than projected.)
@@ -1535,14 +1782,17 @@ chosen wedge, and explaining what shifted.
   enough of the broader market to validate the platform thesis?
 - **OQ-005** How long does the "validate, don't sell" stance hold
   before commercial pressure forces a wedge choice?
+- **OQ-026** What do we do about operators who activate but don't
+  return for their scheduled second briefing? Retention work post-MVP,
+  or accept as week-1-only signal?
 
 ## 10. Phased Build Plan
 
-Four phases, sized against the 36-week feasibility audit (§8.5). Each
-phase has a goal, scope, exit criteria, named risks, and the kill
-criteria that apply at that phase boundary. Phase 3 carries the
-load-bearing risk; everything else exists to deliver Phase 3
-successfully and Phase 4 cleanly.
+Four phases, sized against the 41-week raw feasibility audit (§8.5),
+distributed to 42–43 weeks phased. Each phase has a goal, scope, exit
+criteria, named risks, and the kill criteria that apply at that phase
+boundary. Phase 3 carries the load-bearing risk; everything else exists
+to deliver Phase 3 successfully and Phase 4 cleanly.
 
 ### Phase 1 — Foundation (weeks 1–9, ~25%)
 
@@ -1579,7 +1829,7 @@ load-bearing risks for the rest of the build.
   tables (+2 wk)
 - Velocity below estimate by week 8 → cut to one ingestion source
 
-### Phase 2 — Intelligence (weeks 10–18, ~25%)
+### Phase 2 — Intelligence (weeks 10–19, ~24%)
 
 **Goal.** Two agents producing real outputs against real data, with
 evaluations in place and the Executive Briefing workflow running
@@ -1593,6 +1843,7 @@ end-to-end.
 - Executive Briefing workflow E2E (§7.2.1): on-demand and scheduled
 - Human approval surface (inbox + approve/reject/edit)
 - Briefing telemetry per Constitution Principle VI
+- First-run variant of Executive Briefing (per §7.2.1); partial-data recovery paths in briefing generation
 
 **Exit criteria.**
 - Author receives a useful weekly briefing for **4 consecutive weeks**
@@ -1600,6 +1851,7 @@ end-to-end.
 - Eval suites pass on golden datasets; tracked in CI
 - Approval surface clears the dogfooding operator's pending queue in
   under 3 minutes when content is good
+- First-run briefing variant produces output meeting §7.2.1 cold-start eval bar (≥30% accept-as-is on representative low-signal test inputs)
 
 **Risks.**
 - Output quality variance (the headline risk of Phase 2)
@@ -1613,7 +1865,7 @@ end-to-end.
   with Phase 3 start of Galaxy work) → trigger Phase-3-level kill
   per §8.6
 
-### Phase 3 — Cognition Surface (weeks 19–28, ~28%)
+### Phase 3 — Cognition Surface (weeks 20–31, ~29%)
 
 **Goal.** The visualization layer that carries the demo. One
 world-class surface (Initiative Galaxy), two very-good surfaces
@@ -1634,6 +1886,7 @@ build.
   Motion)
 - Internal design reviews against named references (Linear, Vercel,
   Cosmograph demos)
+- Empty / activating state design across Galaxy, Topology, Decision Graph (per §8.3.10); placeholder-grey design system tokens; state transition motion language
 
 **Exit criteria.**
 - Galaxy passes internal design review against reference set
@@ -1643,6 +1896,7 @@ build.
   `docs/design-reviews/`
 - Demo-able for 60 seconds with zero narration
 - Performance benchmark suite for Galaxy passing in CI
+- All three views ship with empty + activating + activated state specs passing visual regression and copy review (per §8.3.10 evaluation)
 
 **Risks.**
 - World-class qualitative bar on Galaxy is the load-bearing risk
@@ -1659,7 +1913,7 @@ build.
 - Both structured views combined > 8 wk → revisit at week 12 (Phase
   2/3 boundary already passed) for hard cut-or-keep
 
-### Phase 4 — Closed Beta Readiness (weeks 29–36, ~22%)
+### Phase 4 — Closed Beta Readiness (weeks 32–43, ~27%)
 
 **Goal.** Survive contact with three to five outside organizations.
 Multi-tenant hardening, onboarding flow, support workflows, telemetry
@@ -1668,7 +1922,19 @@ dashboards, continuous-eval, documentation.
 **Scope.**
 - Multi-tenant hardening (data isolation tests, tenant-scoped admin
   surfaces)
-- Onboarding flow (org setup, integration connect, first briefing)
+- Onboarding flow (per §8.3.9 First-run experience):
+  - Sign-up frame copy (before/after transformation thesis)
+  - Discovery survey (one question, five options, feeds §9.6)
+  - Integration-connect wizard (3 OAuth cards, scope selection)
+  - Initial-ingest progress UX (leave-and-return supported)
+  - First-briefing scheduler (end-of-day-1, first-run variant)
+  - Activation moment detection + telemetry (`activation_event` trace)
+  - Mismatch handling for non-briefing-pain operators
+  - Recovery paths for OAuth/ingest/briefing failures
+- Activation telemetry plumbing (per §9.5 metrics block;
+  Platform-Operator-only visibility surface)
+- Admin module: aggregated discovery-survey table, activation funnel
+  cohort view (Platform-Operator-only)
 - Support workflows (issue intake, debug-trace export, tenant impersonation
   for the Platform Operator persona)
 - Telemetry dashboards (managed OTEL collector live; alerts on agent
@@ -1684,6 +1950,10 @@ dashboards, continuous-eval, documentation.
 - Uptime ≥ 99% over trailing 30 days
 - All MVP feature evaluation criteria (§8.3) passing on dogfood org
   data over a 4-week window
+- Dogfood-operator re-onboarding calibration completed; metrics
+  captured per §9.5 activation block; results documented
+- First beta org activates end-to-end without contacting support
+- §8.6 activation kill criteria all stay un-fired through Phase 4
 
 **Risks.**
 - Schedule risk (Phase 4 consumes any prior overrun; the 30% buffer
@@ -1873,6 +2143,10 @@ of this draft. When an OQ resolves, the resolution is recorded in
 | OQ-020 | Final managed-OTEL-collector vendor pick (Grafana Cloud, Honeycomb, Tempo self-hosted)             | §6.7    | Open   |
 | OQ-021 | Should one agent participate at different autonomy levels in different workflows, or mint workflow-specific agent identities? | §7.4 | Open |
 | OQ-022 | How are agent tool permissions versioned and reviewed when they expand?                            | §7.4    | Open   |
+| OQ-023 | What's the right time-to-first-useful-briefing target — 1 day, 3 days, 7 days? | §8.7 | Open |
+| OQ-024 | When does the Workflows library become more than length-1? Threshold: feature-completeness of Architecture Review or Portfolio Dependency Intelligence | §5.8 | Open |
+| OQ-025 | If activation completion lags 50–80% of cohort, is it a leading indicator triggering schedule extension, or a fixed gate? | §8.7 | Open |
+| OQ-026 | What do we do about operators who activate but don't return for scheduled second briefing? Retention work or accept as week-1 signal? | §9.7 | Open |
 
 **Resolution discipline.** When an OQ resolves:
 1. Write a decision memo under `docs/decisions/OQ-NNN-<slug>.md`
