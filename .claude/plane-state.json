@@ -1,0 +1,23 @@
+{
+  "project_id": "8f4de487-b0eb-422d-840d-7e234a62948b",
+  "project_identifier": "COS",
+  "project_name": "context-os",
+  "states": {
+    "Backlog": "f1725ed7-2464-451c-82c5-91074bc6a9d5",
+    "Todo": "7096aa9b-107b-4697-ac47-31ed11385245",
+    "In Progress": "aa005724-f332-4e7b-b04c-061d3f773cac",
+    "In Review": "8870475a-0e02-4538-b61d-9a3c0a6e15ca",
+    "Done": "217f3373-d36a-45c3-b795-05a39bff2e39",
+    "Cancelled": "502768e4-5acf-4dd1-8f5d-b69681ed13f9"
+  },
+  "features": {
+    "test-feature": {
+      "module_id": "a8840dfd-b269-4958-a1a1-ec0f6c02b27c",
+      "tasks": {
+        "T001 verify plane connectivity via list_projects": "e54c96d1-6dd9-4789-ae43-a383790b1211",
+        "T002 confirm context-os project exists or can be created": "fb38852b-a83a-41ae-aaba-31ab6317725e",
+        "T003 confirm test-feature module is created in plane": "d446e4ef-ad54-4740-b685-a1baf8670533"
+      }
+    }
+  }
+}
