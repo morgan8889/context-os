@@ -1701,6 +1701,24 @@ If the experience metrics trend negative for three consecutive weeks
 during Phase 2 or 3, the product direction is wrong; trigger a
 direction review.
 
+**Activation metrics** — measured against beta orgs during Phase 4 and
+against the Platform Operator's dogfood re-onboarding calibration.
+Visible to Platform Operator only.
+
+| Metric | Target |
+|---|---|
+| Sign-up email click → sign-up button click | observe, no target |
+| Sign-up → integration-connect complete (active attention) | < 15 min |
+| Connect-complete → ingest-complete (wall-clock) | < 30 min typical, < 24 hr worst |
+| Ingest-complete → first-briefing approval (active attention) | < 15 min |
+| Total wall-clock sign-up → activation | < 24 hr |
+| Total active attention sign-up → activation | < 30 min |
+| Activation completion rate (cohort) | ≥ 80% |
+| Drop-off at any single step | < 10% |
+| Day-1 support contact rate | < 30% of cohort |
+| Time from activation to 2nd-week briefing | scheduled 7 days; measure attended/edited rate at arrival |
+| Operator's first briefing accept-as-is rate | ≥ 30% (lower than ongoing ≥ 40%; cold-start is real) |
+
 ### 9.6 Commercial hypothesis (to falsify in closed beta)
 
 > **Hypothesis.** The commercial wedge is **engineering leadership at
