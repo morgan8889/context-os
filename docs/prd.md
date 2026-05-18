@@ -1488,10 +1488,14 @@ The numbers are the schedule. The schedule is the load-bearing risk.
 | Decision Graph view                    | 2 wk   | Layout legibility >100 decisions |
 | Executive Briefing workflow E2E        | 3 wk   | Output quality variance     |
 | Human approval surface                 | 1 wk   | None significant            |
+| First-briefing low-signal handling (§7.2.1 variant) | 1 wk   | Cold-start eval framing |
+| Empty / activating view states (3 views, §8.3.10) | 2 wk   | Placeholder-grey consistency |
+| First-run experience (Workflow-First Activation, §8.3.9) | 3 wk   | Copy + journey UX bar |
+| Activation telemetry + admin surfaces | 1 wk   | Plumbing across services |
 | Auth + multi-tenant (Clerk)            | 2 wk   | None significant            |
 | Deploy + observability                 | 1 wk   | None significant            |
-| Buffer (30%)                           | 8 wk   | Unknown unknowns            |
-| **Total**                              | **36 wk (~8.3 months)** | |
+| Buffer (~17%)                          | 6 wk   | Unknown unknowns            |
+| **Total**                              | **41 wk (~9.5 months raw audit; ~42–43 wk phased per §10)** | |
 
 Audit assumes the Build Model (§8.2): one human + advanced LLM coding
 and design agents. With LLM leverage removed, this estimate is not
