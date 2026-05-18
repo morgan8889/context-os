@@ -107,3 +107,78 @@ class ValidationError(ContextOSError):
 
     code: str = field(default="validation_error")
     message: str = field(default="Request validation failed")
+
+
+# ── Phase 2: Intelligence error types ─────────────────────────────────────────
+
+
+@dataclass
+class AgentError(ContextOSError):
+    """Raised when an AI agent (Synthesizer or Mapper) encounters a fatal error."""
+
+    code: str = field(default="agent_error")
+    message: str = field(default="Agent encountered a fatal error")
+
+
+@dataclass
+class ApprovalError(ContextOSError):
+    """Raised when an approval action fails (e.g. item not found or wrong status).
+
+    Attributes:
+        item_id: UUID string of the ApprovalItem that caused the error.
+    """
+
+    item_id: str = field(default="")
+    code: str = field(default="approval_error")
+    message: str = field(default="Approval action failed")
+
+    def to_dict(self) -> dict[str, str | int | None]:
+        """Serialize to a dict, including item_id."""
+        base = super().to_dict()
+        return {**base, "item_id": self.item_id}
+
+
+@dataclass
+class EvalError(ContextOSError):
+    """Raised when an evaluation suite run fails or a CI gate threshold is not met."""
+
+    code: str = field(default="eval_error")
+    message: str = field(default="Evaluation suite failed or CI gate not met")
+
+
+@dataclass
+class BudgetExceededError(AgentError):
+    """Raised when an agent's token cost exceeds the configured budget.
+
+    Attributes:
+        tokens_used: Total tokens consumed before budget was exceeded.
+        budget: The configured budget limit.
+    """
+
+    tokens_used: int = field(default=0)
+    budget: int = field(default=50000)
+    code: str = field(default="budget_exceeded")
+    message: str = field(default="Agent token budget exceeded")
+
+    def to_dict(self) -> dict[str, str | int | None]:
+        """Serialize to a dict, including token counts."""
+        base = super().to_dict()
+        return {**base, "tokens_used": self.tokens_used, "budget": self.budget}
+
+
+@dataclass
+class WorkflowError(ContextOSError):
+    """Raised when a LangGraph workflow fails to start, run, or resume.
+
+    Attributes:
+        thread_id: LangGraph thread ID (if applicable).
+    """
+
+    thread_id: str | None = field(default=None)
+    code: str = field(default="workflow_error")
+    message: str = field(default="Workflow failed")
+
+    def to_dict(self) -> dict[str, str | int | None]:
+        """Serialize to a dict, including thread_id."""
+        base = super().to_dict()
+        return {**base, "thread_id": self.thread_id}

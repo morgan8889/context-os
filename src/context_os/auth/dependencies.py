@@ -32,10 +32,12 @@ class TenantContext:
     Attributes:
         tenant_id: Clerk org ID extracted from JWT (e.g. "org_abc123").
         db_tenant_id: Internal UUID primary key from the tenants table.
+        user_id: Clerk user subject ID from JWT payload["sub"].
     """
 
     tenant_id: str
     db_tenant_id: uuid.UUID
+    user_id: str = ""
 
 
 async def get_current_tenant(
@@ -124,7 +126,10 @@ async def get_current_tenant(
             },
         )
 
+    user_id = auth_result.get("payload", {}).get("sub", "")
+
     return TenantContext(
         tenant_id=clerk_org_id,
         db_tenant_id=tenant.id,
+        user_id=user_id,
     )

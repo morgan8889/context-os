@@ -1,0 +1,699 @@
+openapi: "3.1.0"
+info:
+  title: Context-OS API — Phase 2 Intelligence
+  version: "0.2.0"
+  description: |
+    Extends Phase 1 Foundation API with agent orchestration, approval inbox,
+    and eval suite endpoints. All Phase 1 endpoints remain unchanged.
+    All endpoints require a valid Clerk JWT in the Authorization header.
+    All data reads and writes are scoped to the authenticated tenant.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - ClerkJWT: []
+
+components:
+  securitySchemes:
+    ClerkJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Clerk-issued JWT. Org ID extracted from `o.id` claim.
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        trace_id:
+          type: string
+
+    ItemType:
+      type: string
+      enum: [briefing_draft, proposed_dependency, proposed_risk]
+
+    ItemStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    FailureFlag:
+      type: object
+      required: [type, detail]
+      properties:
+        type:
+          type: string
+          enum: [hallucinated_stakeholder, stale_dependency, missed_escalation, citation_error]
+        detail:
+          type: string
+          description: Human-readable explanation of the detected issue
+
+    ApprovalItem:
+      type: object
+      required: [id, item_type, status, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_type:
+          $ref: "#/components/schemas/ItemType"
+        status:
+          $ref: "#/components/schemas/ItemStatus"
+        content:
+          type: object
+          description: Item-type-specific payload (BriefingDraft, ProposedDependency, or ProposedRisk schema)
+          additionalProperties: true
+        failure_flags:
+          type: array
+          items:
+            $ref: "#/components/schemas/FailureFlag"
+          description: Failure modes detected by the agent; empty if none
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+          description: True if item has been pending for more than 24 hours
+        run_id:
+          type: string
+          format: uuid
+          description: Associated briefing run ID (briefing_draft items only)
+
+    ApprovalItemSummary:
+      type: object
+      description: Compact representation for inbox list view
+      required: [id, item_type, status, preview, created_at, stale]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_type:
+          $ref: "#/components/schemas/ItemType"
+        status:
+          $ref: "#/components/schemas/ItemStatus"
+        preview:
+          type: string
+          description: First 200 characters of the item's primary content
+        created_at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+        failure_flag_count:
+          type: integer
+          description: Number of failure flags detected (0 if clean)
+
+    BriefingRunStatus:
+      type: object
+      required: [run_id, status, tenant_id, created_at]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [generating, complete, failed, partial]
+        tenant_id:
+          type: string
+        trigger_type:
+          type: string
+          enum: [manual, scheduled]
+        window_days:
+          type: integer
+        input_signal_counts:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Number of signals retrieved per source (github, jira, slack)
+        cost_tokens:
+          type: integer
+        latency_ms:
+          type: integer
+        approval_item_id:
+          type: string
+          format: uuid
+          description: Set when status = complete; the inbox item to review
+        error_detail:
+          type: string
+          description: Set when status = failed
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    MapperScanStatus:
+      type: object
+      required: [scan_id, status, tenant_id, created_at]
+      properties:
+        scan_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [scanning, complete, failed]
+        tenant_id:
+          type: string
+        proposed_count:
+          type: integer
+          description: Number of dependency edges proposed (set when complete)
+        graph_walk_depth:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    EvalRunResult:
+      type: object
+      required: [run_id, eval_type, status, scores, gates_passed, created_at]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        eval_type:
+          type: string
+          enum: [synthesizer, mapper]
+        dataset_version:
+          type: string
+        status:
+          type: string
+          enum: [running, passed, failed, error]
+        scores:
+          type: object
+          description: |
+            synthesizer: {accept_rate, median_edit_distance, false_positive_risk_rate,
+                          failure_mode_detection: {hallucinated_stakeholder, stale_dependency,
+                                                   missed_escalation, citation_error}}
+            mapper: {precision, recall, false_positive_rate}
+          additionalProperties: true
+        gates_passed:
+          type: boolean
+        score_deltas:
+          type: object
+          description: Score changes versus the prior run (null if first run)
+          additionalProperties: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+
+paths:
+  # ── Briefing ──────────────────────────────────────────────────────────────
+  /briefing/generate:
+    post:
+      operationId: generateBriefing
+      summary: Trigger briefing generation for the authenticated tenant
+      tags: [Briefing]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                window_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 90
+                  default: 7
+                  description: Number of days of data to include in the briefing
+      responses:
+        "202":
+          description: Briefing generation started; poll /briefing/status/{run_id} for progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BriefingRunStatus"
+        "400":
+          description: No ingested data available for the requested window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: A briefing generation is already in progress for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /briefing/status/{run_id}:
+    get:
+      operationId: getBriefingStatus
+      summary: Poll briefing generation status
+      tags: [Briefing]
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current run status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BriefingRunStatus"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Run ID not found for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Approval Inbox ─────────────────────────────────────────────────────────
+  /inbox:
+    get:
+      operationId: listInboxItems
+      summary: List approval inbox items for the authenticated tenant
+      tags: [Inbox]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ItemStatus"
+          description: Filter by status; omit to return all
+        - name: item_type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ItemType"
+        - name: stale_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: If true, return only items pending for more than 24 hours
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Paginated inbox items (newest first)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, pending_count, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalItemSummary"
+                  total:
+                    type: integer
+                  pending_count:
+                    type: integer
+                    description: Number of items currently in pending status
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /inbox/{item_id}:
+    get:
+      operationId: getInboxItem
+      summary: Get full detail for a single approval inbox item
+      tags: [Inbox]
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Full item detail including complete content and all failure flags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalItem"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /inbox/{item_id}/approve:
+    post:
+      operationId: approveInboxItem
+      summary: Approve an inbox item, optionally with edited content
+      description: |
+        If `edited_content` is provided, the edited version is committed to the
+        canonical graph and the edit delta is recorded. If omitted, the original
+        AI-generated content is committed as-is.
+
+        After approval:
+        - BriefingDraft → promoted to Artifact node in AGE graph
+        - ProposedRisk → promoted to Risk node in AGE graph
+        - ProposedDependency → promoted to DEPENDS_ON edge in AGE graph
+      tags: [Inbox]
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                edited_content:
+                  type: object
+                  description: |
+                    Operator-edited version of the item content. Must follow the same
+                    schema as the original item content (briefing_draft, proposed_risk,
+                    or proposed_dependency). If omitted, original content is approved.
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Item approved and committed to canonical graph
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalItem"
+        "400":
+          description: Item is not in pending status or edited_content schema is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Graph promotion failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /inbox/{item_id}/reject:
+    post:
+      operationId: rejectInboxItem
+      summary: Reject an inbox item
+      description: |
+        No canonical graph state is written. The rejection and optional reason
+        are recorded in the approval_items table for provenance and telemetry.
+      tags: [Inbox]
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional operator-supplied reason for rejection
+                  maxLength: 500
+      responses:
+        "200":
+          description: Item rejected; provenance recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalItem"
+        "400":
+          description: Item is not in pending status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Item not found for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Dependency Mapper ──────────────────────────────────────────────────────
+  /mapper/scan:
+    post:
+      operationId: triggerMapperScan
+      summary: Trigger a Dependency Mapper scan for the authenticated tenant
+      description: |
+        Runs the Dependency Mapper at autonomy level 2: discovers candidate
+        DEPENDS_ON relationships and enqueues each as a proposed_dependency
+        ApprovalItem. No canonical graph edges are created without operator approval.
+      tags: [Mapper]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_depth:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  default: 3
+                  description: Maximum graph walk depth for dependency discovery
+                focus_node_id:
+                  type: string
+                  format: uuid
+                  description: If set, scope the scan to relationships involving this node
+      responses:
+        "202":
+          description: Mapper scan started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MapperScanStatus"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: A mapper scan is already in progress for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Eval Suite ────────────────────────────────────────────────────────────
+  /eval/run:
+    post:
+      operationId: runEval
+      summary: Trigger an evaluation suite run
+      tags: [Eval]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eval_type]
+              properties:
+                eval_type:
+                  type: string
+                  enum: [synthesizer, mapper]
+                dataset_id:
+                  type: string
+                  format: uuid
+                  description: |
+                    UUID of the golden dataset to evaluate against. If omitted,
+                    the most recent dataset of the matching type is used.
+                compare_to_run_id:
+                  type: string
+                  format: uuid
+                  description: Prior run to compute score deltas against
+      responses:
+        "202":
+          description: Eval run started; results available at /eval/runs/{run_id}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRunResult"
+        "400":
+          description: No golden dataset found for eval_type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /eval/runs:
+    get:
+      operationId: listEvalRuns
+      summary: List evaluation run results for the authenticated tenant
+      tags: [Eval]
+      parameters:
+        - name: eval_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [synthesizer, mapper]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Paginated eval run results (newest first)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EvalRunResult"
+                  total:
+                    type: integer
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /eval/runs/{run_id}:
+    get:
+      operationId: getEvalRun
+      summary: Get detailed results for a single eval run
+      tags: [Eval]
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Full eval run result with per-metric scores and gate status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRunResult"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Run not found for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

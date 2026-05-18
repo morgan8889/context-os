@@ -3,18 +3,13 @@
 **Date**: 2026-05-17  
 **Branch**: `1-phase-1-foundation`
 
-> **Port note**: `docker/docker-compose.yml` maps Postgres to host port **5433**
-> (not 5432) and the local Langfuse instance to port **3010** (not 3000) to
-> avoid conflicts with other services that may already occupy those ports.
-> Adjust `DATABASE_URL` and `LANGFUSE_HOST` accordingly.
-
 ---
 
 ## Prerequisites
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| Docker Desktop | 4.x+ | Runs Postgres (AGE), Langfuse |
+| Docker Desktop | 4.x+ | Runs Postgres, Langfuse |
 | Python | 3.12+ | Use pyenv or system |
 | uv | 0.4+ | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Clerk account | — | Free tier; create at clerk.com |
@@ -45,7 +40,7 @@ docker compose -f docker/docker-compose.yml up -d
 docker compose -f docker/docker-compose.yml ps
 
 # Wait ~2 min for Langfuse to initialize, then open:
-# http://localhost:3010
+# http://localhost:3000
 ```
 
 ---
@@ -61,19 +56,17 @@ cp .env.example .env
 Required variables:
 
 ```dotenv
-# Database — port 5433 to avoid conflict with other local Postgres instances
-DATABASE_URL=postgresql+asyncpg://contextos:contextospass@localhost:5433/contextosdb
+# Database
+DATABASE_URL=postgresql+asyncpg://contextos:contextospass@localhost:5432/contextosdb
 
 # Clerk (dev mode — use test publishable key)
 CLERK_SECRET_KEY=sk_test_...
 CLERK_PUBLISHABLE_KEY=pk_test_...
 
 # Langfuse (use keys from docker-compose.yml init vars or Langfuse UI)
-# Default keys seeded by docker-compose init vars:
-LANGFUSE_PUBLIC_KEY=pk-lf-1234567890abcdef
-LANGFUSE_SECRET_KEY=sk-lf-1234567890abcdef
-# Port 3010 (not 3000) — avoid conflict with other local services
-LANGFUSE_HOST=http://localhost:3010
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_HOST=http://localhost:3000
 
 # Token encryption key (generate once: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 ENCRYPTION_KEY=...
@@ -198,7 +191,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 
 ## Step 11: Verify observability
 
-Open Langfuse: http://localhost:3010
+Open Langfuse: http://localhost:3000
 
 After any ingest or query, you should see traces appear within ~30 seconds. Each trace includes:
 - Operation name (ingest.run, graph.traverse, vector.search)
@@ -217,44 +210,10 @@ docker compose -f docker/docker-compose.yml logs postgres
 Ensure `docker/postgres/init.sql` ran successfully on first start. If not: `docker compose down -v && docker compose up -d`.
 
 ### Langfuse not receiving traces
-Check `LANGFUSE_HOST` is `http://localhost:3010` (not https, not port 3000). Verify public/secret keys match what's in the Langfuse UI under Settings → API Keys.
+Check `LANGFUSE_HOST` is `http://localhost:3000` (not https). Verify public/secret keys match what's in the Langfuse UI under Settings → API Keys.
 
 ### OAuth token rejected mid-ingest
 Ingest halts and saves checkpoint. Re-run `uv run python -m context_os.cli auth <source>` to refresh the token, then re-run ingest — it resumes from checkpoint.
 
 ### Rate limit (429) from GitHub/Jira/Slack
 Ingest backs off with exponential retry and respects `Retry-After` headers. Wait and re-run; checkpoint prevents duplicate work.
-
----
-
-## T046 Validation Status
-
-### Validated without live infrastructure
-
-The following were confirmed working in-process (no running Postgres or Langfuse required):
-
-| Check | Result |
-|-------|--------|
-| `uv sync` — all deps install | PASS (39 packages) |
-| Config loading (`get_settings()`) | PASS — all required env vars validated |
-| FastAPI app import + 10 routes registered | PASS (`/admin/entities`, `/graph/traverse`, `/vector/search`, `/ingest/{integration}`, `/health`) |
-| CLI help: `graph`, `tenant`, `auth`, `ingest` subcommands | PASS — all commands parse correctly |
-| Alembic migration: `versions/20260518_0001_initial_schema.py` | PASS — migration file exists |
-| Unit tests (29 normalizer tests) | PASS — 0.16s |
-| Fault tests (10 tests: oauth_expiry + rate_limit) | PASS — 0.17s |
-
-### Requires live infrastructure (SC-001 through SC-006)
-
-SC-001 through SC-006 require running Postgres+AGE + real OAuth credentials:
-
-| SC | Criterion | Status |
-|----|-----------|--------|
-| SC-001 | Full three-source ingest visible in admin UI within 15 min | Requires live infra + credentials |
-| SC-002 | Repeat ingest produces zero duplicate nodes | Requires live infra + credentials |
-| SC-003 | 1-hop and k-hop traversal within p95 ≤ 500ms | Requires live infra + ingested data |
-| SC-004 | Vector search returns top-3 semantically relevant results | Requires live infra + ingested data |
-| SC-005 | Zero cross-tenant data visibility | Requires live infra (integration tests) |
-| SC-006 | Observable trace in Langfuse within 30s | Requires live Langfuse |
-| SC-007 | Fault handling without data loss | **PASS** — verified by 10 injected fault tests |
-
-**To complete live validation**: start infra with `docker compose -f docker/docker-compose.yml up -d`, run migrations, and follow Steps 4–11 above.

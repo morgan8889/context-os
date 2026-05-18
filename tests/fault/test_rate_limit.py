@@ -101,11 +101,8 @@ class TestRateLimit:
             sleep_seconds[0] = seconds
 
         with (
-            patch(
-                "context_os.ingestion.base.asyncio.sleep",
-                side_effect=mock_sleep,
-            ),
-            patch.object(adapter, "_load_checkpoint", new_callable=AsyncMock),
+            patch("asyncio.sleep", side_effect=mock_sleep),
+            patch.object(adapter, "_load_checkpoint", return_value=None),
             patch.object(adapter, "_save_checkpoint", new_callable=AsyncMock),
         ):
             nodes, cursor = await adapter.fetch_all()
@@ -125,18 +122,17 @@ class TestRateLimit:
         from context_os.ingestion.base import IngestAdapter
 
         class _TestAdapter(IngestAdapter):
-            _call_count = 0
+            _fail_once = True
 
             async def _fetch_page(
                 self, obj_type: str, cursor: Any
             ) -> tuple[list[dict[str, Any]], Any]:
-                self._call_count += 1
-                if self._call_count == 1:
+                if self._fail_once:
+                    self._fail_once = False
                     raise RateLimitError(
                         code="rate_limited", message="Limited", retry_after=1
                     )
-                # Second call: success, no next cursor → last page
-                return [{"id": "item1"}], None
+                return [{"id": "item1"}], "final_cursor"
 
             def _normalize(self, raw: Any, obj_type: str) -> list[Any]:
                 return []
@@ -151,18 +147,13 @@ class TestRateLimit:
         )
 
         with (
-            patch(
-                "context_os.ingestion.base.asyncio.sleep",
-                new_callable=AsyncMock,
-            ),  # Don't actually sleep
+            patch("asyncio.sleep"),  # Don't actually sleep
             patch.object(adapter, "_load_checkpoint", return_value=None),
             patch.object(adapter, "_save_checkpoint", new_callable=AsyncMock),
         ):
             nodes, cursor = await adapter.fetch_all()
 
-        # After rate limit + retry, fetch succeeds with no next_cursor.
-        # final_cursor = starting cursor (None), since next_cursor was None.
-        assert cursor is None
+        assert cursor == "final_cursor", "Cursor preserved after successful retry"
 
     @pytest.mark.asyncio
     async def test_no_duplicate_nodes_after_retry(self) -> None:
