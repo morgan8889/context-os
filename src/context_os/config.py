@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -93,8 +93,34 @@ class Settings(BaseSettings):
 
     # ── Application ────────────────────────────────────────────────────────────
     app_version: str = Field(
-        default="0.1.0",
+        default="0.2.0",
         description="Application semver for OTEL resource attributes",
+    )
+
+    # ── Phase 2: Intelligence — Anthropic ─────────────────────────────────────
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Anthropic API key (sk-ant-...) for Synthesizer and Mapper agents",
+    )
+    anthropic_model: str = Field(
+        default="claude-sonnet-4-6",
+        description="Claude model ID to use for agent calls",
+    )
+    anthropic_max_tokens: int = Field(
+        default=4096,
+        description="Maximum tokens per Anthropic API call",
+    )
+    briefing_cost_budget_tokens: int = Field(
+        default=50000,
+        description="Halt briefing generation if total token cost exceeds this value",
+    )
+    slack_webhook_url: str | None = Field(
+        default=None,
+        description="Slack Incoming Webhook URL for post-approval delivery (optional)",
+    )
+    briefing_schedule_cron: str | None = Field(
+        default=None,
+        description="Cron expression for scheduled briefing runs (optional)",
     )
 
     @field_validator("encryption_key")
