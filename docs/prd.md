@@ -1527,6 +1527,18 @@ trigger, to avoid thrash, unless the trigger is severe.
 - **Closed-beta recruitment stalls** → narrow to 1–2 orgs (limited
   beta); treat as wedge-hypothesis test with smaller sample (Plan-B
   candidates per §9.6).
+- **Activation completion rate < 60% by week 36** (mid-Phase 4) →
+  drop fully-self-serve aspiration; fallback to founder-led + minimal
+  first-run safety (sensible empty states only); replan Phase 4 around
+  manual onboarding workflows. Saves ~3 wk on Phase 4.
+- **Activation median time > 60 min active attention by week 38** →
+  either the journey is wrong (tighten copy/steps) or the bar is
+  unrealistic; explicit replan decision with operator.
+- **Discovery survey reveals function mismatch by 3rd beta org**
+  (briefing-pain < 30% of answers across first 3 orgs) → trigger
+  early wedge memo (§9.6 falsification criterion #3 confirmed early);
+  pause recruiting until wedge decision is published; consider pivot
+  before completing the cohort.
 
 ### 8.7 Open Questions
 
