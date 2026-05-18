@@ -1211,6 +1211,16 @@ Coordinator agents.
   triggering re-layout
 - Read-mostly: node properties viewable; editing deferred to detail
   pane (post-MVP for inline edit)
+- Empty state (0 initiatives): renders a placeholder-grey constellation
+  surface with copy *"Your initiatives will appear here as Context-OS
+  reads your work. If sources are connected and this is still empty,
+  scope may need adjusting."* and primary action "Adjust source scope";
+  not a blank canvas
+- Activating state (1–9 initiatives during ingest): renders initiatives
+  as discovered; placeholder constellations resolve into real nodes as
+  they arrive; copy *"Discovering your initiatives. {N} found so far.
+  Estimated {time} remaining."* with primary action "Notify me when
+  done"
 
 **Qualitative bar.**
 - Side-by-side with Linear's graph view at internal design review,
@@ -1236,6 +1246,15 @@ inline editing of node properties.
 - Bottleneck and latency overlays
 - Filter by team, initiative, status
 - Up to 500 nodes render with sub-second interaction
+- Empty state (0 workflows): renders Executive Briefing workflow as a
+  dimmed seed node; copy *"Workflows derive from your team's
+  coordination patterns. Executive Briefing is active by default;
+  others appear as patterns emerge."*; primary action "View Executive
+  Briefing"
+- Activating state (1–9 workflows): renders without density-collapse
+  thresholds; faint anticipated workflows hinted; copy *"{N} workflows
+  mapped. More will be discovered."*; primary action "See what's been
+  discovered"
 
 **Qualitative bar.** Defensible against Linear's project views and
 Notion's database views in a side-by-side; no data fidelity gaps.
@@ -1257,6 +1276,14 @@ bottleneck attribution.
 - Rationale and alternatives visible on hover or pane
 - Up to 1000 decisions render readably (collapsing/expanding clusters
   when density exceeds threshold)
+- Empty state (0 decisions): renders two example decision nodes in
+  placeholder-grey; copy *"Decisions accumulate as your team captures
+  them. Context-OS proposes decisions from briefing reviews — each
+  approval becomes a decision in your graph."*; primary action "Capture
+  a decision manually"
+- Activating state (1–19 decisions): full dagre layout, no cluster
+  collapse; copy *"Your decision history is building. {N} captured so
+  far."*
 
 **Qualitative bar.** Defensible against Confluence + manual ADR lists
 in a side-by-side; surfacing of rationale and alternatives is the
