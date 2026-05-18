@@ -2143,6 +2143,10 @@ of this draft. When an OQ resolves, the resolution is recorded in
 | OQ-020 | Final managed-OTEL-collector vendor pick (Grafana Cloud, Honeycomb, Tempo self-hosted)             | §6.7    | Open   |
 | OQ-021 | Should one agent participate at different autonomy levels in different workflows, or mint workflow-specific agent identities? | §7.4 | Open |
 | OQ-022 | How are agent tool permissions versioned and reviewed when they expand?                            | §7.4    | Open   |
+| OQ-023 | What's the right time-to-first-useful-briefing target — 1 day, 3 days, 7 days? | §8.7 | Open |
+| OQ-024 | When does the Workflows library become more than length-1? Threshold: feature-completeness of Architecture Review or Portfolio Dependency Intelligence | §5.8 | Open |
+| OQ-025 | If activation completion lags 50–80% of cohort, is it a leading indicator triggering schedule extension, or a fixed gate? | §8.7 | Open |
+| OQ-026 | What do we do about operators who activate but don't return for scheduled second briefing? Retention work or accept as week-1 signal? | §9.7 | Open |
 
 **Resolution discipline.** When an OQ resolves:
 1. Write a decision memo under `docs/decisions/OQ-NNN-<slug>.md`
