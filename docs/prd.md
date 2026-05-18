@@ -1333,6 +1333,79 @@ weeks; time-to-clear-inbox metric tracked.
 **Out of scope for MVP.** Delegation, batch operations, custom
 approval rules.
 
+#### 8.3.9 First-run experience (Workflow-First Activation)
+
+The new operator's activation surface. Implements the seven-step
+journey from DESIGN at `docs/plans/2026-05-17-prd-new-user-amendment-design.md`.
+The activation moment is **approval of the first briefing**, not arrival
+at a populated view (per §3.2 product principle Intent Over Tasks).
+
+**Functional acceptance.**
+- Sign-up frame: lands the operator on a screen that states the
+  transformation thesis in plain language (before/after format per
+  §6.3 copy guardrails); no feature list
+- Discovery survey: one question after Clerk-mediated account creation,
+  five options (briefings, dependencies, decision retrieval,
+  architecture-review cycle time, something-else free-text); answer
+  captured per-org, feeds §9.6 falsification criterion #3
+- Integration connect wizard: three OAuth cards (Jira, GitHub, Slack)
+  framed as workflow-inputs; each card non-destructive; partial success
+  acceptable (skip-able per source with explicit warning)
+- Scope selection in workflow terms: *"Which initiatives should your
+  briefing cover?"* — projects (Jira) / repos (GitHub) / channels
+  (Slack) with active-in-last-90-days pre-checked
+- Ingest UX as workflow priming: progress bar with estimated time,
+  leave-and-return supported, completion notification by email;
+  completion summary copy *"Found {N} initiatives, {M} PRs, {K} active
+  threads. Drafting your first briefing now."*
+- First-briefing scheduling: triggered automatically at end of
+  ingest-completion day; uses the first-run variant of Executive
+  Briefing (per §7.2.1)
+- Activation moment: first-briefing approval emits an `activation_event`
+  trace; subsequent sessions present Initiative Galaxy / Workflow
+  Topology / Decision Graph in the nav (per §8.3.10 progressive
+  disclosure)
+- Mismatch handling: operators who picked a non-briefing pain in the
+  survey proceed with briefing flow + gentle forward-reference copy
+  *"You picked {X}. We're starting with briefings. Here's where {X}
+  sits."* with a single-line roadmap reference
+- Recovery paths: each step (OAuth failure, ingest stall, briefing
+  generation failure) has a documented recovery flow; total path
+  branching ≤ 1 layer per step
+- Time-to-completion: a new operator completes sign-up → integration
+  connect → first populated view in < 30 minutes active attention,
+  < 24 hours wall-clock
+
+**Qualitative bar.**
+- A new Strategic Operator completes onboarding without contacting
+  support
+- The activation moment (first briefing approval) feels earned, not
+  empty — the operator immediately sees something specific to their org
+- Empty intermediate states (during ingest) feel like progress, not
+  failure
+- The transformation thesis is named on entry and validated on exit
+  ("you just did in 5 minutes what used to take 60")
+
+**Evaluation.**
+- End-to-end timing test: sign-up email click → first populated view,
+  on representative source-data shapes; < 24 hours wall-clock,
+  < 30 minutes active attention
+- Dogfood-operator re-onboarding calibration: once during Phase 4 the
+  Platform Operator onboards themselves to a fresh tenant as if a new
+  operator; timings captured against §9.5 activation metrics block
+- Beta-cohort completion rate: ≥ 80% of recruited orgs activate
+
+**Out of scope for MVP.**
+- SSO / SAML
+- White-label or custom-domain onboarding
+- Team invitations beyond a single operator per org (additional
+  teammates added via Clerk admin only)
+- Custom integration adapters beyond Jira / GitHub / Slack
+- Bulk-import historical onboarding (e.g., "import last year's Jira"
+  as a backfill — only forward sync is supported)
+- Per-feature tours or in-product walkthroughs (the static doc-site
+  getting-started page is the documentation surface)
+
 ### 8.4 Explicitly out of scope
 
 Deferred to post-beta or future. These are real cuts, not omissions.
