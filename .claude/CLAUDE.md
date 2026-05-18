@@ -124,5 +124,94 @@ Required span attributes: `context_os.agent_identity`, `context_os.autonomy_leve
 `context_os.tenant_id`, `context_os.input_summary`, `context_os.output_summary`,
 `context_os.governance_markers`.
 
+---
+
+## Phase 2 Development Context
+
+*Added by `/speckit.plan` — 2026-05-18*
+
+### Active Technologies
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Language | Python 3.12 | uv for package management |
+| Web framework | FastAPI 0.115+ | Phase 1 carry-forward |
+| Workflow orchestration | LangGraph v0.2+ | `AsyncPostgresSaver` for checkpoints; `interrupt_before` for human-in-the-loop |
+| Agent SDK | Anthropic Python SDK | Tool-use loop; read-only tools only exposed to LLM |
+| ORM | SQLAlchemy 2.0 async | Phase 1 carry-forward; 4 new tables |
+| Graph DB | Apache AGE 1.5+ | Phase 1 carry-forward; new promotion mutations |
+| Vector DB | pgvector 0.7+ | Phase 1 carry-forward; agent retrieval tool |
+| Auth | Clerk JWT RS256 | Phase 1 carry-forward |
+| Telemetry | OpenTelemetry SDK + Langfuse v3 | Phase 1 carry-forward; agent spans required |
+| Migrations | Alembic | `0002_phase2_intelligence.py` adds 4 new tables |
+| Testing | pytest + anyio | Custom eval runner; no deepeval |
+| Eval metrics | difflib.SequenceMatcher / python-Levenshtein | edit distance; accept rate; precision/recall |
+
+### Key Patterns
+
+- **LangGraph workflow**: `StateGraph` with named nodes; `interrupt_before=["promote_to_graph"]`; `AsyncPostgresSaver` for checkpoint persistence; resume via `graph.ainvoke` with operator action in state
+- **Autonomy enforcement**: LLM tool list contains ONLY read tools (`retrieve_graph_context`, `retrieve_vector_context`, `check_actor_exists`); write paths are deterministic Python nodes after the interrupt gate
+- **Failure-mode detection**: Rule-based Python checks in `detect_failures` node — runs BEFORE `enqueue_approval`; injects `failure_flags` into the ApprovalItem content
+- **Pending state**: ALL pending agent outputs live in `approval_items` table (Postgres); canonical graph receives ONLY approved content via `promote_to_graph` node
+- **Eval runner**: pytest parametrize over golden dataset records; aggregate metrics at session end; CI gate enforced via custom `assert_ci_gate()` that fails the test if threshold not met
+- **LangGraph checkpoint tables**: created by `AsyncPostgresSaver.setup()` in FastAPI lifespan; NOT in Alembic migrations
+- **OTEL for agents**: every agent span carries `context_os.agent_identity`, `context_os.autonomy_level` (2 for Synthesizer, 1 or 2 for Mapper), `context_os.governance_markers = ["requires_approval"]`
+
+### Project Structure (Phase 2 additions)
+
+```text
+src/context_os/
+├── agents/
+│   ├── base.py                      # AbstractAgent with OTEL wrapper + tool-use loop
+│   ├── synthesizer/
+│   │   ├── agent.py                 # LangGraph StateGraph
+│   │   ├── tools.py                 # read-only retrieval tools
+│   │   ├── prompts.py               # briefing section prompts
+│   │   └── failure_detection.py     # 4 rule-based failure-mode checks
+│   └── mapper/
+│       ├── agent.py                 # LangGraph StateGraph for dependency walk
+│       ├── tools.py                 # graph walk tools
+│       └── prompts.py
+├── workflows/
+│   ├── briefing.py                  # full E2E briefing workflow
+│   └── dependency.py                # dependency scan workflow
+├── eval/
+│   ├── runner.py                    # EvalRunner base
+│   ├── synthesizer_eval.py          # accept_rate, edit_distance, failure_mode_detection
+│   ├── mapper_eval.py               # precision, recall, false_positive_rate
+│   └── golden_dataset.py            # dataset loader/builder
+└── api/
+    ├── briefing.py                  # POST /briefing/generate, GET /briefing/status/{id}
+    ├── inbox.py                     # GET /inbox, POST /inbox/{id}/approve|reject
+    ├── mapper.py                    # POST /mapper/scan
+    └── eval_api.py                  # POST /eval/run, GET /eval/runs
+
+tests/
+├── unit/test_failure_detection.py
+├── integration/test_approval_flow.py
+└── evals/
+    ├── conftest.py
+    ├── golden/
+    ├── test_synthesizer_eval.py
+    └── test_mapper_eval.py
+```
+
+### New Environment Variables
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...          # Required
+ANTHROPIC_MODEL=claude-sonnet-4-6     # Optional (default)
+BRIEFING_COST_BUDGET_TOKENS=50000     # Optional: halt if exceeded
+SLACK_WEBHOOK_URL=                    # Optional: post-approval delivery
+BRIEFING_SCHEDULE_CRON=               # Optional: cron for scheduled runs
+```
+
+### CI Gates (eval regression thresholds)
+
+- Synthesizer: `accept_rate >= 0.40`
+- Mapper: `recall >= 0.50`
+
+Failing either gate blocks merge.
+
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
