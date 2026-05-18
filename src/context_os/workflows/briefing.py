@@ -236,8 +236,8 @@ class BriefingWorkflow:
         """Resume a suspended LangGraph workflow thread after operator action.
 
         Called after an operator approves or rejects an ApprovalItem that has
-        a workflow_thread_id. Resumes the LangGraph with the operator's decision
-        injected into state.
+        a workflow_thread_id. Injects the operator decision into LangGraph state
+        and resumes the thread via the checkpointer.
 
         Args:
             thread_id: LangGraph thread ID to resume.
@@ -245,20 +245,34 @@ class BriefingWorkflow:
             edited_content: Optional edited content for edit-then-approve flows.
         """
         try:
-            # For simple approval flows (no interrupt_before configured),
-            # the graph has already completed -- this is a no-op for Phase 2.
-            # In Phase 3+ the graph would be resumed via graph.ainvoke with
-            # the operator state injected using:
-            #   config = {"configurable": {"thread_id": thread_id}}
-            #   resume_state = {"operator_action": operator_action,
-            #                   "edited_content": edited_content}
+            from context_os.agents.synthesizer.agent import SynthesizerAgent
+
+            # Build the agent to obtain a graph compiled with this checkpointer.
+            # tenant_id/db_tenant_id are not used during resume — the checkpoint
+            # already carries the original run's state.
+            agent = SynthesizerAgent(
+                tenant_id="",
+                db_tenant_id="",
+                age_pool=self._age_pool,
+                session=self._session,
+                checkpointer=self._checkpointer,
+            )
+
+            config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+            resume_state: dict[str, Any] = {"operator_action": operator_action}
+            if edited_content is not None:
+                resume_state["edited_content"] = edited_content
+
+            await agent._graph.aupdate_state(config, resume_state)
+            await agent._graph.ainvoke(None, config=config)
+
             logger.info(
                 "BriefingWorkflow.resume: thread_id=%s action=%s",
                 thread_id,
                 operator_action,
             )
         except Exception as e:
-            logger.warning(
+            logger.error(
                 "BriefingWorkflow.resume failed: thread_id=%s error=%s",
                 thread_id,
                 e,

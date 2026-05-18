@@ -154,11 +154,9 @@ class MapperEvalRunner(EvalRunner):
         if ground_truth_count == 0:
             return 0.0
 
-        # In the eval dataset, records with ground_truth_exists=True that are
-        # included in the dataset are assumed to have been "proposed" by the mapper.
-        # Records with ground_truth_exists=True that are absent (not in the dataset)
-        # would lower recall — but we only measure over the held-out set provided.
-        proposed_true = sum(1 for r in records if r.ground_truth_exists)
+        # Recall = (ground_truth_exists AND proposed) / all ground-truth edges.
+        # proposed=True by default; set False for false negatives the mapper missed.
+        proposed_true = sum(1 for r in records if r.ground_truth_exists and r.proposed)
         return round(proposed_true / ground_truth_count, 4)
 
     def _compute_false_positive_rate(self, records: list[GoldenRecord]) -> float:

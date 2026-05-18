@@ -349,13 +349,28 @@ async def approve_item(
                 },
             )
 
+        # Use authenticated user ID — never trust client-provided operator_id
+        operator_id = tenant.user_id or tenant.tenant_id
+
         # Determine final content (original or edited)
         final_content = req.edited_content if req.edited_content else item.content
         edit_delta = None
         if req.edited_content and req.edited_content != item.content:
             edit_delta = _compute_edit_delta(item.content, req.edited_content)
 
-        # Promote to graph based on item_type
+        # Update relational state first, then write to AGE graph
+        # This ensures the SQL transaction is committed before the graph write,
+        # so a graph write failure does not leave the item in an ambiguous state.
+        updated = await repo.update_approval(
+            item_id=item_id,
+            tenant_id=tenant.tenant_id,
+            operator_id=operator_id,
+            graph_node_id=None,  # Updated by caller after AGE write succeeds
+            edit_delta=edit_delta,
+        )
+        await session.commit()
+
+        # Promote to graph based on item_type (after SQL commit)
         pool = get_age_pool()
         graph_node_id: uuid.UUID | None = None
 
@@ -365,7 +380,7 @@ async def approve_item(
                     tenant_id=tenant.tenant_id,
                     approved_content=final_content,
                     approval_item_id=str(item_id),
-                    operator_id=req.operator_id,
+                    operator_id=operator_id,
                     age_pool=pool,
                 )
                 graph_node_id = uuid.UUID(node_id_str) if node_id_str else None
@@ -375,7 +390,7 @@ async def approve_item(
                     tenant_id=tenant.tenant_id,
                     approved_content=final_content,
                     approval_item_id=str(item_id),
-                    operator_id=req.operator_id,
+                    operator_id=operator_id,
                     age_pool=pool,
                 )
                 graph_node_id = uuid.UUID(node_id_str) if node_id_str else None
@@ -385,7 +400,7 @@ async def approve_item(
                     tenant_id=tenant.tenant_id,
                     approved_content=final_content,
                     approval_item_id=str(item_id),
-                    operator_id=req.operator_id,
+                    operator_id=operator_id,
                     age_pool=pool,
                 )
                 graph_node_id = None  # Edge promotions have no node ID
@@ -416,16 +431,6 @@ async def approve_item(
                     "trace_id": trace_id,
                 },
             ) from e
-
-        # Update ApprovalItem to approved
-        updated = await repo.update_approval(
-            item_id=item_id,
-            tenant_id=tenant.tenant_id,
-            operator_id=req.operator_id,
-            graph_node_id=graph_node_id,
-            edit_delta=edit_delta,
-        )
-        await session.commit()
 
     if updated is None:
         raise HTTPException(
@@ -464,7 +469,7 @@ async def approve_item(
         rejection_reason=updated.rejection_reason,
         edit_delta=updated.edit_delta,
         run_id=str(updated.run_id) if updated.run_id else None,
-        graph_node_id=str(updated.graph_node_id) if updated.graph_node_id else None,
+        graph_node_id=str(graph_node_id) if graph_node_id else None,
         workflow_thread_id=updated.workflow_thread_id,
         created_at=updated.created_at.isoformat(),
         updated_at=updated.updated_at.isoformat(),

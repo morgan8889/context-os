@@ -443,7 +443,7 @@ async def find_cross_initiative_signals_for_mapper(
     max_depth: int = 3,
     graph_name: str = "context_os",
 ) -> list[dict[str, Any]]:
-    """Walk up to max_depth hops from each Initiative node to find Signals connecting multiple Initiatives.
+    """Find Signals connecting multiple Initiative nodes (walking up to max_depth hops).
 
     Returns Signal nodes that appear in the vicinity of more than one
     Initiative node, which are potential dependency evidence.
@@ -512,7 +512,7 @@ async def find_pr_review_patterns(
     tenant_id: str,
     graph_name: str = "context_os",
 ) -> list[dict[str, Any]]:
-    """Find (Initiative, Initiative) pairs where shared Actor nodes appear as reviewer on Artifacts for both.
+    """Find Initiative pairs linked by shared Actor nodes reviewing Artifacts for both.
 
     Shared reviewers across initiative boundaries indicate implicit cross-team
     dependencies that may warrant explicit DEPENDS_ON edges.
@@ -523,7 +523,7 @@ async def find_pr_review_patterns(
         graph_name: AGE graph name.
 
     Returns:
-        List of dicts with {from_initiative_id, to_initiative_id, shared_actor_id, actor_name}.
+        Dicts with from_initiative_id, to_initiative_id, shared_actor_id, actor_name.
 
     Raises:
         TenantIsolationError: If tenant_id is empty.

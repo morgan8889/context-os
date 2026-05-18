@@ -56,6 +56,7 @@ class GoldenRecord:
     from_node_id: str | None = None
     to_node_id: str | None = None
     ground_truth_exists: bool = False
+    proposed: bool = True  # True if the mapper proposed this edge (for recall calc)
     evidence_signals: list[str] = field(default_factory=list)
 
 
@@ -85,6 +86,7 @@ async def load_dataset(
     eval_type: str,
     version: str,
     repo: GoldenDatasetRepository,
+    tenant_id: str = "",
 ) -> GoldenDataset:
     """Load a golden dataset from the database by type and version.
 
@@ -92,6 +94,7 @@ async def load_dataset(
         eval_type: "synthesizer" | "mapper".
         version: Dataset version string (e.g. "1.0.0").
         repo: GoldenDatasetRepository for database access.
+        tenant_id: Clerk org ID — required for tenant isolation.
 
     Returns:
         GoldenDataset loaded from the database.
@@ -101,6 +104,7 @@ async def load_dataset(
     """
     db_dataset = await repo.get_latest_by_type(
         dataset_type=eval_type,
+        tenant_id=tenant_id,
     )
     if db_dataset is None:
         raise ValueError(
@@ -359,6 +363,7 @@ def _serialize_record(record: GoldenRecord) -> dict[str, Any]:
         "from_node_id": record.from_node_id,
         "to_node_id": record.to_node_id,
         "ground_truth_exists": record.ground_truth_exists,
+        "proposed": record.proposed,
         "evidence_signals": record.evidence_signals,
     }
 
@@ -376,5 +381,6 @@ def _deserialize_record(data: dict[str, Any], eval_type: str) -> GoldenRecord:
         from_node_id=data.get("from_node_id"),
         to_node_id=data.get("to_node_id"),
         ground_truth_exists=bool(data.get("ground_truth_exists", False)),
+        proposed=bool(data.get("proposed", True)),
         evidence_signals=data.get("evidence_signals") or [],
     )

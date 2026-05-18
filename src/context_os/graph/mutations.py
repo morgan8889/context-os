@@ -219,7 +219,11 @@ async def upsert_pending_edge(
 
     cypher = """
     MATCH (a {id: $from_id, tenant_id: $tenant_id})
-    MERGE (a)-[r:DEPENDS_ON {to_source_id: $to_source_id, to_source: $to_source}]->(a)
+    MERGE (b:PendingNode {
+        source_id: $to_source_id, source: $to_source, tenant_id: $tenant_id
+    })
+    ON CREATE SET b.created_at = $created_at
+    MERGE (a)-[r:DEPENDS_ON]->(b)
     ON CREATE SET
         r.tenant_id = $tenant_id,
         r.dependency_type = $dependency_type,
@@ -438,14 +442,14 @@ async def promote_dependency_edge(
     age_pool: asyncpg.Pool,  # type: ignore[type-arg]
     graph_name: str = "context_os",
 ) -> str | None:
-    """Promote an approved proposed_dependency to a DEPENDS_ON edge in the canonical graph.
+    """Promote an approved proposed_dependency to a DEPENDS_ON edge in the graph.
 
     Writes a DEPENDS_ON edge with provenance properties via AGE MERGE.
-    Called only after operator approval. The Dependency Mapper NEVER calls this directly.
+    Called after operator approval only; the Dependency Mapper never calls this.
 
     Args:
         tenant_id: Clerk org ID.
-        approved_content: The approved dependency content dict with from_node_id, to_node_id.
+        approved_content: Content dict with from_initiative_id, to_initiative_id.
         approval_item_id: UUID string of the ApprovalItem row.
         operator_id: Clerk user ID of the approving operator.
         age_pool: AGE asyncpg pool.
@@ -459,8 +463,8 @@ async def promote_dependency_edge(
     """
     _assert_tenant_id(tenant_id)
 
-    from_node_id = approved_content.get("from_node_id", "")
-    to_node_id = approved_content.get("to_node_id", "")
+    from_node_id = approved_content.get("from_initiative_id", "")
+    to_node_id = approved_content.get("to_initiative_id", "")
     confidence = str(approved_content.get("confidence", "0.0"))
     evidence = approved_content.get("evidence", [])
     now = _now_iso()

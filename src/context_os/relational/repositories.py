@@ -34,16 +34,19 @@ def _get_fernet() -> Fernet:
     return Fernet(settings.encryption_key.encode())
 
 
+_ZERO_UUID = "00000000-0000-0000-0000-000000000000"
+
+
 def _assert_tenant_id(tenant_id: str | uuid.UUID | None) -> None:
-    """Raise TenantIsolationError if tenant_id is empty or None.
+    """Raise TenantIsolationError if tenant_id is empty, None, or the zero UUID.
 
     Args:
         tenant_id: Tenant identifier to validate.
 
     Raises:
-        TenantIsolationError: If tenant_id is falsy or empty string.
+        TenantIsolationError: If tenant_id is falsy, empty string, or zero UUID.
     """
-    if not tenant_id:
+    if not tenant_id or str(tenant_id) == _ZERO_UUID:
         raise TenantIsolationError(
             code="tenant_isolation_error",
             message="tenant_id is required for all data operations",
@@ -833,15 +836,19 @@ class GoldenDatasetRepository:
         dataset_type: str,
         tenant_id: str | None = None,
     ) -> GoldenDataset | None:
-        """Return the most recently created GoldenDataset for a type (and optionally tenant).
+        """Return the most recently created GoldenDataset for a type, scoped to tenant.
 
         Args:
             dataset_type: synthesizer | mapper.
-            tenant_id: Optional Clerk org ID — if provided, scopes to that tenant.
+            tenant_id: Clerk org ID — required; cross-tenant reads are not allowed.
 
         Returns:
             The newest GoldenDataset or None if none exist.
+
+        Raises:
+            TenantIsolationError: If tenant_id is empty or None.
         """
+        _assert_tenant_id(tenant_id)
         conditions = [GoldenDataset.dataset_type == dataset_type]
         if tenant_id:
             conditions.append(GoldenDataset.tenant_id == tenant_id)

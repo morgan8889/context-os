@@ -15,7 +15,6 @@ import logging
 import statistics
 from difflib import SequenceMatcher
 from typing import Any
-from unittest.mock import AsyncMock
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -256,6 +255,8 @@ class SynthesizerEvalRunner(EvalRunner):
                 draft = record.draft_content
 
                 # Build minimal mocks for the failure detection functions
+                from unittest.mock import AsyncMock
+
                 mock_pool = AsyncMock()
                 mock_session = AsyncMock()
 
@@ -329,7 +330,7 @@ def _extract_risks(content: dict[str, Any]) -> list[Any]:
 
 def _patch_actor_exists(returns: bool) -> Any:
     """Context manager: patch check_actor_exists to return a fixed value."""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     return patch(
         "context_os.agents.synthesizer.failure_detection.check_actor_exists",
@@ -339,7 +340,7 @@ def _patch_actor_exists(returns: bool) -> Any:
 
 def _patch_stale_deps(has_stale: bool) -> Any:
     """Context manager: patch find_stale_dependencies to return stale edges."""
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     stale_result = (
         [{"id": "edge-stale-001", "updated_at": "2020-01-01"}] if has_stale else []
@@ -356,7 +357,7 @@ def _patch_missed_escalation(has_missed: bool) -> Any:
     The detect_missed_escalation function calls run_cypher to find high-severity
     Risk nodes. We patch it at the graph.client module level.
     """
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     # Simulate a high-severity Risk row as an agtype dict
     if has_missed:
@@ -376,7 +377,7 @@ def _patch_citation_error(has_error: bool) -> Any:
     We cannot easily patch this generically, so we patch the whole detect_citation_error
     function to return a FailureFlag (error=True) or None (error=False).
     """
-    from unittest.mock import patch
+    from unittest.mock import AsyncMock, patch
 
     from context_os.agents.synthesizer.failure_detection import FailureFlag
 

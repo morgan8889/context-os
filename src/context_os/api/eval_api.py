@@ -135,6 +135,7 @@ async def _run_eval_background(
                     eval_type=eval_type,
                     version="latest",
                     repo=golden_repo,
+                    tenant_id=tenant_id,
                 )
             except ValueError as exc:
                 await eval_repo.update_scores(
@@ -237,12 +238,25 @@ async def trigger_eval_run(
 
     factory = get_session_factory()
     async with factory() as session:
+        golden_repo = GoldenDatasetRepository(session)
+        dataset_uuid: uuid.UUID | None = None
+        dataset_ver = "latest"
+        if body.dataset_id:
+            dataset_uuid = uuid.UUID(body.dataset_id)
+        else:
+            latest_ds = await golden_repo.get_latest_by_type(
+                dataset_type=body.eval_type, tenant_id=tenant.tenant_id
+            )
+            if latest_ds is not None:
+                dataset_uuid = latest_ds.id
+                dataset_ver = latest_ds.version or "latest"
+
         repo = EvalRunRepository(session)
         run = await repo.create(
             tenant_id=tenant.tenant_id,
             eval_type=body.eval_type,
-            dataset_id=uuid.UUID(body.dataset_id) if body.dataset_id else None,
-            dataset_version="latest",
+            dataset_id=dataset_uuid,
+            dataset_version=dataset_ver,
             status="running",
         )
         await session.commit()
