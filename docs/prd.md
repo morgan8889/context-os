@@ -1788,11 +1788,11 @@ chosen wedge, and explaining what shifted.
 
 ## 10. Phased Build Plan
 
-Four phases, sized against the 36-week feasibility audit (§8.5). Each
-phase has a goal, scope, exit criteria, named risks, and the kill
-criteria that apply at that phase boundary. Phase 3 carries the
-load-bearing risk; everything else exists to deliver Phase 3
-successfully and Phase 4 cleanly.
+Four phases, sized against the 41-week raw feasibility audit (§8.5),
+distributed to 42–43 weeks phased. Each phase has a goal, scope, exit
+criteria, named risks, and the kill criteria that apply at that phase
+boundary. Phase 3 carries the load-bearing risk; everything else exists
+to deliver Phase 3 successfully and Phase 4 cleanly.
 
 ### Phase 1 — Foundation (weeks 1–9, ~25%)
 
@@ -1829,7 +1829,7 @@ load-bearing risks for the rest of the build.
   tables (+2 wk)
 - Velocity below estimate by week 8 → cut to one ingestion source
 
-### Phase 2 — Intelligence (weeks 10–18, ~25%)
+### Phase 2 — Intelligence (weeks 10–19, ~24%)
 
 **Goal.** Two agents producing real outputs against real data, with
 evaluations in place and the Executive Briefing workflow running
@@ -1843,6 +1843,7 @@ end-to-end.
 - Executive Briefing workflow E2E (§7.2.1): on-demand and scheduled
 - Human approval surface (inbox + approve/reject/edit)
 - Briefing telemetry per Constitution Principle VI
+- First-run variant of Executive Briefing (per §7.2.1); partial-data recovery paths in briefing generation
 
 **Exit criteria.**
 - Author receives a useful weekly briefing for **4 consecutive weeks**
@@ -1850,6 +1851,7 @@ end-to-end.
 - Eval suites pass on golden datasets; tracked in CI
 - Approval surface clears the dogfooding operator's pending queue in
   under 3 minutes when content is good
+- First-run briefing variant produces output meeting §7.2.1 cold-start eval bar (≥30% accept-as-is on representative low-signal test inputs)
 
 **Risks.**
 - Output quality variance (the headline risk of Phase 2)
@@ -1863,7 +1865,7 @@ end-to-end.
   with Phase 3 start of Galaxy work) → trigger Phase-3-level kill
   per §8.6
 
-### Phase 3 — Cognition Surface (weeks 19–28, ~28%)
+### Phase 3 — Cognition Surface (weeks 20–31, ~29%)
 
 **Goal.** The visualization layer that carries the demo. One
 world-class surface (Initiative Galaxy), two very-good surfaces
@@ -1884,6 +1886,7 @@ build.
   Motion)
 - Internal design reviews against named references (Linear, Vercel,
   Cosmograph demos)
+- Empty / activating state design across Galaxy, Topology, Decision Graph (per §8.3.10); placeholder-grey design system tokens; state transition motion language
 
 **Exit criteria.**
 - Galaxy passes internal design review against reference set
@@ -1893,6 +1896,7 @@ build.
   `docs/design-reviews/`
 - Demo-able for 60 seconds with zero narration
 - Performance benchmark suite for Galaxy passing in CI
+- All three views ship with empty + activating + activated state specs passing visual regression and copy review (per §8.3.10 evaluation)
 
 **Risks.**
 - World-class qualitative bar on Galaxy is the load-bearing risk
@@ -1909,7 +1913,7 @@ build.
 - Both structured views combined > 8 wk → revisit at week 12 (Phase
   2/3 boundary already passed) for hard cut-or-keep
 
-### Phase 4 — Closed Beta Readiness (weeks 29–36, ~22%)
+### Phase 4 — Closed Beta Readiness (weeks 32–43, ~27%)
 
 **Goal.** Survive contact with three to five outside organizations.
 Multi-tenant hardening, onboarding flow, support workflows, telemetry
@@ -1918,7 +1922,19 @@ dashboards, continuous-eval, documentation.
 **Scope.**
 - Multi-tenant hardening (data isolation tests, tenant-scoped admin
   surfaces)
-- Onboarding flow (org setup, integration connect, first briefing)
+- Onboarding flow (per §8.3.9 First-run experience):
+  - Sign-up frame copy (before/after transformation thesis)
+  - Discovery survey (one question, five options, feeds §9.6)
+  - Integration-connect wizard (3 OAuth cards, scope selection)
+  - Initial-ingest progress UX (leave-and-return supported)
+  - First-briefing scheduler (end-of-day-1, first-run variant)
+  - Activation moment detection + telemetry (`activation_event` trace)
+  - Mismatch handling for non-briefing-pain operators
+  - Recovery paths for OAuth/ingest/briefing failures
+- Activation telemetry plumbing (per §9.5 metrics block;
+  Platform-Operator-only visibility surface)
+- Admin module: aggregated discovery-survey table, activation funnel
+  cohort view (Platform-Operator-only)
 - Support workflows (issue intake, debug-trace export, tenant impersonation
   for the Platform Operator persona)
 - Telemetry dashboards (managed OTEL collector live; alerts on agent
@@ -1934,6 +1950,10 @@ dashboards, continuous-eval, documentation.
 - Uptime ≥ 99% over trailing 30 days
 - All MVP feature evaluation criteria (§8.3) passing on dogfood org
   data over a 4-week window
+- Dogfood-operator re-onboarding calibration completed; metrics
+  captured per §9.5 activation block; results documented
+- First beta org activates end-to-end without contacting support
+- §8.6 activation kill criteria all stay un-fired through Phase 4
 
 **Risks.**
 - Schedule risk (Phase 4 consumes any prior overrun; the 30% buffer
