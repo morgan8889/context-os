@@ -598,6 +598,10 @@ for the cross-view feature spec.
   it as a peer engine because it has its own retention/decay logic.
 - **OQ-018** Does the Visualization Layer warrant its own engine, or
   should view-state live with the engines whose data it renders?
+- **OQ-024** When does the Workflows library become more than length-1?
+  Threshold: feature-completeness of either Architecture Review (§7.2.2)
+  or Portfolio Dependency Intelligence (§7.2.3) — both currently
+  post-beta.
 
 ## 6. Platform Architecture
 
@@ -1551,6 +1555,12 @@ trigger, to avoid thrash, unless the trigger is severe.
   during Phase 3.
 - **OQ-010** Pricing model and target price per seat. Required for
   falsification criterion 2 in §9.6. Resolves during closed beta.
+- **OQ-023** What's the right time-to-first-useful-briefing target —
+  1 day, 3 days, 7 days? Currently set to < 7 days (§9.5) but could be
+  tightened to < 3 days if cold-start agent quality permits.
+- **OQ-025** If activation completion lags (50–80% of cohort), is that
+  a leading indicator that triggers schedule extension, or a fixed
+  gate? Decision rule needs to be set before Phase 4 begins.
 
 ## 9. Dogfooding Domain: Enterprise Architecture / PMO
 
@@ -1749,6 +1759,9 @@ chosen wedge, and explaining what shifted.
   enough of the broader market to validate the platform thesis?
 - **OQ-005** How long does the "validate, don't sell" stance hold
   before commercial pressure forces a wedge choice?
+- **OQ-026** What do we do about operators who activate but don't
+  return for their scheduled second briefing? Retention work post-MVP,
+  or accept as week-1-only signal?
 
 ## 10. Phased Build Plan
 
