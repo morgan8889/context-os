@@ -53,3 +53,76 @@ governance, or telemetry — re-read the relevant principle:
   instead.
 - Integration ingestion must normalize to core ontology at ingest time; raw
   vendor schemas must not leak into core graph queries.
+
+---
+
+## Phase 1 Development Context
+
+*Added by `/speckit.plan` — 2026-05-17*
+
+### Active Technologies
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Language | Python 3.12 | uv for package management |
+| Web framework | FastAPI 0.115+ | lifespan context, Depends pattern |
+| ORM | SQLAlchemy 2.0 async | asyncpg driver |
+| Graph DB | Apache AGE 1.5+ | Direct asyncpg SQL; `statement_cache_size=0`; `init` hook for LOAD/search_path |
+| Vector DB | pgvector 0.7+ | `pgvector.sqlalchemy.Vector(768)`; HNSW index with `vector_cosine_ops` |
+| Embedding model | `all-mpnet-base-v2` | 768-dim; sentence-transformers; CPU-only |
+| Auth | Clerk (`clerk-backend-api`) | JWT RS256; tenant ID from `payload["o"]["id"]` |
+| Telemetry | OpenTelemetry SDK + Langfuse v3 SDK | `LangfuseSpanProcessor` on shared `TracerProvider`; `context_os.*` attribute namespace |
+| Migrations | Alembic | async-compatible |
+| Testing | pytest + anyio | fault injection fixtures in `tests/fault/` |
+| Infra | Docker Compose | Postgres (pgvector+AGE), Langfuse; local only |
+
+### Key Patterns
+
+- **AGE queries**: `SELECT * FROM cypher('context_os', $$ MATCH ... RETURN ... $$) AS (col agtype)` — no asyncpg bind params inside Cypher string; use AGE parameter map for user values
+- **MERGE with provenance**: `MERGE (n:Type {id: '...', tenant_id: '...'}) ON CREATE SET n.source = '...' ON MATCH SET n.updated_at = '...'`
+- **Tenant scoping**: every query filters `tenant_id`; every node/edge carries `tenant_id` as a property
+- **Clerk tenant ID**: `payload.get("o", {}).get("id")` (v2 JWT format; NOT `org_id`)
+- **OTEL init**: `TracerProvider` in FastAPI `lifespan`, `LangfuseSpanProcessor` added, `FastAPIInstrumentor.instrument_app()`
+- **pgvector search**: `select(Node).order_by(Node.embedding.cosine_distance(query_vec)).limit(k)`
+- **Checkpoint update**: only after successful DB commit; stored in `sync_checkpoints` table
+
+### Project Structure
+
+```text
+src/context_os/
+├── config.py, main.py
+├── core/          # ontology.py, errors.py
+├── db/            # engine.py, models.py, migrations/
+├── graph/         # client.py, queries.py, mutations.py   ← AGE module
+├── vector/        # client.py, embeddings.py, search.py   ← pgvector module
+├── relational/    # repositories.py                        ← SQLAlchemy module
+├── ingestion/     # base.py, github/, jira/, slack/
+├── auth/          # middleware.py, dependencies.py
+├── observability/ # tracer.py, schema.py, langfuse.py
+└── api/           # ingest.py, graph.py, vector.py, admin.py
+tests/             # unit/, integration/, fault/
+docker/            # docker-compose.yml, postgres/init.sql
+```
+
+### Dev Commands
+
+```bash
+uv sync                                    # install dependencies
+docker compose -f docker/docker-compose.yml up -d  # start infra
+uv run alembic upgrade head                # run migrations
+uv run python -m context_os.cli graph init # init AGE graph
+uv run uvicorn context_os.main:app --reload --port 8000
+uv run pytest                              # run all tests
+uv run ruff check . && uv run ruff format . # lint + format
+uv run pyright                             # type check
+```
+
+### Telemetry Schema
+
+See `specs/001-phase-1-foundation/contracts/telemetry.md` — committed schema v1.0.0.
+Required span attributes: `context_os.agent_identity`, `context_os.autonomy_level`,
+`context_os.tenant_id`, `context_os.input_summary`, `context_os.output_summary`,
+`context_os.governance_markers`.
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
