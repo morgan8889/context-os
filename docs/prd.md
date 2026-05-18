@@ -1406,6 +1406,49 @@ at a populated view (per §3.2 product principle Intent Over Tasks).
 - Per-feature tours or in-product walkthroughs (the static doc-site
   getting-started page is the documentation surface)
 
+#### 8.3.10 Empty / activating view states (cross-view)
+
+A cross-cutting feature spanning Initiative Galaxy (§8.3.4), Workflow
+Topology (§8.3.5), and Decision Graph (§8.3.6). Per-view ACs were
+appended to each view spec; this section specifies the cross-cutting
+contract.
+
+**Functional acceptance.**
+- Three states per view: empty (zero data), activating (partial data
+  during ingest or initial accumulation), activated (full data per
+  view's own acceptance criteria)
+- Placeholder-grey treatment: example/anticipated content rendered at
+  a defined neutral lightness level, structurally identical to live
+  content; clear visual delineation from live data without being a
+  blank canvas
+- One primary action per state: every state surfaces exactly one CTA;
+  never zero, never two
+- Honest copy: state copy names the specific reason for the state
+  ("ingest still discovering" vs "your team hasn't captured decisions
+  yet")
+- Loading scoped to elements: progress bars on ingest/sync operations
+  only; no view-blocking spinners
+- State transitions: graceful animation between empty → activating →
+  activated as data arrives; no flash-of-blank-content
+
+**Qualitative bar.**
+- Side-by-side with Linear or Notion empty states at internal review,
+  the Context-OS state surfaces communicate more about *what will be
+  here* and *what the operator can do*
+- Empty states feel like *the surface is ready for content*, not *the
+  surface is broken*
+
+**Evaluation.**
+- Visual regression tests for empty + activating states on each of the
+  three views at three viewports (mobile-landscape, laptop, large
+  display)
+- Copy review against §6.3 tone guardrails (operator-language,
+  specific not generic, honest about state)
+
+**Out of scope for MVP.**
+- State customization by operator (e.g., custom empty-state copy)
+- A/B testing of state copy or actions
+
 ### 8.4 Explicitly out of scope
 
 Deferred to post-beta or future. These are real cuts, not omissions.
