@@ -302,6 +302,26 @@ of who-owns-what across teams. The bottleneck is attention, not effort.
 + organizational memory graph cover the primary daily-driver use case.
 They are the central beta-user persona.
 
+**Week 1 (activation).** Same persona, distinct context. In their first
+seven days the operator has no platform-built mental model yet, no
+historical state, and limited patience: friction beyond value early kills
+adoption. Day-1 pain points are different from ongoing pain — uncertainty
+about what the platform does day-to-day, indecision about which sources
+to connect first, impatience for first useful output, anxiety about
+exposing org data to a new system.
+
+What they need in week 1 (distinct from ongoing wants in the main bullet
+list above):
+- An obvious next action at every step of onboarding
+- A defined time-to-value promise ("first useful briefing within 7 days")
+- Visible progress during initial ingest
+- Empty-state surfaces that teach, not just display blank canvas
+- Reassurance that data scope, retention, and access are what they
+  configured
+
+How MVP serves week-1 Strategic Operators: see the First-run experience
+feature spec at §8.3.9 and the Onboarding flow detail in §10 Phase 4.
+
 ### 4.2 Domain Practitioner
 
 **Profile.** Staff or principal engineer, architect, or initiative owner
