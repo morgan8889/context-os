@@ -215,3 +215,80 @@ Failing either gate blocks merge.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
+
+---
+
+## Phase 3 Development Context
+
+*Added by `/speckit.plan` — 2026-05-19*
+
+Phase 3 is a greenfield frontend workspace (`web/`). The Python backend (`src/`) is not
+modified — all Phase 3 work is TypeScript/React.
+
+### Active Technologies
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Language | TypeScript 5.x strict | `web/` workspace |
+| Build | Vite 6 + `@vitejs/plugin-react` | SPA (not Next.js — SSR incompatible with WebGL) |
+| Runtime | React 19 | |
+| Galaxy renderer | Sigma.js v3 via `@react-sigma/core` | WebGL; `useLoadGraph`, `useSigma`, `useCamera` hooks |
+| Galaxy layout | `@react-sigma/layout-forceatlas2` | `LayoutSupervisor` in Web Worker; never blocks main thread |
+| Galaxy data model | `graphology` | `graph.export()` / `graph.import()` for time-travel snapshots |
+| Topology + Decision | React Flow v12 (`@xyflow/react`) | Custom node components; Dagre layout for Decision Graph |
+| Decision layout | `@dagrejs/dagre` + `graphology-layout-dagre` | Hierarchical layout ≤1000 decisions |
+| Design system | shadcn/ui (copied into `src/design-system/`) | Radix UI primitives + Tailwind CSS 4 |
+| CSS tokens | `src/design-system/tokens.css` | CSS custom properties; single source of truth for Tailwind + Radix overrides |
+| Placeholder grey | `--color-placeholder-grey: oklch(91% 0 0)` | ≈ Tailwind neutral-200; used in all empty/activating states |
+| Motion (set-piece) | GSAP v3.12 + `@gsap/react` | `useGSAP()` for timeline cleanup; time-travel scrub, state transitions |
+| Motion (everyday) | Framer Motion v11 | Hover, selection, panel open/close; never animate same node as GSAP |
+| State (interaction) | Zustand v5 | Selection sets, overlays, filters, time-travel cursor |
+| State (API data) | TanStack Query v5 (`@tanstack/react-query`) | API cache, background refetch, loading/error states |
+| Auth | Clerk React SDK (`@clerk/react`) | JWT from Phase 1/2; injected into all API calls |
+| Unit tests | Vitest + `@testing-library/react` | Vite-native; shares transform pipeline |
+| Visual regression | `@playwright/test` | `toHaveScreenshot()`, `maxDiffPixelRatio: 0.02`; 27 fixtures |
+
+### Key Patterns
+
+- **Sigma overlay**: `sigma.setSetting('nodeReducer', fn)` / `sigma.setSetting('edgeReducer', fn)` — recomputed per frame, zero relayout cost. Never use React state to drive per-node visual changes.
+- **Lasso selection**: `sigma.getNodeDisplayData(nodeId)` → screen-space coords → point-in-polygon test against drawn lasso path. No built-in lasso in Sigma v3 WebGL.
+- **Time-travel**: `graphology.export()` → stored snapshot → `graph.import(snapshot)` → `sigma.getCamera().animate({ ... }, { duration: 500 })`. ForceAtlas2 supervisor paused during scrub.
+- **ForceAtlas2**: `LayoutSupervisor.start()` to run; `LayoutSupervisor.stop()` before snapshot import; pre-positioned nodes accepted without relayout if locked.
+- **GSAP + Framer Motion coexistence**: Never animate the same DOM node with both. GSAP owns canvas-level transitions; Framer Motion owns React component animations.
+- **API transform boundary**: Raw API responses (snake_case) transformed to view models (camelCase TypeScript) in `queryFn` — never in renderer code. Transform functions in `src/lib/transforms/`.
+- **View state polling**: `GET /api/v1/views/state` polled every 30s while state is `activating`; transitions to `activated` trigger TanStack Query cache invalidation for the relevant view.
+
+### Project Structure (Phase 3 additions)
+
+```text
+web/                              # NEW Vite SPA workspace (add alongside src/)
+├── src/
+│   ├── design-system/tokens.css  # CSS custom properties (single source of truth)
+│   ├── design-system/primitives/ # OverlayPanel, FilterBar, NodeTooltip, StateCTA
+│   ├── views/galaxy/             # Sigma.js view (US1)
+│   ├── views/topology/           # React Flow view (US2)
+│   ├── views/decisions/          # React Flow + dagre view (US3)
+│   ├── lib/api/client.ts         # axios + Clerk JWT injection
+│   ├── lib/transforms/           # toInitiativeNode, toWorkflowNode, toDecisionNode
+│   └── lib/stores/graphInteraction.ts  # Zustand store
+├── tests/unit/                   # Vitest unit tests
+└── tests/visual/snapshots/       # Playwright PNG fixtures (27 committed)
+```
+
+### Dev Commands (web/)
+
+```bash
+npm install              # install dependencies
+npm run dev              # Vite dev server :5173
+npm run typecheck        # tsc --noEmit
+npm run test             # Vitest unit tests
+npm run test:visual      # Playwright visual regression (27 fixtures)
+npm run benchmark:galaxy # Galaxy perf benchmark (needs 10k-node seed)
+```
+
+### CI Gates (Phase 3)
+
+- Visual regression: all 27 Playwright fixtures must pass (`maxDiffPixelRatio: 0.02`)
+- Galaxy performance: layout convergence ≤ 5s; frame paint p95 ≤ 33ms on CI GPU runner
+- Topology performance: pan/zoom/filter p95 ≤ 1000ms on 500-node seed
+- TypeScript: `tsc --noEmit` must pass with zero errors in strict mode
