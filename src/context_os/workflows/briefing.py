@@ -263,8 +263,8 @@ class BriefingWorkflow:
             if edited_content is not None:
                 resume_state["edited_content"] = edited_content
 
-            await agent._graph.aupdate_state(config, resume_state)
-            await agent._graph.ainvoke(None, config=config)
+            await agent.graph.aupdate_state(config, resume_state)
+            await agent.graph.ainvoke(None, config=config)
 
             logger.info(
                 "BriefingWorkflow.resume: thread_id=%s action=%s",

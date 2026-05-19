@@ -122,7 +122,7 @@
 - [x] T038 Audit OTEL instrumentation in src/context_os/agents/base.py and all agent/workflow modules — verify every synthesizer and mapper agent action emits a span with all 7 required `context_os.*` attributes (`agent_identity`, `autonomy_level`, `tenant_id`, `input_summary`, `output_summary`, `governance_markers`, `cost_tokens`); add missing instrumentation to api/briefing.py, api/inbox.py, api/mapper.py handlers; verify briefing-specific attributes (FR-027) and mapper-specific attributes (FR-028) are present on respective spans
 - [x] T039 [P] Run `uv run ruff check . && uv run ruff format .` across all Phase 2 modules (agents/, workflows/, eval/, api/briefing.py, api/inbox.py, api/mapper.py, api/eval_api.py); fix all violations
 - [x] T040 [P] Run `uv run pyright` and resolve all type errors in Phase 2 modules; annotate all return types; add `py.typed` marker if missing; ensure `AsyncPostgresSaver`, LangGraph `StateGraph`, and Anthropic SDK types pass strict mode
-- [ ] T041 Execute quickstart.md Scenario 1 end-to-end — run each curl command in sequence (POST /briefing/generate → poll /briefing/status → GET /inbox → POST /inbox/{id}/approve → verify Artifact in graph via GET /admin/entities?type=Artifact); document actual response shapes vs expected; fix any discrepancies
+- [x] T041 Execute quickstart.md Scenario 1 end-to-end — run each curl command in sequence (POST /briefing/generate → poll /briefing/status → GET /inbox → POST /inbox/{id}/approve → verify Artifact in graph via GET /admin/entities?type=Artifact); document actual response shapes vs expected; fix any discrepancies
 
 ---
 
