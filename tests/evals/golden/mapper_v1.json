@@ -1,0 +1,67 @@
+{
+  "version": "1.0.0",
+  "dataset_type": "mapper",
+  "description": "10-record mapper golden dataset: 7 ground-truth-exists=true, 3 false positives",
+  "records": [
+    {
+      "from_node_id": "initiative-auth-001",
+      "to_node_id": "initiative-userprofile-002",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-101", "sig-102", "sig-103"]
+    },
+    {
+      "from_node_id": "initiative-platform-003",
+      "to_node_id": "initiative-observability-004",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-104", "sig-105"]
+    },
+    {
+      "from_node_id": "initiative-billing-005",
+      "to_node_id": "initiative-auth-001",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-106", "sig-107", "sig-108"]
+    },
+    {
+      "from_node_id": "initiative-data-006",
+      "to_node_id": "initiative-platform-003",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-109"]
+    },
+    {
+      "from_node_id": "initiative-infra-007",
+      "to_node_id": "initiative-data-006",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-110", "sig-111"]
+    },
+    {
+      "from_node_id": "initiative-ml-008",
+      "to_node_id": "initiative-data-006",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-112", "sig-113"]
+    },
+    {
+      "from_node_id": "initiative-search-009",
+      "to_node_id": "initiative-platform-003",
+      "ground_truth_exists": true,
+      "evidence_signals": ["sig-114"]
+    },
+    {
+      "from_node_id": "initiative-auth-001",
+      "to_node_id": "initiative-billing-005",
+      "ground_truth_exists": false,
+      "evidence_signals": ["sig-115"]
+    },
+    {
+      "from_node_id": "initiative-search-009",
+      "to_node_id": "initiative-ml-008",
+      "ground_truth_exists": false,
+      "evidence_signals": ["sig-116"]
+    },
+    {
+      "from_node_id": "initiative-observability-004",
+      "to_node_id": "initiative-infra-007",
+      "ground_truth_exists": false,
+      "evidence_signals": []
+    }
+  ]
+}

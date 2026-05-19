@@ -1,0 +1,389 @@
+openapi: "3.1.0"
+info:
+  title: Context-OS API — Phase 1 Foundation
+  version: "0.1.0"
+  description: |
+    Local-only API for ingest, graph traversal, vector retrieval, and admin inspection.
+    All endpoints require a valid Clerk JWT in the Authorization header.
+    All data reads and writes are scoped to the authenticated tenant.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - ClerkJWT: []
+
+components:
+  securitySchemes:
+    ClerkJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Clerk-issued JWT. Org ID extracted from `o.id` claim.
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable description
+        trace_id:
+          type: string
+          description: OTEL trace ID for log correlation
+
+    NodeType:
+      type: string
+      enum: [Goal, Initiative, Signal, Artifact, Actor, Memory]
+
+    Provenance:
+      type: object
+      required: [source, source_id, fetch_ts]
+      properties:
+        source:
+          type: string
+          enum: [github, jira, slack, internal]
+        source_id:
+          type: string
+        fetch_ts:
+          type: string
+          format: date-time
+
+    GraphNode:
+      type: object
+      required: [id, type, tenant_id, provenance, properties]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/NodeType"
+        tenant_id:
+          type: string
+        provenance:
+          $ref: "#/components/schemas/Provenance"
+        properties:
+          type: object
+          additionalProperties: true
+          description: Type-specific properties (title, content, status, etc.)
+
+    GraphEdge:
+      type: object
+      required: [id, type, from_id, to_id]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          description: Edge label (IMPLEMENTS, PRODUCES, AUTHORED_BY, etc.)
+        from_id:
+          type: string
+          format: uuid
+        to_id:
+          type: string
+          format: uuid
+        properties:
+          type: object
+          additionalProperties: true
+
+    TraversalResult:
+      type: object
+      required: [nodes, edges, query_ms]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        query_ms:
+          type: number
+          description: Query execution time in milliseconds
+
+    VectorSearchResult:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [node, distance]
+            properties:
+              node:
+                $ref: "#/components/schemas/GraphNode"
+              distance:
+                type: number
+                description: Cosine distance (0 = identical, 2 = opposite)
+
+    IngestStatus:
+      type: object
+      required: [status, integration, tenant_id, trace_id]
+      properties:
+        status:
+          type: string
+          enum: [started, completed, failed, checkpoint_saved]
+        integration:
+          type: string
+          enum: [github, jira, slack]
+        tenant_id:
+          type: string
+        records_processed:
+          type: integer
+        checkpoint:
+          type: string
+          description: Cursor value saved for next incremental run
+        error:
+          type: string
+          description: Structured error message if status is failed
+        trace_id:
+          type: string
+
+paths:
+  # ── Ingest ────────────────────────────────────────────────────────────────
+  /ingest/{integration}:
+    post:
+      operationId: triggerIngest
+      summary: Trigger incremental ingest for a source integration
+      tags: [Ingest]
+      parameters:
+        - name: integration
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [github, jira, slack]
+        - name: full
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: If true, ignore checkpoint and perform full re-ingest
+      responses:
+        "202":
+          description: Ingest accepted; returns initial status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestStatus"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Integration not configured for this tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /ingest/{integration}/status:
+    get:
+      operationId: getIngestStatus
+      summary: Get last ingest run status and checkpoint for an integration
+      tags: [Ingest]
+      parameters:
+        - name: integration
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [github, jira, slack]
+      responses:
+        "200":
+          description: Last ingest status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestStatus"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Graph ──────────────────────────────────────────────────────────────────
+  /graph/traverse:
+    post:
+      operationId: traverseGraph
+      summary: 1-hop or k-hop graph traversal from a starting node
+      tags: [Graph]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_id]
+              properties:
+                from_id:
+                  type: string
+                  format: uuid
+                  description: Starting node ID
+                edge_types:
+                  type: array
+                  items:
+                    type: string
+                  description: Filter to these edge type labels; empty = all
+                max_hops:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  default: 1
+                node_types:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/NodeType"
+                  description: Filter returned nodes to these types; empty = all
+      responses:
+        "200":
+          description: Traversal result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraversalResult"
+        "400":
+          description: Invalid request (unknown node ID, hop > 5, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Graph query error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Vector ─────────────────────────────────────────────────────────────────
+  /vector/search:
+    post:
+      operationId: vectorSearch
+      summary: Semantic top-k similarity search over Memory and Artifact nodes
+      tags: [Vector]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: Natural language query to embed and search
+                k:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 5
+                node_types:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/NodeType"
+                  default: [Artifact, Memory]
+                  description: Which node types to search
+      responses:
+        "200":
+          description: Top-k results with cosine distances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VectorSearchResult"
+        "400":
+          description: Empty query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Vector retrieval error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Admin ──────────────────────────────────────────────────────────────────
+  /admin/entities:
+    get:
+      operationId: listEntities
+      summary: List all normalized entities for the authenticated tenant
+      tags: [Admin]
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/NodeType"
+          description: Filter by node type
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [github, jira, slack, internal]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Paginated entity list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GraphNode"
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        "401":
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
