@@ -1,0 +1,47 @@
+/* Context-OS Design Tokens — single source of truth for all views */
+
+:root {
+  /* ── Placeholder / Empty State ───────────────────────────────── */
+  --color-placeholder-grey: oklch(91% 0 0);       /* ≈ Tailwind neutral-200 */
+
+  /* ── Status Colors ───────────────────────────────────────────── */
+  --color-status-active:    oklch(72% 0.2 145);   /* green */
+  --color-status-paused:    oklch(70% 0.15 75);    /* amber */
+  --color-status-at-risk:   oklch(60% 0.22 25);    /* red */
+  --color-status-complete:  oklch(65% 0 0);         /* neutral */
+  --color-status-blocked:   oklch(55% 0.22 25);    /* dark red */
+  --color-status-pending:   oklch(75% 0.15 75);    /* light amber */
+  --color-status-healthy:   oklch(72% 0.2 145);    /* green */
+  --color-status-degraded:  oklch(70% 0.15 75);    /* amber */
+
+  /* ── Motion Durations ────────────────────────────────────────── */
+  --motion-duration-set-piece: 500ms;              /* GSAP time-travel, state transitions */
+  --motion-duration-everyday:  150ms;              /* Framer Motion hover, selection, panel */
+
+  /* ── Motion Easings ──────────────────────────────────────────── */
+  --motion-easing-set-piece: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-easing-everyday:  cubic-bezier(0.0, 0, 0.2, 1);
+
+  /* ── Overlay / Backdrop ──────────────────────────────────────── */
+  --color-backdrop: oklch(0% 0 0 / 0.4);
+  --color-overlay-panel-bg: oklch(100% 0 0);
+  --overlay-panel-width: 320px;
+
+  /* ── Node Type Colors (Galaxy) ───────────────────────────────── */
+  --color-node-goal:     oklch(60% 0.2 280);   /* purple */
+  --color-node-project:  oklch(60% 0.2 220);   /* blue */
+  --color-node-signal:   oklch(70% 0.2 180);   /* teal */
+  --color-node-artifact: oklch(70% 0.15 75);   /* amber */
+
+  /* ── Decision Edge Colors ────────────────────────────────────── */
+  --color-edge-predecessor: oklch(50% 0 0);     /* dark grey solid */
+  --color-edge-alternative: oklch(65% 0.1 220); /* blue dashed */
+  --color-edge-dependent:   oklch(65% 0.15 280); /* purple dotted */
+
+  /* ── Bottleneck ──────────────────────────────────────────────── */
+  --color-bottleneck: oklch(70% 0.22 55);       /* orange */
+
+  /* ── Shadows ─────────────────────────────────────────────────── */
+  --shadow-panel: 0 8px 32px oklch(0% 0 0 / 0.12);
+  --shadow-node:  0 2px 8px  oklch(0% 0 0 / 0.08);
+}
