@@ -31,7 +31,6 @@
     "axios": "^1.7.0",
     "framer-motion": "^11.2.0",
     "graphology": "^0.25.4",
-    "graphology-layout-dagre": "^0.2.2",
     "gsap": "^3.12.5",
     "immer": "^10.1.1",
     "react": "^19.0.0",
