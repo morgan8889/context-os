@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { OverlayPanel } from '@/design-system/primitives/OverlayPanel';
 import type { InitiativeNode, InitiativeType, InitiativeStatus } from '@/types/galaxy';
@@ -108,7 +109,7 @@ export function NodeDetailPane({ node }: NodeDetailPaneProps) {
 interface DetailRowProps {
   label: string;
   value: string;
-  valueStyle?: React.CSSProperties;
+  valueStyle?: CSSProperties;
 }
 
 function DetailRow({ label, value, valueStyle }: DetailRowProps) {

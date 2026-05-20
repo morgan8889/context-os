@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+import type { ChangeEvent } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { useTimeTravelScrub } from './hooks/useTimeTravelScrub';
@@ -110,7 +111,7 @@ export function TimeTravelBar() {
     };
   }, []);
 
-  const handleRangeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRangeChange = (e: ChangeEvent<HTMLInputElement>) => {
     const idx = parseInt(e.target.value, 10);
     if (isPlaying) stopPlaying();
     // At max value → go live

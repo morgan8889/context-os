@@ -224,15 +224,42 @@ export default function GalaxyView() {
             </div>
           </div>
 
-          {/* Time travel bar — bottom */}
+          {/* Time travel bar — bottom; hidden at ≤430px landscape */}
           {galaxySnapshots.length >= 2 && (
-            <TimeTravelBar />
+            <div className="galaxy-time-travel-bar">
+              <style>{`
+                @media (max-width: 430px) and (orientation: landscape) {
+                  .galaxy-time-travel-bar { display: none !important; }
+                }
+              `}</style>
+              <TimeTravelBar />
+            </div>
           )}
         </div>
       )}
 
-      {/* Node detail pane (rendered outside SigmaContainer, portal-friendly) */}
-      <NodeDetailPane node={focusedNode} />
+      {/*
+       * Node detail pane — right-side slide-in panel on desktop/tablet.
+       * At ≤430px portrait: repositions to a bottom-sheet via CSS override.
+       */}
+      <style>{`
+        @media (max-width: 430px) {
+          .galaxy-node-detail [role="dialog"] {
+            top: auto !important;
+            bottom: 0 !important;
+            right: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 60vh;
+            border-radius: 16px 16px 0 0;
+          }
+        }
+      `}</style>
+      <div className="galaxy-node-detail">
+        <NodeDetailPane node={focusedNode} />
+      </div>
     </div>
   );
 }

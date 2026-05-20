@@ -148,7 +148,7 @@ export function DecisionSearch({ isSearching, resultCount }: DecisionSearchProps
               className="flex items-center justify-center rounded p-px"
               style={{ color: 'oklch(55% 0 0)', lineHeight: 1 }}
             >
-              <span style={{ fontSize: 14, lineHeight: 1 }}>&#215;</span>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>×</span>
             </button>
           ) : null}
         </span>

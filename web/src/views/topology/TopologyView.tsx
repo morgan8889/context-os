@@ -1,4 +1,5 @@
 import { useRef, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useGSAP } from '@gsap/react';
 import {
   ReactFlow,
@@ -119,11 +120,26 @@ function ActivatedTopologyCanvas({
       data-view="topology-activated"
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
+      {/*
+       * Responsive sidebar styles:
+       *  768–1024px (tablet): sidebar narrows from 240px → 180px
+       *  ≤767px: sidebar stacks below canvas (column layout)
+       */}
+      <style>{`
+        @media (min-width: 768px) and (max-width: 1024px) {
+          [data-testid="topology-sidebar"] { width: 180px !important; }
+        }
+        @media (max-width: 767px) {
+          [data-topology-canvas-row] { flex-direction: column !important; }
+          [data-testid="topology-sidebar"] { width: 100% !important; max-height: 200px; border-left: none !important; border-top: 1px solid oklch(88% 0 0); }
+        }
+      `}</style>
+
       {/* Filter toolbar */}
       <TopologyFilters workflows={workflows} />
 
       {/* Main canvas + sidebar */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+      <div data-topology-canvas-row style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         {/* React Flow canvas */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <ReactFlow
@@ -156,6 +172,7 @@ function ActivatedTopologyCanvas({
 
         {/* Workflow summary sidebar */}
         <aside
+          data-testid="topology-sidebar"
           style={{
             width: 240,
             flexShrink: 0,

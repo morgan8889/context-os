@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useGSAP } from '@gsap/react';
 import {
   ReactFlow,
@@ -199,7 +200,7 @@ function ActivatedDecisionGraph() {
     : null;
 
   const handleNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
+    (_: ReactMouseEvent, node: Node) => {
       setFocusedDecisionId(node.id);
     },
     [setFocusedDecisionId]

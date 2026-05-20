@@ -5,17 +5,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * Verifies GSAP stateTransitions module and Framer Motion/GSAP coexistence constraints.
  */
 
-// Mock GSAP before importing the module under test
-const mockTimeline = {
-  fromTo: vi.fn().mockReturnThis(),
-  to: vi.fn().mockReturnThis(),
-};
-
-const gsapMock = {
-  fromTo: vi.fn(),
-  to: vi.fn(),
-  timeline: vi.fn(() => mockTimeline),
-};
+// vi.hoisted() ensures these objects exist before vi.mock() factories run
+const { gsapMock, mockTimeline } = vi.hoisted(() => {
+  const mockTimeline = {
+    fromTo: vi.fn().mockReturnThis(),
+    to: vi.fn().mockReturnThis(),
+  };
+  const gsapMock = {
+    fromTo: vi.fn(),
+    to: vi.fn(),
+    timeline: vi.fn(() => mockTimeline),
+  };
+  return { gsapMock, mockTimeline };
+});
 
 vi.mock('gsap', () => ({ default: gsapMock }));
 

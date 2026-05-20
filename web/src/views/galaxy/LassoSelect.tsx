@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useSigma } from '@react-sigma/core';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 
@@ -85,14 +86,14 @@ export function LassoSelect() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [clearGalaxySelection]);
 
-  const getEventPoint = useCallback((e: React.MouseEvent<SVGSVGElement>): Point => {
+  const getEventPoint = useCallback((e: ReactMouseEvent<SVGSVGElement>): Point => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return [0, 0];
     return [e.clientX - rect.left, e.clientY - rect.top];
   }, []);
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
+    (e: ReactMouseEvent<SVGSVGElement>) => {
       // Only left mouse button
       if (e.button !== 0) return;
       e.preventDefault();
@@ -104,7 +105,7 @@ export function LassoSelect() {
   );
 
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
+    (e: ReactMouseEvent<SVGSVGElement>) => {
       if (!isDrawing.current) return;
       const pt = getEventPoint(e);
       setPath((prev) => [...prev, pt]);
