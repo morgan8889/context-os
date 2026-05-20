@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+tests/visual/snapshots/
+
+# Benchmarks (committed manually after runs)
+benchmarks/*.json
+
+# Local env
+.env.local
+.env.*.local
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
