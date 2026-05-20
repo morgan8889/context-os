@@ -3,6 +3,11 @@ import { type ReactNode } from 'react';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
+  // Dev-only bypass: VITE_DEV_BYPASS_AUTH=true skips Clerk for local visual testing
+  if (import.meta.env['VITE_DEV_BYPASS_AUTH'] === 'true') {
+    return <>{children}</>;
+  }
+
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {

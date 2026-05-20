@@ -1,0 +1,5 @@
+{
+  "env": {
+    "PROJECT_TEST_CMD": "uv run --frozen pytest tests/unit tests/fault -q --no-header"
+  }
+}
