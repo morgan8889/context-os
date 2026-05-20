@@ -44,4 +44,14 @@
   /* ── Shadows ─────────────────────────────────────────────────── */
   --shadow-panel: 0 8px 32px oklch(0% 0 0 / 0.12);
   --shadow-node:  0 2px 8px  oklch(0% 0 0 / 0.08);
+
+  /* ── Galaxy View ─────────────────────────────────────────────── */
+  --color-galaxy-bg:     oklch(8% 0 0);            /* near-black canvas */
+  --color-lasso-stroke:  oklch(60% 0.2 220 / 0.5); /* blue, semi-transparent */
+
+  /* ── Overlay Type Colors ─────────────────────────────────────── */
+  --color-overlay-load:      oklch(55% 0.2 220);   /* blue  */
+  --color-overlay-risk:      oklch(55% 0.22 25);   /* red   */
+  --color-overlay-autonomy:  oklch(55% 0.18 280);  /* purple */
+  --color-overlay-ownership: oklch(60% 0.18 145);  /* green  */
 }
