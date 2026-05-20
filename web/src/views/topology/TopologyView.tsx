@@ -1,5 +1,5 @@
 import { useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useGSAP } from '@gsap/react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -11,6 +11,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+import { animateStateEnter } from '@/lib/animations/stateTransitions';
 import { useTopologyData } from './hooks/useTopologyData';
 import { useTopologyFilters } from './hooks/useTopologyFilters';
 import TopologyEmpty from './TopologyEmpty';
@@ -233,49 +234,43 @@ export default function TopologyView() {
     return new Set(filtered.map((w) => w.id));
   }, [rawWorkflows, topologyFilters, filterWorkflows]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const prevStateRef = useRef(topologyViewState);
-  prevStateRef.current = topologyViewState;
 
-  if (topologyViewState === 'empty') {
-    return <TopologyEmpty />;
-  }
-
-  if (topologyViewState === 'activating') {
-    if (isLoading) return <LoadingState />;
-    return (
-      <TopologyActivating
-        workflowCount={workflowCount}
-        partialNodes={nodes}
-      />
-    );
-  }
-
-  // activated
-  if (isLoading) return <LoadingState />;
+  // GSAP set-piece entrance animation on state change
+  useGSAP(() => {
+    if (!containerRef.current) return;
+    if (prevStateRef.current === topologyViewState) return;
+    prevStateRef.current = topologyViewState;
+    animateStateEnter(containerRef.current);
+  }, { scope: containerRef, dependencies: [topologyViewState] });
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key="topology-activated"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: Number(
-          typeof document !== 'undefined'
-            ? getComputedStyle(document.documentElement).getPropertyValue('--motion-duration-set-piece').trim().replace('ms', '')
-            : 500
-        ) / 1000 }}
-        style={{ height: '100%' }}
-      >
-        <ReactFlowProvider>
-          <ActivatedTopologyCanvas
-            nodes={nodes}
-            edges={edges}
-            workflows={workflows}
-            filteredWorkflowIds={filteredWorkflowIds}
-          />
-        </ReactFlowProvider>
-      </motion.div>
-    </AnimatePresence>
+    <div
+      ref={containerRef}
+      data-view={`topology-${topologyViewState}`}
+      className="relative flex h-full w-full flex-col overflow-hidden bg-white"
+    >
+      {topologyViewState === 'empty' && <TopologyEmpty />}
+
+      {topologyViewState === 'activating' && (
+        isLoading ? <LoadingState /> : (
+          <TopologyActivating workflowCount={workflowCount} partialNodes={nodes} />
+        )
+      )}
+
+      {topologyViewState === 'activated' && (
+        isLoading ? <LoadingState /> : (
+          <ReactFlowProvider>
+            <ActivatedTopologyCanvas
+              nodes={nodes}
+              edges={edges}
+              workflows={workflows}
+              filteredWorkflowIds={filteredWorkflowIds}
+            />
+          </ReactFlowProvider>
+        )
+      )}
+    </div>
   );
 }

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useGSAP } from '@gsap/react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -9,6 +10,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+import { animateStateEnter } from '@/lib/animations/stateTransitions';
 import { OverlayPanel } from '@/design-system/primitives/OverlayPanel';
 import { useDecisionGraph } from './hooks/useDecisionGraph';
 import { useDecisionLayout } from './hooks/useDecisionLayout';
@@ -332,23 +334,37 @@ export default function DecisionView() {
     (s) => s.viewStates.decisionGraph.decisionCount
   );
 
-  if (viewState === 'empty') {
-    return <DecisionEmpty />;
-  }
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevStateRef = useRef(viewState);
 
-  if (viewState === 'activating') {
-    return (
-      <DecisionActivating
-        decisionCount={decisionCount}
-        partialNodes={[] as Node<DecisionNode>[]}
-      />
-    );
-  }
+  // GSAP set-piece entrance animation on state change
+  useGSAP(() => {
+    if (!containerRef.current) return;
+    if (prevStateRef.current === viewState) return;
+    prevStateRef.current = viewState;
+    animateStateEnter(containerRef.current);
+  }, { scope: containerRef, dependencies: [viewState] });
 
-  // 'activated'
   return (
-    <ReactFlowProvider>
-      <ActivatedDecisionGraph />
-    </ReactFlowProvider>
+    <div
+      ref={containerRef}
+      data-view={`decisions-${viewState}`}
+      className="relative flex h-full w-full flex-col overflow-hidden bg-white"
+    >
+      {viewState === 'empty' && <DecisionEmpty />}
+
+      {viewState === 'activating' && (
+        <DecisionActivating
+          decisionCount={decisionCount}
+          partialNodes={[] as Node<DecisionNode>[]}
+        />
+      )}
+
+      {viewState === 'activated' && (
+        <ReactFlowProvider>
+          <ActivatedDecisionGraph />
+        </ReactFlowProvider>
+      )}
+    </div>
   );
 }

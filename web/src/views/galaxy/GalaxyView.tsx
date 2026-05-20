@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
 import { SigmaContainer, useRegisterEvents, useSetSettings, useSigma } from '@react-sigma/core';
+import { animateStateEnter } from '@/lib/animations/stateTransitions';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { useViewState } from '@/lib/api/viewState';
 import { useGalaxyGraph } from './hooks/useGalaxyGraph';
@@ -135,17 +135,12 @@ export default function GalaxyView() {
   const galaxyState = viewStates.galaxy.state;
   const initiativeCount = viewStates.galaxy.initiativeCount;
 
-  // GSAP entrance animation when galaxy state changes
+  // GSAP set-piece entrance animation when galaxy state changes
   useGSAP(() => {
     if (!containerRef.current) return;
     if (prevState.current === galaxyState) return;
     prevState.current = galaxyState;
-
-    gsap.fromTo(
-      containerRef.current,
-      { opacity: 0 },
-      { opacity: 1, duration: 0.5, ease: 'power2.out' }
-    );
+    animateStateEnter(containerRef.current);
   }, { scope: containerRef, dependencies: [galaxyState] });
 
   // Load next page lazily when needed (e.g., after first render of activated state)
