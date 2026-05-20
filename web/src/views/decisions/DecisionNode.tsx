@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import type { NodeProps } from '@xyflow/react';
+import type { NodeProps, Node } from '@xyflow/react';
 import { NodeTooltip } from '@/design-system/primitives/NodeTooltip';
 import type { DecisionNode, DecisionAlternative } from '@/types/decisions';
 
@@ -143,7 +143,7 @@ function TooltipBody({
  */
 export const DecisionNodeComponent = memo(function DecisionNodeComponent({
   data,
-}: NodeProps<DecisionNode>) {
+}: NodeProps<Node<DecisionNode>>) {
   const isPlaceholder = data.viewState === 'activating' || data.viewState === 'placeholder';
   const isRetracted = data.status === 'retracted';
 

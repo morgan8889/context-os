@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { ChangeEvent } from 'react';
 import { FilterBar } from '@/design-system/primitives/FilterBar';
 import type { FilterGroup } from '@/design-system/primitives/FilterBar';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
@@ -88,7 +89,7 @@ export function DecisionFilters({ decisions }: DecisionFiltersProps) {
         filters={filterGroups}
         activeFilters={activeFilters}
         onChange={handleFilterChange}
-        onClear={hasAnyFilter ? clearDecisionFilters : undefined}
+        {...(hasAnyFilter ? { onClear: clearDecisionFilters } : {})}
       />
 
       {/* Date-range inputs */}
@@ -101,7 +102,7 @@ export function DecisionFilters({ decisions }: DecisionFiltersProps) {
           <input
             type="date"
             value={decisionFilters.fromDate ?? ''}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setDecisionFilters({ fromDate: e.target.value || null })
             }
             className="rounded border px-2 py-0.5 text-xs focus:outline-none focus:ring-2"
@@ -119,7 +120,7 @@ export function DecisionFilters({ decisions }: DecisionFiltersProps) {
           <input
             type="date"
             value={decisionFilters.toDate ?? ''}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setDecisionFilters({ toDate: e.target.value || null })
             }
             className="rounded border px-2 py-0.5 text-xs focus:outline-none focus:ring-2"

@@ -52,7 +52,7 @@ function GraphEventWiring() {
   // Register click handlers
   useEffect(() => {
     registerEvents({
-      clickNode: ({ node }) => {
+      clickNode: ({ node }: { node: string }) => {
         setFocusedNodeId(node);
       },
       clickStage: () => {
@@ -67,7 +67,7 @@ function GraphEventWiring() {
     const hasSelection = galaxySelection.nodeIds.size > 0;
 
     setSettings({
-      nodeReducer: (node, data) => {
+      nodeReducer: (node: string, data: Record<string, unknown>) => {
         const nodeType = (data['type'] as InitiativeType) ?? 'project';
         const nodeStatus = (data['status'] as InitiativeStatus) ?? 'active';
 
@@ -100,7 +100,7 @@ function GraphEventWiring() {
         return { ...data, color, highlighted: hasSelection && galaxySelection.nodeIds.has(node) };
       },
 
-      edgeReducer: (_edge, data) => {
+      edgeReducer: (_edge: string, data: Record<string, unknown>) => {
         if (hasSelection) {
           // Hide edges connecting unselected nodes
           return { ...data, hidden: true };

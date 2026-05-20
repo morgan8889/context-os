@@ -4,13 +4,15 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type Node,
+  type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { WorkflowNode } from './WorkflowNode';
 import { StateCTA } from '@/design-system/primitives/StateCTA';
 import type { WorkflowNode as WorkflowNodeData } from '@/types/topology';
 
-const NODE_TYPES = { workflowNode: WorkflowNode };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NODE_TYPES: NodeTypes = { workflowNode: WorkflowNode as any };
 
 const PLACEHOLDER_NODE: Node<WorkflowNodeData> = {
   id: 'executive-briefing',

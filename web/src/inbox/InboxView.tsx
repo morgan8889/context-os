@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api/client';
@@ -291,7 +292,7 @@ function ApprovalCard({
               <textarea
                 id={`reject-reason-${item.id}`}
                 value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setRejectReason(e.target.value)}
                 rows={3}
                 placeholder="Explain why this item is being rejected…"
                 className="w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(60%_0.2_220)]"
@@ -394,7 +395,7 @@ function ErrorState({ message }: { message: string }) {
 export default function InboxView() {
   const qc = useQueryClient();
 
-  const queryKey = inboxKeys.list({ status: 'pending', cursor: undefined });
+  const queryKey = inboxKeys.list({ status: 'pending' });
 
   const {
     data,

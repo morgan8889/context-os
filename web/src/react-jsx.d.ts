@@ -3,10 +3,8 @@
 // interface that TypeScript requires for type-safe JSX.
 
 declare namespace JSX {
-  // React 19 allows components to return undefined (in addition to null).
-  // Setting Element to ReactElement | undefined allows components like
-  // AnimatePresence (from framer-motion) that return `Element | undefined`.
-  type Element = import('react').ReactElement | undefined | null;
+  // JSX.Element allows undefined (TypeScript 5.1+ supports undefined as valid return)
+  type Element = import('react').ReactElement | null | undefined;
 
   interface ElementClass {
     render(): import('react').ReactNode;

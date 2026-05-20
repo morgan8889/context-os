@@ -63,11 +63,11 @@ export function useDecisionGraph(): {
   );
 
   const queryKey = decisionKeys.list({
-    q: debouncedFilters.query || undefined,
-    fromDate: debouncedFilters.fromDate ?? undefined,
-    toDate: debouncedFilters.toDate ?? undefined,
-    authorId: debouncedFilters.authorId ?? undefined,
-    impactedSystem: debouncedFilters.impactedSystem ?? undefined,
+    ...(debouncedFilters.query ? { q: debouncedFilters.query } : {}),
+    ...(debouncedFilters.fromDate ? { fromDate: debouncedFilters.fromDate } : {}),
+    ...(debouncedFilters.toDate ? { toDate: debouncedFilters.toDate } : {}),
+    ...(debouncedFilters.authorId ? { authorId: debouncedFilters.authorId } : {}),
+    ...(debouncedFilters.impactedSystem ? { impactedSystem: debouncedFilters.impactedSystem } : {}),
   });
 
   const { data, isFetching, isLoading } = useQuery({

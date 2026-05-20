@@ -8,6 +8,8 @@ export interface DecisionAlternative {
 }
 
 export interface DecisionNode {
+  // Index signature required for React Flow Node<T> generic constraint
+  [key: string]: unknown;
   id: string;
   title: string;
   rationale: string;
@@ -21,6 +23,8 @@ export interface DecisionNode {
 }
 
 export interface DecisionEdge {
+  // Index signature required for React Flow Edge<T> generic constraint
+  [key: string]: unknown;
   id: string;
   source: string;
   target: string;

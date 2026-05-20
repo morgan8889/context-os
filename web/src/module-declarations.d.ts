@@ -46,7 +46,7 @@ declare module 'react' {
 
   export type FC<P = Record<string, unknown>> = FunctionComponent<P>;
   export interface FunctionComponent<P = Record<string, unknown>> {
-    (props: P): ReactNode;
+    (props: P): ReactElement | null | undefined;
     displayName?: string;
   }
 
@@ -336,11 +336,11 @@ declare module 'react' {
   }
 
   export interface Provider<T> {
-    (props: ProviderProps<T>): ReactElement | null;
+    (props: ProviderProps<T>): ReactElement | null | undefined;
   }
 
   export interface Consumer<T> {
-    (props: ConsumerProps<T>): ReactElement | null;
+    (props: ConsumerProps<T>): ReactElement | null | undefined;
   }
 
   export interface ProviderProps<T> {
@@ -355,7 +355,8 @@ declare module 'react' {
   export function createContext<T>(defaultValue: T): Context<T>;
   export function createContext<T>(defaultValue: T | undefined): Context<T | undefined>;
 
-  export function memo<T extends ComponentType<unknown>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function memo<T extends ComponentType<any>>(
     Component: T,
     propsAreEqual?: (prevProps: Readonly<ComponentProps<T>>, nextProps: Readonly<ComponentProps<T>>) => boolean
   ): T;
@@ -365,7 +366,7 @@ declare module 'react' {
   ): ForwardRefExoticComponent<PropsWithoutRef<P> & RefAttributes<T>>;
 
   export interface ForwardRefRenderFunction<T, P = Record<string, unknown>> {
-    (props: P, ref: ForwardedRef<T>): ReactElement | null;
+    (props: P, ref: ForwardedRef<T>): ReactElement | null | undefined;
     displayName?: string;
   }
 
@@ -376,7 +377,7 @@ declare module 'react' {
   }
 
   export interface NamedExoticComponent<P = Record<string, unknown>> {
-    (props: P): ReactElement | null;
+    (props: P & { children?: ReactNode }): ReactElement | null | undefined;
     displayName?: string;
   }
 
@@ -384,6 +385,9 @@ declare module 'react' {
 
   export interface RefAttributes<T> {
     ref?: Ref<T>;
+    children?: ReactNode;
+    className?: string;
+    style?: CSSProperties;
   }
 
   export type ComponentType<P = Record<string, unknown>> = ComponentClass<P> | FunctionComponent<P>;
@@ -394,6 +398,25 @@ declare module 'react' {
       : T extends keyof JSX.IntrinsicElements
         ? JSX.IntrinsicElements[T]
         : Record<string, unknown>;
+
+  // ComponentPropsWithRef and ComponentPropsWithoutRef for use with Radix UI / forwardRef patterns
+  export type ComponentPropsWithRef<T extends ElementType> =
+    T extends keyof JSX.IntrinsicElements
+      ? JSX.IntrinsicElements[T] & { ref?: Ref<Element> }
+      : T extends ComponentType<infer P>
+        ? P & { ref?: Ref<unknown> }
+        : Record<string, unknown>;
+
+  export type ComponentPropsWithoutRef<T extends ElementType> =
+    T extends keyof JSX.IntrinsicElements
+      ? Omit<JSX.IntrinsicElements[T], 'ref'>
+      : T extends ComponentType<infer P>
+        ? Omit<P, 'ref'>
+        : Record<string, unknown>;
+
+  export type ElementType<P = unknown> =
+    | { [K in keyof JSX.IntrinsicElements]: P extends JSX.IntrinsicElements[K] ? K : never }[keyof JSX.IntrinsicElements]
+    | ComponentType<P>;
 
   export interface ComponentClass<P = Record<string, unknown>, S = Record<string, unknown>> {
     new(props: P): Component<P, S>;
@@ -407,10 +430,10 @@ declare module 'react' {
     ...children: ReactNode[]
   ): ReactElement;
 
-  // React built-in components — must return ReactElement | null to be valid JSX
-  export const StrictMode: (props: { children?: ReactNode }) => ReactElement | null;
-  export const Fragment: (props: { children?: ReactNode; key?: Key }) => ReactElement | null;
-  export const Suspense: (props: { children?: ReactNode; fallback?: ReactNode }) => ReactElement | null;
+  // React built-in components — return ReactElement | null | undefined (TS 5.1+ supports undefined)
+  export const StrictMode: (props: { children?: ReactNode }) => ReactElement | null | undefined;
+  export const Fragment: (props: { children?: ReactNode; key?: Key }) => ReactElement | null | undefined;
+  export const Suspense: (props: { children?: ReactNode; fallback?: ReactNode }) => ReactElement | null | undefined;
 
   export function lazy<T extends ComponentType<unknown>>(
     factory: () => Promise<{ default: T }>
@@ -460,7 +483,7 @@ declare module 'react/jsx-runtime' {
   ): ReactElement;
 
   export namespace JSX {
-    type Element = ReactElement;
+    type Element = ReactElement | null | undefined;
     interface ElementClass { render(): ReactNode; }
     interface ElementAttributesProperty { props: Record<string, unknown>; }
     interface ElementChildrenAttribute { children: unknown; }
@@ -472,6 +495,7 @@ declare module 'react/jsx-runtime' {
 declare module 'react/jsx-dev-runtime' {
   export * from 'react/jsx-runtime';
 }
+
 
 declare module 'react-dom/client' {
   import { ReactNode } from 'react';

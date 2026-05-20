@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, FocusEvent } from 'react';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 
 /** Inline SVG spinner for the search-in-progress indicator */
@@ -115,7 +116,7 @@ export function DecisionSearch({ isSearching, resultCount }: DecisionSearchProps
           aria-label="Search decisions"
           placeholder="Search decisions…"
           value={localValue}
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e.target.value)}
           className={[
             'w-full rounded-lg py-1.5 pl-8 pr-8 text-sm',
             'border transition-[border-color,box-shadow] duration-[var(--motion-duration-everyday)]',
@@ -127,11 +128,11 @@ export function DecisionSearch({ isSearching, resultCount }: DecisionSearchProps
             background: 'oklch(100% 0 0)',
             // focus styles via JS class
           }}
-          onFocus={(e) => {
+          onFocus={(e: FocusEvent<HTMLInputElement>) => {
             e.currentTarget.style.borderColor = 'oklch(60% 0.15 220)';
             e.currentTarget.style.boxShadow = '0 0 0 3px oklch(60% 0.15 220 / 0.15)';
           }}
-          onBlur={(e) => {
+          onBlur={(e: FocusEvent<HTMLInputElement>) => {
             e.currentTarget.style.borderColor = 'oklch(82% 0 0)';
             e.currentTarget.style.boxShadow = 'none';
           }}

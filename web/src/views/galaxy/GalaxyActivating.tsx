@@ -66,8 +66,8 @@ function ActivatingGraphLoader({
 
   // Apply custom nodeReducer for stubs (25% opacity) vs real nodes (50% opacity)
   useEffect(() => {
-    sigma.setSetting('nodeReducer', (node, data) => {
-      if ((data as Record<string, unknown>)['isStub']) {
+    sigma.setSetting('nodeReducer', (_node: string, data: Record<string, unknown>) => {
+      if (data['isStub']) {
         return { ...data, color: 'var(--color-placeholder-grey)', size: 6, label: '' };
       }
       return data;

@@ -4,6 +4,8 @@ export type WorkflowStatus = 'healthy' | 'degraded' | 'blocked';
 export type WorkflowViewState = 'activated' | 'activating' | 'placeholder';
 
 export interface WorkflowNode {
+  // Index signature required for React Flow Node<T> generic constraint
+  [key: string]: unknown;
   id: string;
   workflowId: string;
   label: string;
@@ -19,6 +21,8 @@ export interface WorkflowNode {
 }
 
 export interface WorkflowEdge {
+  // Index signature required for React Flow Edge<T> generic constraint
+  [key: string]: unknown;
   id: string;
   source: string;
   target: string;

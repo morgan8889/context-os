@@ -8,6 +8,8 @@ import {
   Controls,
   useReactFlow,
   type Node,
+  type NodeTypes,
+  type EdgeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -22,8 +24,10 @@ import { BottleneckEdge } from './BottleneckEdge';
 import { TopologyFilters } from './TopologyFilters';
 import type { WorkflowNode as WorkflowNodeData, WorkflowSummary } from '@/types/topology';
 
-const NODE_TYPES = { workflowNode: WorkflowNode };
-const EDGE_TYPES = { bottleneckEdge: BottleneckEdge };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NODE_TYPES: NodeTypes = { workflowNode: WorkflowNode as any };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const EDGE_TYPES: EdgeTypes = { bottleneckEdge: BottleneckEdge as any };
 
 const STATUS_COLORS: Record<string, string> = {
   healthy: 'var(--color-status-healthy)',
@@ -154,15 +158,16 @@ function ActivatedTopologyCanvas({
             elementsSelectable
           >
             <MiniMap
-              nodeColor={(n: Node<WorkflowNodeData>) => {
-                if (n.data?.isBottleneck) return 'oklch(70% 0.22 55)';
+              nodeColor={(n) => {
+                const data = n.data as WorkflowNodeData | undefined;
+                if (data?.isBottleneck) return 'oklch(70% 0.22 55)';
                 const statusMap: Record<string, string> = {
                   active: 'oklch(72% 0.2 145)',
                   blocked: 'oklch(55% 0.22 25)',
                   complete: 'oklch(65% 0 0)',
                   pending: 'oklch(75% 0.15 75)',
                 };
-                return statusMap[n.data?.status ?? ''] ?? 'oklch(80% 0 0)';
+                return statusMap[data?.status ?? ''] ?? 'oklch(80% 0 0)';
               }}
               style={{ background: 'oklch(97% 0 0)' }}
             />

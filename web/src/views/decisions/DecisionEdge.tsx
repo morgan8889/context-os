@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { getBezierPath, EdgeLabelRenderer } from '@xyflow/react';
-import type { EdgeProps } from '@xyflow/react';
+import type { EdgeProps, Edge } from '@xyflow/react';
 import type { DecisionEdge as DecisionEdgeData } from '@/types/decisions';
 
 /**
@@ -57,8 +57,8 @@ export const DecisionEdgeComponent = memo(function DecisionEdgeComponent({
   data,
   label,
   markerEnd,
-}: EdgeProps<DecisionEdgeData>) {
-  const edgeType = data?.type ?? 'predecessor';
+}: EdgeProps<Edge<DecisionEdgeData>>) {
+  const edgeType = (data?.type as DecisionEdgeData['type'] | undefined) ?? 'predecessor';
   const style = EDGE_STYLES[edgeType];
 
   const [edgePath, labelX, labelY] = getBezierPath({

@@ -128,7 +128,7 @@ export function LassoSelect() {
 
     // Test each node against the polygon
     const selectedIds = new Set<string>();
-    sigma.getGraph().forEachNode((nodeId) => {
+    sigma.getGraph().forEachNode((nodeId: string) => {
       const displayData = sigma.getNodeDisplayData(nodeId);
       if (!displayData) return;
       const { x, y } = displayData;

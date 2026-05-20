@@ -1,13 +1,12 @@
 import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant } from '@xyflow/react';
-import type { Node } from '@xyflow/react';
+import type { Node, NodeTypes } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { StateCTA } from '@/design-system/primitives/StateCTA';
 import type { DecisionNode } from '@/types/decisions';
 import { DecisionNodeComponent } from './DecisionNode';
 
-const nodeTypes = {
-  decisionNode: DecisionNodeComponent,
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const nodeTypes: NodeTypes = { decisionNode: DecisionNodeComponent as any };
 
 /** A single stub node positioned pseudo-randomly within the canvas */
 function buildStubNodes(count: number, startIndex: number): Node[] {

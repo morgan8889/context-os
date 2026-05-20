@@ -9,6 +9,7 @@ import {
   Background,
   BackgroundVariant,
 } from '@xyflow/react';
+import type { NodeTypes, EdgeTypes } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { animateStateEnter } from '@/lib/animations/stateTransitions';
@@ -26,13 +27,15 @@ import type { Node } from '@xyflow/react';
 
 // ── Node and edge type registrations ────────────────────────────────────────
 
-const nodeTypes = {
-  decisionNode: DecisionNodeComponent,
-} as const;
+const nodeTypes: NodeTypes = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decisionNode: DecisionNodeComponent as any,
+};
 
-const edgeTypes = {
-  decisionEdge: DecisionEdgeComponent,
-} as const;
+const edgeTypes: EdgeTypes = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decisionEdge: DecisionEdgeComponent as any,
+};
 
 // ── Decision detail panel ────────────────────────────────────────────────────
 
@@ -290,7 +293,7 @@ function ActivatedDecisionGraph() {
           />
           <MiniMap
             nodeColor={(node) => {
-              const data = node.data as DecisionNode | undefined;
+              const data = node.data as unknown as DecisionNode | undefined;
               if (!data) return 'oklch(85% 0 0)';
               if (data.status === 'active') return 'oklch(72% 0.15 145)';
               if (data.status === 'superseded') return 'oklch(78% 0 0)';
