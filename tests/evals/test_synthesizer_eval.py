@@ -98,6 +98,7 @@ _CITATION_FLAG = FailureFlag(
 )
 
 
+@pytest.mark.nightly_eval
 @pytest.mark.parametrize(
     "failure_mode,draft_factory,patch_target,patch_return",
     [
@@ -172,6 +173,7 @@ async def test_failure_mode_injection(
 # ── Golden dataset metrics tests ──────────────────────────────────────────────
 
 
+@pytest.mark.nightly_eval
 @pytest.mark.anyio
 async def test_synthesizer_metrics_on_golden_dataset(
     load_golden_dataset: Any,

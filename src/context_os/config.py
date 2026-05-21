@@ -123,6 +123,24 @@ class Settings(BaseSettings):
         description="Cron expression for scheduled briefing runs (optional)",
     )
 
+    # ── Phase 4: Closed Beta ───────────────────────────────────────────────────
+    resend_api_key: str | None = Field(
+        default=None,
+        description="Resend API key for transactional email (optional — email disabled when absent)",
+    )
+    resend_from_email: str = Field(
+        default="noreply@contextops.ai",
+        description="From address for transactional emails sent via Resend",
+    )
+    impersonation_secret: str = Field(
+        default="",
+        description="256-bit hex secret for signing HS256 impersonation JWTs",
+    )
+    platform_operator_clerk_user_id: str = Field(
+        default="",
+        description="Clerk user ID that is allowed to access Platform Operator endpoints",
+    )
+
     @field_validator("encryption_key")
     @classmethod
     def validate_encryption_key(cls, v: str) -> str:

@@ -22,6 +22,7 @@ def _mock_run() -> MagicMock:
     return run
 
 
+@pytest.mark.nightly_eval
 @pytest.mark.anyio
 async def test_mapper_metrics_on_golden_dataset(
     load_golden_dataset: Any,
@@ -75,6 +76,7 @@ async def test_mapper_metrics_on_golden_dataset(
     assert isinstance(result.run_id, str) and len(result.run_id) > 0
 
 
+@pytest.mark.nightly_eval
 @pytest.mark.anyio
 async def test_ci_gate_fails_on_low_recall(mock_db_session: Any) -> None:
     """MapperEvalRunner raises EvalError when recall < 0.50.

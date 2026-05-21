@@ -54,6 +54,8 @@ class Tenant(Base):
         doc="Clerk organization ID from JWT o.id claim",
     )
     name: Mapped[str] = mapped_column(TEXT, nullable=False)
+    beta_cohort_id: Mapped[str | None] = mapped_column(TEXT, nullable=True)
+    onboarded_by: Mapped[str | None] = mapped_column(TEXT, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,
@@ -520,4 +522,218 @@ class GoldenDataset(Base):
         JSONB,
         nullable=True,
         doc="List of approval_item UUIDs used to build this dataset",
+    )
+
+
+# ── Phase 4: Closed Beta ────────────────────────────────────────────────────────
+
+
+class OnboardingSession(Base):
+    """Workflow-First onboarding state machine per tenant.
+
+    Tracks position in the 6-step journey: survey → connect → scope →
+    ingest → briefing → activated. The UNIQUE constraint on tenant_id
+    ensures exactly one session per org.
+    """
+
+    __tablename__ = "onboarding_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    current_step: Mapped[str] = mapped_column(
+        TEXT,
+        nullable=False,
+        server_default=text("'survey'"),
+        doc="survey | connect | scope | ingest | briefing | activated",
+    )
+    survey_answer: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    connected_integrations: Mapped[list[str]] = mapped_column(
+        "connected_integrations",
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+        doc="List of connected source names: jira, github, slack",
+    )
+    scope_selection: Mapped[dict[str, object] | None] = mapped_column(
+        JSONB, nullable=True
+    )
+    ingest_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    step_started_at: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+        doc="step_name → ISO timestamp of when operator entered the step",
+    )
+    step_completed_at: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+        doc="step_name → ISO timestamp of when operator completed the step",
+    )
+    activated_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class ActivationEvent(Base):
+    """One activation event per tenant — written when first briefing is approved.
+
+    The UNIQUE constraint on tenant_id ensures each org activates exactly once.
+    Timing segments are computed from OnboardingSession.step_started_at /
+    step_completed_at at activation time.
+    """
+
+    __tablename__ = "activation_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+    signup_to_connect_ms: Mapped[int | None] = mapped_column(
+        "signup_to_connect_ms", Integer, nullable=True
+    )
+    connect_to_ingest_ms: Mapped[int | None] = mapped_column(
+        "connect_to_ingest_ms", Integer, nullable=True
+    )
+    ingest_to_briefing_ms: Mapped[int | None] = mapped_column(
+        "ingest_to_briefing_ms", Integer, nullable=True
+    )
+    total_active_attention_ms: Mapped[int | None] = mapped_column(
+        "total_active_attention_ms", Integer, nullable=True
+    )
+    accept_as_is: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
+class IngestJob(Base):
+    """Tracks a data-ingest job created during onboarding scope confirmation.
+
+    status transitions: running → completed | stalled | failed.
+    A stalled job has last_record_at < now()-2h while status=running.
+    """
+
+    __tablename__ = "ingest_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    source: Mapped[str] = mapped_column(
+        TEXT, nullable=False, doc="jira | github | slack | all"
+    )
+    status: Mapped[str] = mapped_column(
+        TEXT,
+        nullable=False,
+        server_default=text("'running'"),
+        doc="running | completed | stalled | failed",
+    )
+    progress_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    record_counts: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    last_record_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    error_detail: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class OAuthPendingSession(Base):
+    """Short-lived OAuth PKCE state records (TTL: 10 minutes).
+
+    Created at /oauth/connect/{source}/start, consumed (and deleted) at callback.
+    Expired rows are deleted in the callback handler if the state is found but expired.
+    """
+
+    __tablename__ = "oauth_pending_sessions"
+
+    state: Mapped[str] = mapped_column(TEXT, primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    source: Mapped[str] = mapped_column(
+        TEXT, nullable=False, doc="jira | github | slack"
+    )
+    code_verifier: Mapped[str] = mapped_column(TEXT, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False
+    )
+
+
+class RevokedImpersonationToken(Base):
+    """JTI blocklist for revoked impersonation tokens.
+
+    verify_impersonation_token() checks this table before returning claims.
+    Rows are never deleted — they serve as a permanent audit log.
+    """
+
+    __tablename__ = "revoked_impersonation_tokens"
+
+    jti: Mapped[str] = mapped_column(TEXT, primary_key=True)
+    revoked_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
     )

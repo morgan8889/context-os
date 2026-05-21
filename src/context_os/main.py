@@ -163,6 +163,9 @@ def create_app() -> FastAPI:
     from context_os.api.inbox import router as inbox_router
     from context_os.api.ingest import router as ingest_router
     from context_os.api.mapper import router as mapper_router
+    from context_os.api.oauth import router as oauth_router
+    from context_os.api.onboarding import router as onboarding_router
+    from context_os.api.support import router as support_router
     from context_os.api.vector import router as vector_router
 
     app.include_router(ingest_router, prefix="/ingest", tags=["Ingest"])
@@ -174,11 +177,22 @@ def create_app() -> FastAPI:
     app.include_router(mapper_router, prefix="/mapper", tags=["Mapper"])
     app.include_router(eval_router, prefix="/eval", tags=["Eval"])
     app.include_router(dev_router, prefix="/api/v1", tags=["Dev"])
+    app.include_router(onboarding_router, prefix="/onboarding", tags=["Onboarding"])
+    app.include_router(oauth_router, prefix="/oauth", tags=["OAuth"])
+    app.include_router(support_router, tags=["Support"])
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
         """Health check endpoint (no auth required)."""
         return {"status": "ok", "version": "0.1.0"}
+
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics() -> object:
+        """Expose Prometheus metrics in text format (no auth required)."""
+        from fastapi.responses import Response
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     return app
 

@@ -13,11 +13,18 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+from opentelemetry import metrics as otel_metrics
 from opentelemetry import trace
 
 from context_os.observability.tracer import get_tracer
 
 logger = logging.getLogger(__name__)
+
+_meter = otel_metrics.get_meter("context_os")
+_agent_invocations = _meter.create_counter(
+    "context_os_agent_invocations_total",
+    description="Total agent invocations by type and status",
+)
 
 
 class AbstractAgent(ABC):
@@ -154,3 +161,32 @@ class AbstractAgent(ABC):
             Agent-specific result object.
         """
         ...
+
+    async def invoke(self, **kwargs: Any) -> Any:
+        """Invoke the agent, wrapping run() with metric instrumentation.
+
+        Increments the context_os_agent_invocations_total counter after each
+        run() call, tagging with agent_type and status (success or error).
+
+        Args:
+            **kwargs: Passed through to run().
+
+        Returns:
+            The result from run().
+
+        Raises:
+            Any exception raised by run() — after recording status=error.
+        """
+        try:
+            result = await self.run(**kwargs)
+            _agent_invocations.add(
+                1,
+                {"agent_type": self.agent_identity, "status": "success"},
+            )
+            return result
+        except Exception:
+            _agent_invocations.add(
+                1,
+                {"agent_type": self.agent_identity, "status": "error"},
+            )
+            raise

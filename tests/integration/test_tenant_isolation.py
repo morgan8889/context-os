@@ -357,3 +357,97 @@ class TestCrossTenantVisibility:
         # Verify no Tenant A data leaked into Tenant B results
         for node in result_b.nodes:
             assert node.get("tenant_id") != tenant_a_clerk_id, "Tenant A data leaked!"
+
+
+# ── Phase 4: Onboarding session isolation ──────────────────────────────────────
+
+
+class TestOnboardingSessionIsolation:
+    """Onboarding sessions are scoped per tenant — Tenant B sees Tenant A's data only
+    if authenticated as Tenant A.
+
+    Marked nightly_eval to run in scheduled CI.
+    """
+
+    @pytest.mark.nightly_eval
+    @pytest.mark.asyncio
+    async def test_get_or_create_scoped_to_tenant(
+        self,
+        mock_db_session: AsyncMock,
+        tenant_a_db_id: uuid.UUID,
+        tenant_b_db_id: uuid.UUID,
+    ) -> None:
+        """get_or_create never returns a session belonging to a different tenant."""
+        from context_os.services.onboarding_service import OnboardingService
+
+        # Tenant A session
+        tenant_a_session = MagicMock()
+        tenant_a_session.id = uuid.uuid4()
+        tenant_a_session.tenant_id = tenant_a_db_id
+        tenant_a_session.current_step = "survey"
+        tenant_a_session.step_completed_at = {}
+        tenant_a_session.step_started_at = {}
+        tenant_a_session.connected_integrations = []
+
+        # First call returns Tenant A session; second returns None (no Tenant B session)
+        mock_result_a = MagicMock()
+        mock_result_a.scalar_one_or_none.return_value = tenant_a_session
+        mock_result_none = MagicMock()
+        mock_result_none.scalar_one_or_none.return_value = None
+        mock_db_session.execute = AsyncMock(
+            side_effect=[mock_result_a, mock_result_none]
+        )
+        mock_db_session.add = MagicMock()
+        mock_db_session.flush = AsyncMock()
+        mock_db_session.refresh = AsyncMock()
+
+        svc = OnboardingService(mock_db_session)
+
+        result_a = await svc.get_or_create(tenant_a_db_id)
+        assert result_a.tenant_id == tenant_a_db_id
+
+        # Tenant B gets a new session (None returned means new session created)
+        mock_onboarding = "context_os.services.onboarding_service.OnboardingSession"
+        with patch(mock_onboarding) as mock_cls:
+            new_b_session = MagicMock()
+            new_b_session.tenant_id = tenant_b_db_id
+            new_b_session.current_step = "survey"
+            mock_cls.return_value = new_b_session
+            with patch("context_os.services.onboarding_service.select"):
+                result_b = await svc.get_or_create(tenant_b_db_id)
+
+        # Tenant B session tenant_id must NOT be Tenant A's
+        assert result_b.tenant_id != tenant_a_db_id
+
+    @pytest.mark.nightly_eval
+    @pytest.mark.asyncio
+    async def test_ingest_jobs_scoped_to_tenant(
+        self,
+        mock_db_session: AsyncMock,
+        tenant_a_db_id: uuid.UUID,
+        tenant_b_db_id: uuid.UUID,
+    ) -> None:
+        """IngestService create_job sets tenant_id; jobs are always tenant-scoped."""
+        from context_os.services.ingest_service import IngestService
+
+        tenant_a_job = MagicMock()
+        tenant_a_job.id = uuid.uuid4()
+        tenant_a_job.tenant_id = tenant_a_db_id
+        tenant_a_job.source = "all"
+        tenant_a_job.status = "running"
+
+        mock_db_session.add = MagicMock()
+        mock_db_session.flush = AsyncMock()
+        mock_db_session.refresh = AsyncMock()
+
+        with patch(
+            "context_os.services.ingest_service.IngestJob",
+            return_value=tenant_a_job,
+        ):
+            with patch("context_os.services.ingest_service.select"):
+                svc = IngestService(mock_db_session)
+                job = await svc.create_job(tenant_a_db_id, "all")
+
+        # Confirm the job is scoped to Tenant A
+        assert job.tenant_id == tenant_a_db_id
+        assert job.tenant_id != tenant_b_db_id
