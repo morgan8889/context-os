@@ -54,7 +54,7 @@ function StatusBadge({ status }: { status: DecisionNode['status'] }) {
         className="inline-flex items-center rounded-full px-2 py-px text-[10px] font-medium leading-tight"
         style={{
           border: '1.5px solid oklch(78% 0 0)',
-          color: 'oklch(55% 0 0)',
+          color: 'oklch(48% 0 0)',
           background: 'oklch(96% 0 0)',
         }}
         data-status="superseded"
@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: DecisionNode['status'] }) {
       className="inline-flex items-center rounded-full px-2 py-px text-[10px] font-medium leading-tight"
       style={{
         border: '1.5px solid oklch(82% 0 0)',
-        color: 'oklch(62% 0 0)',
+        color: 'oklch(48% 0 0)',
         background: 'oklch(97% 0 0)',
       }}
       data-status="retracted"
@@ -193,7 +193,7 @@ export const DecisionNodeComponent = memo(function DecisionNodeComponent({
           <StatusBadge status={data.status} />
           <span
             className="text-[10px] shrink-0"
-            style={{ color: 'oklch(58% 0 0)' }}
+            style={{ color: 'oklch(50% 0 0)' }}
           >
             {formatRelative(data.capturedAt)}
           </span>
