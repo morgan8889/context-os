@@ -15,7 +15,8 @@
     "test:visual:update": "playwright test --update-snapshots",
     "benchmark:galaxy": "tsx scripts/benchmark-galaxy.ts",
     "benchmark:topology": "tsx scripts/benchmark-topology.ts",
-    "benchmark:decisions": "tsx scripts/benchmark-decisions.ts"
+    "benchmark:decisions": "tsx scripts/benchmark-decisions.ts",
+    "seed:engineering": "tsx scripts/seed-engineering.ts"
   },
   "dependencies": {
     "@clerk/react": "^6.6.6",

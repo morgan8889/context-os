@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from context_os.config import get_settings
@@ -130,6 +131,15 @@ def create_app() -> FastAPI:
         description="AI-native operational intelligence platform — Phase 1 Foundation",
         version="0.1.0",
         lifespan=lifespan,
+    )
+
+    # ── CORS (dev: allow Vite dev server) ────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://localhost:3000"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # ── Error handlers ────────────────────────────────────────────────────────

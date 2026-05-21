@@ -12,6 +12,7 @@ import { ImpersonationProvider, useImpersonation } from './lib/hooks/useImperson
 import './design-system/globals.css';
 
 const PUBLISHABLE_KEY = import.meta.env['VITE_CLERK_PUBLISHABLE_KEY'] as string;
+const DEV_BYPASS_AUTH = import.meta.env['VITE_DEV_BYPASS_AUTH'] === 'true';
 
 // Initialise telemetry early — no-op if the env var is unset
 initOtel({
@@ -59,18 +60,24 @@ function ClerkTokenWirer() {
   return null;
 }
 
+const AppTree = (
+  <QueryClientProvider client={queryClient}>
+    <ImpersonationProvider>
+      <RadixTooltip.Provider delayDuration={500}>
+        {!DEV_BYPASS_AUTH && <ClerkTokenWirer />}
+        <ImpersonationTokenWirer />
+        <RouterProvider router={router} />
+      </RadixTooltip.Provider>
+    </ImpersonationProvider>
+  </QueryClientProvider>
+);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <QueryClientProvider client={queryClient}>
-        <ImpersonationProvider>
-          <RadixTooltip.Provider delayDuration={500}>
-            <ClerkTokenWirer />
-            <ImpersonationTokenWirer />
-            <RouterProvider router={router} />
-          </RadixTooltip.Provider>
-        </ImpersonationProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+    {DEV_BYPASS_AUTH ? (
+      AppTree
+    ) : (
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>{AppTree}</ClerkProvider>
+    )}
   </StrictMode>
 );
