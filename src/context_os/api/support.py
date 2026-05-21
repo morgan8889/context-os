@@ -10,8 +10,10 @@ Routes:
 from __future__ import annotations
 
 import copy
+import json
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -189,6 +191,27 @@ def _count_tokens(content: Any) -> int:
     return max(1, len(text) // 4)
 
 
+def _trace_to_dict(trace: DebugTrace) -> dict[str, object]:
+    """Serialise a DebugTrace (and its spans) to a plain JSON-ready dict."""
+    return {
+        "operation_id": trace.operation_id,
+        "name": trace.name,
+        "timestamp": trace.timestamp,
+        "spans": [
+            {
+                "span_id": s.span_id,
+                "name": s.name,
+                "started_at": s.started_at,
+                "ended_at": s.ended_at,
+                "span_type": s.span_type,
+                "input": s.input,
+                "output": s.output,
+            }
+            for s in trace.spans
+        ],
+    }
+
+
 # ── Admin impersonation endpoints ─────────────────────────────────────────────
 
 
@@ -238,8 +261,6 @@ async def start_impersonation(
 
     token = issue_impersonation_token(ctx.user_id, target_clerk_org_id)
 
-    from datetime import UTC, datetime, timedelta
-
     expires_at = (datetime.now(UTC) + timedelta(seconds=1800)).isoformat()
 
     return ImpersonateResponse(
@@ -277,24 +298,18 @@ async def revoke_impersonation(
             },
         )
 
-    import jwt as pyjwt
-
-    try:
-        # Decode without verification just to extract JTI
-        unverified = pyjwt.decode(
-            x_impersonation_token,
-            options={"verify_signature": False},
-            algorithms=["HS256"],
-        )
-        jti = unverified.get("jti", "")
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "invalid_token", "message": "Cannot parse token"},
-        )
-
     factory = get_session_factory()
     async with factory() as session:
+        try:
+            from context_os.auth.impersonation import verify_impersonation_token
+
+            claims = await verify_impersonation_token(x_impersonation_token, session)
+            jti = claims.get("jti", "")
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "invalid_token", "message": "Cannot parse token"},
+            )
         await revoke_impersonation_token(jti, session)
         await session.commit()
 
@@ -332,23 +347,7 @@ async def get_debug_trace(
             },
         )
 
-    return {
-        "operation_id": trace.operation_id,
-        "name": trace.name,
-        "timestamp": trace.timestamp,
-        "spans": [
-            {
-                "span_id": s.span_id,
-                "name": s.name,
-                "started_at": s.started_at,
-                "ended_at": s.ended_at,
-                "span_type": s.span_type,
-                "input": s.input,
-                "output": s.output,
-            }
-            for s in trace.spans
-        ],
-    }
+    return _trace_to_dict(trace)
 
 
 @router.post("/support/traces/{operation_id}/export", tags=["Support"])
@@ -367,7 +366,6 @@ async def export_debug_trace(
     Raises:
         HTTPException(404): When the trace is not found.
     """
-    import json
 
     svc = DebugTraceService()
     try:
@@ -381,25 +379,7 @@ async def export_debug_trace(
             },
         )
 
-    redacted = redact_trace(trace)
-
-    payload = {
-        "operation_id": redacted.operation_id,
-        "name": redacted.name,
-        "timestamp": redacted.timestamp,
-        "spans": [
-            {
-                "span_id": s.span_id,
-                "name": s.name,
-                "started_at": s.started_at,
-                "ended_at": s.ended_at,
-                "span_type": s.span_type,
-                "input": s.input,
-                "output": s.output,
-            }
-            for s in redacted.spans
-        ],
-    }
+    payload = _trace_to_dict(redact_trace(trace))
 
     return Response(
         content=json.dumps(payload, indent=2),

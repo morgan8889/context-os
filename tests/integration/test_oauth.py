@@ -67,9 +67,7 @@ class TestOAuthStart:
 
 
 class TestOAuthCallback:
-    def test_callback_invalid_state_returns_400(
-        self, app_client: TestClient
-    ) -> None:
+    def test_callback_invalid_state_returns_400(self, app_client: TestClient) -> None:
         """GET /oauth/connect/jira/callback with unknown state returns 400."""
         with patch("context_os.api.oauth.get_session_factory") as mock_factory:
             mock_session = AsyncMock()
@@ -90,9 +88,7 @@ class TestOAuthCallback:
 
         assert resp.status_code == 400
 
-    def test_callback_expired_state_returns_400(
-        self, app_client: TestClient
-    ) -> None:
+    def test_callback_expired_state_returns_400(self, app_client: TestClient) -> None:
         """GET /oauth/connect/jira/callback with expired state returns 400."""
         from context_os.db.models import OAuthPendingSession
 
@@ -107,7 +103,7 @@ class TestOAuthCallback:
             mock_session = AsyncMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=False)
-            mock_session.delete = MagicMock()
+            mock_session.delete = AsyncMock()
             mock_session.flush = AsyncMock()
             mock_session.commit = AsyncMock()
 
@@ -118,8 +114,7 @@ class TestOAuthCallback:
             mock_factory.return_value = MagicMock(return_value=mock_session)
 
             resp = app_client.get(
-                "/oauth/connect/jira/callback"
-                "?state=expired_state_123&code=authcode",
+                "/oauth/connect/jira/callback?state=expired_state_123&code=authcode",
                 follow_redirects=False,
             )
 
@@ -146,7 +141,7 @@ class TestOAuthCallback:
             mock_session = AsyncMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=False)
-            mock_session.delete = MagicMock()
+            mock_session.delete = AsyncMock()
             mock_session.flush = AsyncMock()
             mock_session.commit = AsyncMock()
             mock_session.add = MagicMock()
@@ -171,11 +166,10 @@ class TestOAuthCallback:
 
             with patch("context_os.api.oauth._encrypt_mock_token", return_value=b"enc"):
                 resp = app_client.get(
-                    "/oauth/connect/jira/callback"
-                    "?state=valid_state_abc&code=authcode",
+                    "/oauth/connect/jira/callback?state=valid_state_abc&code=authcode",
                     follow_redirects=False,
                 )
 
         # Should redirect to onboarding success page
-        assert resp.status_code in (301, 302)
+        assert resp.status_code == 302
         assert "jira" in resp.headers.get("location", "")

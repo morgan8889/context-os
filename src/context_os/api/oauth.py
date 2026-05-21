@@ -58,11 +58,12 @@ def _provider_auth_url(source: str, state: str) -> str:
         Provider OAuth authorization URL.
     """
     settings = get_settings()
+    mock_url = f"/oauth/dev/mock-callback?source={source}&state={state}"
 
     if source == "jira":
         client_id = settings.jira_client_id
         if not client_id:
-            return f"/oauth/dev/mock-callback?source=jira&state={state}"
+            return mock_url
         scope = "read%3Ajira-work%20offline_access"
         base = "https://auth.atlassian.com/authorize"
         return (
@@ -78,17 +79,14 @@ def _provider_auth_url(source: str, state: str) -> str:
     if source == "github":
         client_id = settings.github_app_id
         if not client_id:
-            return f"/oauth/dev/mock-callback?source=github&state={state}"
+            return mock_url
         return (
             f"https://github.com/login/oauth/authorize"
             f"?client_id={client_id}&state={state}&scope=repo"
         )
 
-    if source == "slack":
-        return f"/oauth/dev/mock-callback?source=slack&state={state}"
-
-    # Unknown source
-    return f"/oauth/dev/mock-callback?source={source}&state={state}"
+    # slack + any unknown source fall back to the dev mock callback
+    return mock_url
 
 
 @router.get("/connect/{source}/start")
@@ -206,9 +204,7 @@ async def oauth_callback(
 
         # Append source to onboarding_sessions.connected_integrations
         onboarding_result = await session.execute(
-            select(OnboardingSession).where(
-                OnboardingSession.tenant_id == tenant_id
-            )
+            select(OnboardingSession).where(OnboardingSession.tenant_id == tenant_id)
         )
         onboarding = onboarding_result.scalar_one_or_none()
         if onboarding is not None:
@@ -223,4 +219,4 @@ async def oauth_callback(
         await session.commit()
 
     redirect_url = f"/onboarding/connect?source={source}&status=success"
-    return RedirectResponse(url=redirect_url, status_code=301)
+    return RedirectResponse(url=redirect_url, status_code=302)

@@ -19,7 +19,6 @@ from sqlalchemy import select, text
 from context_os.api.admin_funnel import build_funnel_rows
 from context_os.auth.dependencies import (
     TenantContext,
-    get_current_tenant,
     require_platform_operator,
 )
 from context_os.db.engine import get_session_factory
@@ -105,7 +104,7 @@ async def list_entities(
     source: str | None = Query(default=None, description="Filter by source"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum results"),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
-    tenant: TenantContext = Depends(get_current_tenant),
+    tenant: TenantContext = Depends(require_platform_operator),
 ) -> EntitiesResponse:
     """List all normalized entities for the authenticated tenant.
 

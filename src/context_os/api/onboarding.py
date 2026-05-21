@@ -318,20 +318,16 @@ async def post_activation(
         session = await svc.get_or_create(ctx.db_tenant_id)
 
         # Compute timing segments from step timestamps
-        def _ts(mapping: object, key: str) -> str | None:
-            val = mapping.get(key) if hasattr(mapping, "get") else None  # type: ignore[union-attr]
-            return str(val) if val is not None else None
-
-        started = session.step_started_at
-        completed = session.step_completed_at
+        started = session.step_started_at or {}
+        completed = session.step_completed_at or {}
         signup_to_connect_ms = _compute_ms(
-            _ts(started, "survey"), _ts(completed, "connect")
+            started.get("survey"), completed.get("connect")
         )
         connect_to_ingest_ms = _compute_ms(
-            _ts(completed, "connect"), _ts(completed, "ingest")
+            completed.get("connect"), completed.get("ingest")
         )
         ingest_to_briefing_ms = _compute_ms(
-            _ts(completed, "ingest"), _ts(started, "briefing")
+            completed.get("ingest"), started.get("briefing")
         )
         total_ms = sum(
             v
@@ -372,12 +368,15 @@ async def post_activation(
     return _session_to_dict(session)
 
 
-def _compute_ms(start_iso: str | None, end_iso: str | None) -> int | None:
-    """Compute milliseconds between two ISO timestamps.
+def _compute_ms(start_iso: object, end_iso: object) -> int | None:
+    """Compute milliseconds between two ISO 8601 timestamp strings.
+
+    Accepts the raw values pulled from JSONB step-timestamp maps (typed as
+    ``object``). Returns None if either value is missing or unparseable.
 
     Args:
-        start_iso: ISO 8601 start timestamp string.
-        end_iso: ISO 8601 end timestamp string.
+        start_iso: ISO 8601 start timestamp.
+        end_iso: ISO 8601 end timestamp.
 
     Returns:
         Duration in milliseconds, or None if either timestamp is missing.
@@ -385,8 +384,8 @@ def _compute_ms(start_iso: str | None, end_iso: str | None) -> int | None:
     if not start_iso or not end_iso:
         return None
     try:
-        start = datetime.fromisoformat(start_iso)
-        end = datetime.fromisoformat(end_iso)
+        start = datetime.fromisoformat(str(start_iso))
+        end = datetime.fromisoformat(str(end_iso))
         return max(0, int((end - start).total_seconds() * 1000))
     except (ValueError, TypeError):
         return None

@@ -12,7 +12,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-import jwt as pyjwt
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -148,13 +147,12 @@ async def get_current_tenant(
     if x_impersonation_token:
         from context_os.auth.impersonation import verify_impersonation_token
 
-        factory2 = get_session_factory()
-        async with factory2() as imp_session:
+        async with factory() as imp_session:
             try:
                 claims = await verify_impersonation_token(
                     x_impersonation_token, imp_session
                 )
-            except (pyjwt.InvalidTokenError, Exception):
+            except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail={
@@ -166,8 +164,7 @@ async def get_current_tenant(
         impersonating_org_id = str(claims.get("impersonating_tenant_id", ""))
 
         # Look up the impersonated tenant
-        factory3 = get_session_factory()
-        async with factory3() as lookup_session:
+        async with factory() as lookup_session:
             imp_repo = TenantRepository(lookup_session)
             imp_tenant = await imp_repo.get_by_clerk_org_id(impersonating_org_id)
 
