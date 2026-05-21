@@ -207,6 +207,41 @@ describe('buildGalaxyGraph', () => {
   });
 });
 
+// ── galaxy color helpers (Sigma-safe colors) ──────────────────────────────────
+
+import { getCssVar, resolveNodeColor, withAlpha } from '@/views/galaxy/colors';
+
+describe('galaxy color helpers', () => {
+  it('getCssVar falls back to a concrete color when the var is undefined', () => {
+    // jsdom has no tokens.css loaded, so the var resolves empty → fallback.
+    const c = getCssVar('--definitely-not-defined');
+    expect(c).not.toBe('');
+    expect(c).not.toContain('var(');
+  });
+
+  it('getCssVar honors a custom fallback', () => {
+    expect(getCssVar('--definitely-not-defined', '#abcdef')).toBe('#abcdef');
+  });
+
+  it('resolveNodeColor never returns a raw CSS var or color-mix expression', () => {
+    // Regression: Sigma WebGL cannot evaluate var()/color-mix() — passing them
+    // renders nodes black. The resolved color must be a concrete value.
+    for (const type of ['goal', 'project', 'signal', 'artifact']) {
+      const c = resolveNodeColor(type);
+      expect(c).not.toContain('var(');
+      expect(c).not.toContain('color-mix(');
+    }
+  });
+
+  it('withAlpha bakes opacity into an oklch color', () => {
+    expect(withAlpha('oklch(70% 0.15 145)', 0.5)).toBe('oklch(70% 0.15 145 / 0.5)');
+  });
+
+  it('withAlpha leaves non-oklch colors unchanged', () => {
+    expect(withAlpha('#abcdef', 0.5)).toBe('#abcdef');
+  });
+});
+
 // ── useGalaxyGraph hook ───────────────────────────────────────────────────────
 
 vi.mock('@/lib/api/client', () => ({
@@ -253,17 +288,17 @@ describe('useGalaxyGraph', () => {
       fetchNextPage: vi.fn(),
     } as ReturnType<typeof useInfiniteQuery>);
 
-    // Mock edges + snapshots responses
+    // Mock edges + snapshots responses. Use stable object references (like
+    // TanStack Query does for unchanged data) so the hook's memoized graph can
+    // stay referentially stable across re-renders.
+    const snapshotsResult = { data: [], isLoading: false } as ReturnType<typeof useQuery>;
+    const edgesResult = {
+      data: { items: [], next_cursor: null, total: 0 },
+      isLoading: false,
+    } as ReturnType<typeof useQuery>;
     vi.mocked(useQuery).mockImplementation((options) => {
       const key = JSON.stringify(options.queryKey);
-      if (key.includes('snapshots')) {
-        return { data: [], isLoading: false } as ReturnType<typeof useQuery>;
-      }
-      // edges
-      return {
-        data: { items: [], next_cursor: null, total: 0 },
-        isLoading: false,
-      } as ReturnType<typeof useQuery>;
+      return key.includes('snapshots') ? snapshotsResult : edgesResult;
     });
   });
 
@@ -309,6 +344,23 @@ describe('useGalaxyGraph', () => {
     // Domain type lives under `nodeType`; Sigma's `type` (render program) is unset.
     expect(attrs['nodeType']).toBe(mockApiNode.node_type);
     expect(attrs['type']).toBeUndefined();
+  });
+
+  it('returns a referentially stable graph across re-renders when data is unchanged', async () => {
+    // Regression: an unmemoized build returns a fresh Graph every render, which
+    // makes ForceLayout reload + restart ForceAtlas2 on every render, defeating
+    // layout convergence (SC-002). The graph reference must be stable when the
+    // underlying query data has not changed.
+    const { useGalaxyGraph } = await import('@/views/galaxy/hooks/useGalaxyGraph');
+
+    const { result, rerender } = renderHook(() => useGalaxyGraph(), {
+      wrapper: ({ children }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children),
+    });
+
+    const firstGraph = result.current.graph;
+    rerender();
+    expect(result.current.graph).toBe(firstGraph);
   });
 
   it('returns isLoading false when data is available', async () => {

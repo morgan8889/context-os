@@ -117,32 +117,35 @@ export function useGalaxyGraph(): UseGalaxyGraphResult {
     }
   }, [snapshotsQuery.data, setGalaxySnapshots]);
 
+  // Build the live graph from query data, memoized on the data references.
+  // Without this, every render returns a fresh Graph, and ForceLayout's
+  // useEffect([graph]) reloads the graph and restarts ForceAtlas2 each render —
+  // defeating layout convergence (SC-002). TanStack Query keeps `data`
+  // referentially stable across renders when it has not changed, so this memo
+  // only rebuilds when nodes/edges actually change.
+  const nodesData = nodesQuery.data;
+  const edgesData = edgesQuery.data;
+  const liveGraph = useMemo(() => {
+    const allNodes: InitiativeNode[] = [];
+    for (const page of nodesData?.pages ?? []) {
+      for (const raw of page.items) {
+        allNodes.push(toInitiativeNode(raw));
+      }
+    }
+    const allEdges: InitiativeEdge[] = [];
+    for (const raw of edgesData?.items ?? []) {
+      allEdges.push(toInitiativeEdge(raw));
+    }
+    return buildGalaxyGraph(allNodes, allEdges);
+  }, [nodesData, edgesData]);
+
   // Benchmark / mock: return generated nodes if ?mock=<state>&nodes=N is set
   if (benchmarkGraph) {
     return { graph: benchmarkGraph, isLoading: false, isFetchingNextPage: false, fetchNextPage: () => {}, hasNextPage: false };
   }
 
-  // Collect all nodes across pages
-  const allNodePages = nodesQuery.data?.pages ?? [];
-  const allNodes: InitiativeNode[] = [];
-  for (const page of allNodePages) {
-    for (const raw of page.items) {
-      allNodes.push(toInitiativeNode(raw));
-    }
-  }
-
-  // Collect all edges
-  const allEdges: InitiativeEdge[] = [];
-  if (edgesQuery.data) {
-    for (const raw of edgesQuery.data.items) {
-      allEdges.push(toInitiativeEdge(raw));
-    }
-  }
-
-  const graph = buildGalaxyGraph(allNodes, allEdges);
-
   return {
-    graph,
+    graph: liveGraph,
     isLoading: nodesQuery.isLoading,
     isFetchingNextPage: nodesQuery.isFetchingNextPage,
     fetchNextPage: () => {
