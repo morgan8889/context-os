@@ -320,17 +320,20 @@ async def post_activation(
         session = await svc.get_or_create(ctx.db_tenant_id)
 
         # Compute timing segments from step timestamps
+        def _ts(mapping: object, key: str) -> str | None:
+            val = mapping.get(key) if hasattr(mapping, "get") else None  # type: ignore[union-attr]
+            return str(val) if val is not None else None
+
+        started = session.step_started_at
+        completed = session.step_completed_at
         signup_to_connect_ms = _compute_ms(
-            str(session.step_started_at.get("survey")) if session.step_started_at.get("survey") else None,
-            str(session.step_completed_at.get("connect")) if session.step_completed_at.get("connect") else None,
+            _ts(started, "survey"), _ts(completed, "connect")
         )
         connect_to_ingest_ms = _compute_ms(
-            str(session.step_completed_at.get("connect")) if session.step_completed_at.get("connect") else None,
-            str(session.step_completed_at.get("ingest")) if session.step_completed_at.get("ingest") else None,
+            _ts(completed, "connect"), _ts(completed, "ingest")
         )
         ingest_to_briefing_ms = _compute_ms(
-            str(session.step_completed_at.get("ingest")) if session.step_completed_at.get("ingest") else None,
-            str(session.step_started_at.get("briefing")) if session.step_started_at.get("briefing") else None,
+            _ts(completed, "ingest"), _ts(started, "briefing")
         )
         total_ms = sum(
             v
