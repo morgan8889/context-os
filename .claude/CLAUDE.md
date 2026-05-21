@@ -292,3 +292,51 @@ npm run benchmark:galaxy # Galaxy perf benchmark (needs 10k-node seed)
 - Galaxy performance: layout convergence ≤ 5s; frame paint p95 ≤ 33ms on CI GPU runner
 - Topology performance: pan/zoom/filter p95 ≤ 1000ms on 500-node seed
 - TypeScript: `tsc --noEmit` must pass with zero errors in strict mode
+
+---
+
+## Phase 5 Development Context
+
+*Added by `/speckit.plan` — 2026-05-21*
+
+Phase 5 is frontend-only (`web/`). No backend changes. All work is UI clarity
+and in-context guidance to reduce beta user confusion post-activation.
+
+### New Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `AppShell` | `web/src/components/AppShell.tsx` | 56px fixed left sidebar with nav icons, Inbox badge, docs link |
+| `FirstVisitCallout` | `web/src/design-system/primitives/FirstVisitCallout.tsx` | Per-view first-visit orientation card, localStorage-dismissed |
+| `HintTooltip` | `web/src/design-system/primitives/HintTooltip.tsx` | Inline `?` icon wrapping existing `Tooltip` component |
+| `GalaxyLegend` | `web/src/views/galaxy/GalaxyLegend.tsx` | Collapsible color legend for node types + status |
+
+### Key Patterns
+
+- **localStorage keys**: `ctx_os_visited_<view>` (galaxy, topology, decisions, inbox), `ctx_os_inbox_hint`, `ctx_os_legend_galaxy`
+- **AppShell layout route**: React Router v6 parent `path: "/"` with `<AppShell><Outlet /></AppShell>`; children are the 4 view routes
+- **Inbox badge query**: `useQuery(['inbox'], fetchInboxItems, { refetchInterval: 30_000 })` — same key as InboxView, TanStack Query deduplicates
+- **FirstVisitCallout position**: `fixed; bottom: 24px; left: calc(56px + 24px)` — clears AppShell sidebar; z-30
+- **HintTooltip**: Wraps `Tooltip` from `web/src/design-system/components/Tooltip.tsx`; `<button type="button" aria-label="More information">`; 300ms delay
+- **GalaxyLegend CSS tokens**: `getComputedStyle(document.documentElement).getPropertyValue('--color-node-goal')` etc.
+- **OverlayControls tooltips**: Wrap each button `div` in `<Tooltip content={copy} side="right">`
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `web/src/router.tsx` | Add AppShell layout route |
+| `web/src/views/galaxy/OverlayControls.tsx` | Add Tooltip per overlay button |
+| `web/src/views/galaxy/GalaxyView.tsx` | Mount FirstVisitCallout + GalaxyLegend in activated state |
+| `web/src/views/galaxy/GalaxyEmpty.tsx` | Fix CTA copy + link → /onboarding |
+| `web/src/views/topology/TopologyView.tsx` | Mount FirstVisitCallout in activated state |
+| `web/src/views/decisions/DecisionView.tsx` | Mount FirstVisitCallout in activated state |
+| `web/src/views/decisions/DecisionEmpty.tsx` | Fix copy, remove broken CTA |
+| `web/src/inbox/InboxView.tsx` | Type badge HintTooltips, failure flag hint, first-approval callout |
+| `web/src/design-system/primitives/index.ts` | Re-export new primitives |
+
+### CI Gates (Phase 5)
+
+- TypeScript: `tsc --noEmit` must pass with zero errors in strict mode
+- All new text must meet WCAG AA 4.5:1 contrast (`/verify-brand` gate)
+- Visual regression: `/verify-visual` must pass before PR
