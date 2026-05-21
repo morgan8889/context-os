@@ -157,6 +157,7 @@ def create_app() -> FastAPI:
 
     from context_os.api.admin import router as admin_router
     from context_os.api.briefing import router as briefing_router
+    from context_os.api.dev_router import router as dev_router
     from context_os.api.eval_api import router as eval_router
     from context_os.api.graph import router as graph_router
     from context_os.api.inbox import router as inbox_router
@@ -172,6 +173,7 @@ def create_app() -> FastAPI:
     app.include_router(inbox_router, prefix="/inbox", tags=["Inbox"])
     app.include_router(mapper_router, prefix="/mapper", tags=["Mapper"])
     app.include_router(eval_router, prefix="/eval", tags=["Eval"])
+    app.include_router(dev_router, prefix="/api/v1", tags=["Dev"])
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:

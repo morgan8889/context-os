@@ -22,9 +22,11 @@ function ActivatingGraphLoader({
 
   // Wire up ForceAtlas2 in Web Worker
   const { start, stop } = useWorkerLayoutForceAtlas2({
-    slowDown: 10,
-    gravity: 1.0,
-    scalingRatio: 2.0,
+    settings: {
+      slowDown: 10,
+      gravity: 1.0,
+      scalingRatio: 2.0,
+    },
   });
 
   useEffect(() => {
@@ -38,7 +40,7 @@ function ActivatingGraphLoader({
         y: node.y || Math.random() * 100 - 50,
         size: node.size,
         color: `color-mix(in oklch, var(--color-node-${node.type}), transparent 50%)`,
-        type: node.type,
+        nodeType: node.type,
       });
     });
 
@@ -138,6 +140,7 @@ export default function GalaxyActivating({ initiativeCount }: GalaxyActivatingPr
             renderLabels: nodes.length <= 50,
             minCameraRatio: 0.05,
             maxCameraRatio: 4,
+            allowInvalidContainer: true,
           }}
         >
           <ActivatingGraphLoader nodes={nodes} stubCount={stubCount} />

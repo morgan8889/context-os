@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ClerkProvider, useAuth, useUser } from '@clerk/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { queryClient } from './lib/api/queryClient';
 import { setTokenProvider } from './lib/api/client';
 import { router } from './router';
@@ -46,8 +47,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <QueryClientProvider client={queryClient}>
-        <ClerkTokenWirer />
-        <RouterProvider router={router} />
+        <RadixTooltip.Provider delayDuration={500}>
+          <ClerkTokenWirer />
+          <RouterProvider router={router} />
+        </RadixTooltip.Provider>
       </QueryClientProvider>
     </ClerkProvider>
   </StrictMode>

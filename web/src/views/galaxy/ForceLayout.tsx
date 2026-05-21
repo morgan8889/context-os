@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLoadGraph, useSigma } from '@react-sigma/core';
 import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+import { buildGalaxyGraph } from '@/views/galaxy/buildGalaxyGraph';
 import type Graph from 'graphology';
 
 interface ForceLayoutProps {
@@ -25,9 +26,11 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
   const prevCursorRef = useRef<string | null>(null);
 
   const { start, stop, isRunning } = useWorkerLayoutForceAtlas2({
-    slowDown: 10,
-    gravity: 1.0,
-    scalingRatio: 2.0,
+    settings: {
+      slowDown: 10,
+      gravity: 1.0,
+      scalingRatio: 2.0,
+    },
   });
 
   // Load the graph when it changes
@@ -62,38 +65,7 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
       // Import the snapshot for this cursor
       const snapshot = galaxySnapshots.find((s) => s.timestamp === galaxyTimeCursor);
       if (snapshot) {
-        const Graph = graph.constructor as new (opts: { type: string; multi: boolean }) => typeof graph;
-        const snapshotGraph = new Graph({ type: 'mixed', multi: false });
-
-        for (const node of snapshot.nodes) {
-          snapshotGraph.addNode(node.id, {
-            label: node.label,
-            x: node.x,
-            y: node.y,
-            size: node.size,
-            type: node.type,
-            status: node.status,
-            ownerTeam: node.ownerTeam,
-            actorCount: node.actorCount,
-            riskScore: node.riskScore,
-            autonomyLevel: node.autonomyLevel,
-            edgeCount: node.edgeCount,
-            viewState: node.viewState,
-          });
-        }
-
-        for (const edge of snapshot.edges) {
-          if (
-            snapshotGraph.hasNode(edge.source) &&
-            snapshotGraph.hasNode(edge.target)
-          ) {
-            snapshotGraph.addEdgeWithKey(edge.id, edge.source, edge.target, {
-              type: edge.type,
-              weight: edge.weight,
-            });
-          }
-        }
-
+        const snapshotGraph = buildGalaxyGraph(snapshot.nodes, snapshot.edges);
         loadGraph(snapshotGraph, true);
         sigma.getCamera().animate({ ratio: sigma.getCamera().ratio }, { duration: 300 });
       }

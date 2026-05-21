@@ -1,12 +1,35 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Graph from 'graphology';
 import { apiClient } from '@/lib/api/client';
 import { graphKeys } from '@/lib/api/queryKeys';
 import { toInitiativeNode, toInitiativeEdge } from '@/lib/transforms/initiative';
+import { buildGalaxyGraph } from '@/views/galaxy/buildGalaxyGraph';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import type { ApiNode, ApiEdge, ApiGraphSnapshot, PaginatedResponse } from '@/types/api';
 import type { InitiativeNode, InitiativeEdge, GalaxySnapshot } from '@/types/galaxy';
+
+const NODE_TYPES = ['goal', 'project', 'signal', 'artifact'] as const;
+const NODE_STATUSES = ['active', 'paused', 'at_risk', 'complete'] as const;
+
+/** Generate N random InitiativeNodes for benchmark/mock purposes */
+function generateMockNodes(n: number): InitiativeNode[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `mock-${i}`,
+    label: `Node ${i}`,
+    type: NODE_TYPES[i % NODE_TYPES.length]!,
+    status: NODE_STATUSES[i % NODE_STATUSES.length]!,
+    ownerTeam: null,
+    actorCount: Math.floor(Math.random() * 10),
+    riskScore: Math.random(),
+    autonomyLevel: Math.floor(Math.random() * 5),
+    edgeCount: 0,
+    x: (Math.random() - 0.5) * 1000,
+    y: (Math.random() - 0.5) * 1000,
+    size: 6 + Math.random() * 6,
+    viewState: 'activated' as const,
+  }));
+}
 
 interface UseGalaxyGraphResult {
   graph: Graph;
@@ -25,6 +48,21 @@ interface UseGalaxyGraphResult {
  */
 export function useGalaxyGraph(): UseGalaxyGraphResult {
   const setGalaxySnapshots = useGraphInteractionStore((s) => s.setGalaxySnapshots);
+
+  const benchmarkNodes = (() => {
+    if (typeof window === 'undefined') return 0;
+    const params = new URLSearchParams(window.location.search);
+    const mock = params.get('mock');
+    const n = parseInt(params.get('nodes') ?? '0', 10);
+    return mock && n > 0 ? n : 0;
+  })();
+
+  // Generate the benchmark graph ONCE (memoized) — regenerating every render
+  // would thrash ForceLayout and freeze the page with large node counts.
+  const benchmarkGraph = useMemo(() => {
+    if (benchmarkNodes <= 0) return null;
+    return buildGalaxyGraph(generateMockNodes(benchmarkNodes), []);
+  }, [benchmarkNodes]);
 
   // Paginated nodes query
   const nodesQuery = useInfiniteQuery({
@@ -79,13 +117,13 @@ export function useGalaxyGraph(): UseGalaxyGraphResult {
     }
   }, [snapshotsQuery.data, setGalaxySnapshots]);
 
-  // Build graphology graph from all fetched pages
-  const graph = new Graph({ type: 'mixed', multi: false });
-
-  const allNodePages = nodesQuery.data?.pages ?? [];
-  const allEdges: InitiativeEdge[] = [];
+  // Benchmark / mock: return generated nodes if ?mock=<state>&nodes=N is set
+  if (benchmarkGraph) {
+    return { graph: benchmarkGraph, isLoading: false, isFetchingNextPage: false, fetchNextPage: () => {}, hasNextPage: false };
+  }
 
   // Collect all nodes across pages
+  const allNodePages = nodesQuery.data?.pages ?? [];
   const allNodes: InitiativeNode[] = [];
   for (const page of allNodePages) {
     for (const raw of page.items) {
@@ -94,45 +132,14 @@ export function useGalaxyGraph(): UseGalaxyGraphResult {
   }
 
   // Collect all edges
+  const allEdges: InitiativeEdge[] = [];
   if (edgesQuery.data) {
     for (const raw of edgesQuery.data.items) {
       allEdges.push(toInitiativeEdge(raw));
     }
   }
 
-  // Add nodes to graphology graph
-  for (const node of allNodes) {
-    if (!graph.hasNode(node.id)) {
-      graph.addNode(node.id, {
-        label: node.label,
-        x: node.x,
-        y: node.y,
-        size: node.size,
-        type: node.type,
-        status: node.status,
-        ownerTeam: node.ownerTeam,
-        actorCount: node.actorCount,
-        riskScore: node.riskScore,
-        autonomyLevel: node.autonomyLevel,
-        edgeCount: node.edgeCount,
-        viewState: node.viewState,
-      });
-    }
-  }
-
-  // Add edges to graphology graph
-  for (const edge of allEdges) {
-    if (
-      graph.hasNode(edge.source) &&
-      graph.hasNode(edge.target) &&
-      !graph.hasEdge(edge.id)
-    ) {
-      graph.addEdgeWithKey(edge.id, edge.source, edge.target, {
-        type: edge.type,
-        weight: edge.weight,
-      });
-    }
-  }
+  const graph = buildGalaxyGraph(allNodes, allEdges);
 
   return {
     graph,

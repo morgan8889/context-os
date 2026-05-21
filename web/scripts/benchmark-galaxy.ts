@@ -43,16 +43,20 @@ async function main() {
   console.log(`URL: ${GALAXY_URL}`);
 
   const browser = await chromium.launch({
-    args: ['--enable-gpu', '--no-sandbox'],
+    // SwiftShader provides software WebGL in headless mode (required for Sigma canvas)
+    args: ['--no-sandbox', '--use-gl=swiftshader', '--disable-dev-shm-usage'],
   });
 
   const page = await browser.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   try {
     await page.goto(GALAXY_URL, { waitUntil: 'domcontentloaded' });
 
-    // Wait for the Sigma renderer to appear
-    await page.waitForSelector('.sigma-renderer', { timeout: 15_000 });
+    // Wait for the galaxy view container, then for Sigma to initialise
+    await page.waitForSelector('[data-view="galaxy"]', { timeout: 10_000 });
+    // BenchmarkRef sets window.__sigma once SigmaContainer mounts; poll for it
+    await page.waitForFunction(() => !!(window as { __sigma?: unknown }).__sigma, { timeout: 20_000 });
 
     // Inject measurement code into the page
     const metrics = await page.evaluate(

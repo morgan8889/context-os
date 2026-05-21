@@ -7,6 +7,18 @@ import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import type { ApiDecision, ApiDecisionEdge } from '@/types/api';
 import type { DecisionNode, DecisionEdge } from '@/types/decisions';
 
+/** Demo data for ?devEdgeDemo=true — one node per edge type relationship */
+const EDGE_DEMO_DECISIONS: DecisionNode[] = [
+  { id: 'd1', title: 'Use PostgreSQL for primary storage', rationale: 'ACID guarantees needed.', alternatives: [], authorId: null, authorName: 'Demo Author', capturedAt: '2026-01-01T00:00:00Z', impactedSystems: ['db'], status: 'active', viewState: 'activated' },
+  { id: 'd2', title: 'Use Redis for caching', rationale: 'Sub-millisecond reads.', alternatives: [], authorId: null, authorName: 'Demo Author', capturedAt: '2026-02-01T00:00:00Z', impactedSystems: ['cache'], status: 'active', viewState: 'activated' },
+  { id: 'd3', title: 'Use MongoDB (rejected)', rationale: 'Schema flexibility not needed.', alternatives: [], authorId: null, authorName: 'Demo Author', capturedAt: '2026-01-15T00:00:00Z', impactedSystems: ['db'], status: 'superseded', viewState: 'activated' },
+];
+const EDGE_DEMO_EDGES: DecisionEdge[] = [
+  { id: 'e1', source: 'd2', target: 'd1', type: 'predecessor' },
+  { id: 'e2', source: 'd1', target: 'd3', type: 'alternative' },
+  { id: 'e3', source: 'd1', target: 'd2', type: 'dependent' },
+];
+
 /** API response shape for the decisions list endpoint */
 interface ApiDecisionsResponse {
   items: ApiDecision[];
@@ -29,6 +41,11 @@ export function useDecisionGraph(): {
   isLoading: boolean;
   isSearching: boolean;
 } {
+  // Dev-only: ?devEdgeDemo=true overrides API with fixed demo data (all 3 edge types)
+  const devEdgeDemo =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('devEdgeDemo') === 'true';
+
   const decisionFilters = useGraphInteractionStore((s) => s.decisionFilters);
 
   // Debounced filter state — only sent to TanStack Query after 300ms quiet
@@ -81,6 +98,7 @@ export function useDecisionGraph(): {
     },
     staleTime: debouncedFilters.query ? 0 : 60_000,
     placeholderData: (prev) => prev,
+    enabled: !devEdgeDemo,
   });
 
   // isSearching: query is currently pending AND there is a non-empty search term
@@ -95,6 +113,10 @@ export function useDecisionGraph(): {
     () => (data?.edges ?? []).map(toDecisionEdge),
     [data?.edges]
   );
+
+  if (devEdgeDemo) {
+    return { decisions: EDGE_DEMO_DECISIONS, edges: EDGE_DEMO_EDGES, isLoading: false, isSearching: false };
+  }
 
   return { decisions, edges, isLoading, isSearching };
 }

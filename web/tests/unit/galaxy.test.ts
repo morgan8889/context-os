@@ -141,6 +141,72 @@ describe('toInitiativeEdge', () => {
   });
 });
 
+// ── buildGalaxyGraph (Sigma-safe graph construction) ──────────────────────────
+
+import { buildGalaxyGraph } from '@/views/galaxy/buildGalaxyGraph';
+import type { InitiativeNode as GNode, InitiativeEdge as GEdge } from '@/types/galaxy';
+
+describe('buildGalaxyGraph', () => {
+  const makeNode = (id: string, type: GNode['type']): GNode => ({
+    id,
+    label: `n-${id}`,
+    type,
+    status: 'active',
+    ownerTeam: null,
+    actorCount: 0,
+    riskScore: null,
+    autonomyLevel: null,
+    edgeCount: 0,
+    x: 0,
+    y: 0,
+    size: 8,
+    viewState: 'activated',
+  });
+
+  const makeEdge = (id: string, source: string, target: string, type: GEdge['type']): GEdge => ({
+    id,
+    source,
+    target,
+    type,
+    weight: 1,
+  });
+
+  it('does NOT set the Sigma `type` attribute to a domain node type (would crash the renderer)', () => {
+    // Sigma reads `type` to pick a render program; a domain type like 'goal'
+    // has no program and throws "could not find a suitable program for node type".
+    const g = buildGalaxyGraph([makeNode('a', 'goal')], []);
+    expect(g.getNodeAttributes('a')['type']).toBeUndefined();
+  });
+
+  it('preserves the domain node type under `nodeType`', () => {
+    const g = buildGalaxyGraph([makeNode('a', 'goal')], []);
+    expect(g.getNodeAttributes('a')['nodeType']).toBe('goal');
+  });
+
+  it('does NOT set the Sigma `type` attribute to a domain edge type', () => {
+    const g = buildGalaxyGraph(
+      [makeNode('a', 'goal'), makeNode('b', 'project')],
+      [makeEdge('e1', 'a', 'b', 'depends_on')]
+    );
+    const attrs = g.getEdgeAttributes('e1');
+    expect(attrs['type']).toBeUndefined();
+    expect(attrs['edgeType']).toBe('depends_on');
+  });
+
+  it('skips edges whose endpoints are missing', () => {
+    const g = buildGalaxyGraph(
+      [makeNode('a', 'goal')],
+      [makeEdge('e1', 'a', 'missing', 'depends_on')]
+    );
+    expect(g.hasEdge('e1')).toBe(false);
+  });
+
+  it('adds all input nodes to the graph', () => {
+    const g = buildGalaxyGraph([makeNode('a', 'goal'), makeNode('b', 'project')], []);
+    expect(g.order).toBe(2);
+  });
+});
+
 // ── useGalaxyGraph hook ───────────────────────────────────────────────────────
 
 vi.mock('@/lib/api/client', () => ({
@@ -240,7 +306,9 @@ describe('useGalaxyGraph', () => {
     expect(result.current.graph.hasNode(mockApiNode.id)).toBe(true);
     const attrs = result.current.graph.getNodeAttributes(mockApiNode.id);
     expect(attrs['label']).toBe(mockApiNode.label);
-    expect(attrs['type']).toBe(mockApiNode.node_type);
+    // Domain type lives under `nodeType`; Sigma's `type` (render program) is unset.
+    expect(attrs['nodeType']).toBe(mockApiNode.node_type);
+    expect(attrs['type']).toBeUndefined();
   });
 
   it('returns isLoading false when data is available', async () => {
