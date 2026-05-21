@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './App';
+import AppShell from './components/AppShell';
 
 const GalaxyView = lazy(() => import('./views/galaxy/GalaxyView'));
 const TopologyView = lazy(() => import('./views/topology/TopologyView'));
@@ -26,38 +27,48 @@ function Protected({ children }: { children: ReactNode }) {
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/galaxy" replace />,
-  },
-  {
-    path: '/galaxy',
     element: (
-      <Protected>
-        <GalaxyView />
-      </Protected>
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
     ),
-  },
-  {
-    path: '/topology',
-    element: (
-      <Protected>
-        <TopologyView />
-      </Protected>
-    ),
-  },
-  {
-    path: '/decisions',
-    element: (
-      <Protected>
-        <DecisionView />
-      </Protected>
-    ),
-  },
-  {
-    path: '/inbox',
-    element: (
-      <Protected>
-        <InboxView />
-      </Protected>
-    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/galaxy" replace />,
+      },
+      {
+        path: 'galaxy',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <GalaxyView />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'topology',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <TopologyView />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'decisions',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <DecisionView />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'inbox',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <InboxView />
+          </Suspense>
+        ),
+      },
+    ],
   },
 ]);

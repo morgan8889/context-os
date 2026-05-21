@@ -109,19 +109,21 @@ export default function GalaxyEmpty() {
             className="text-xl font-semibold tracking-tight"
             style={{ color: 'var(--color-placeholder-grey)' }}
           >
-            Your organizational initiatives appear here as a living constellation.
+            Your galaxy is taking shape
           </h1>
           <p
             className="text-sm max-w-sm leading-relaxed"
             style={{ color: 'oklch(60% 0 0)' }}
           >
-            Add your first initiative to activate the galaxy.
+            Context-OS is reading your connected sources. Initiatives will appear
+            here as they&apos;re discovered — this usually takes a few minutes after
+            your first ingest completes.
           </p>
         </div>
 
         <StateCTA
-          label="Adjust source scope"
-          onClick={() => navigate('/settings/sources')}
+          label="Review onboarding"
+          onClick={() => navigate('/onboarding')}
         />
       </motion.div>
     </motion.div>

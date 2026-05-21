@@ -12,6 +12,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api/client';
 import { inboxKeys } from '@/lib/api/queryKeys';
+import { HintTooltip } from '@/design-system/primitives/HintTooltip';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import type { ApiApprovalItem } from '@/types/api';
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -98,6 +100,15 @@ function typeLabel(itemType: string): string {
       return itemType.replace(/_/g, ' ');
   }
 }
+
+const TYPE_TOOLTIPS: Record<string, string> = {
+  briefing_draft:
+    'A weekly synthesis drafted by the Operational Synthesizer agent. Approve to schedule delivery; reject to flag an issue.',
+  proposed_dependency:
+    'A dependency relationship between two initiatives, inferred from your work signals. Approve to record in the graph.',
+  proposed_risk:
+    'A risk flag raised by the AI against a specific initiative. Approve to acknowledge; reject if it’s not applicable.',
+};
 
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 
@@ -194,15 +205,20 @@ function ApprovalCard({
     >
       {/* Header row: type badge + date */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span
-          className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-          style={{
-            background: badgeStyle.background,
-            color: badgeStyle.color,
-            border: `1px solid ${badgeStyle.border}`,
-          }}
-        >
-          {typeLabel(item.item_type)}
+        <span className="inline-flex items-center">
+          <span
+            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{
+              background: badgeStyle.background,
+              color: badgeStyle.color,
+              border: `1px solid ${badgeStyle.border}`,
+            }}
+          >
+            {typeLabel(item.item_type)}
+          </span>
+          {TYPE_TOOLTIPS[item.item_type] && (
+            <HintTooltip content={TYPE_TOOLTIPS[item.item_type]} />
+          )}
         </span>
         <time
           dateTime={item.created_at}
@@ -215,9 +231,21 @@ function ApprovalCard({
 
       {/* Failure flags warning list */}
       {hasFailureFlags && (
-        <ul
-          className="flex flex-col gap-1 rounded-lg px-3 py-2"
+        <div
+          className="rounded-lg px-3 py-2"
           style={{ background: 'oklch(96% 0.06 55)', border: '1px solid oklch(82% 0.1 55)' }}
+        >
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs font-semibold" style={{ color: 'oklch(40% 0.15 55)' }}>
+              Failure flags
+            </span>
+            <HintTooltip
+              content="Failure flags are quality checks the AI ran on its own draft. They don't block approval — they're signals to review before deciding."
+              side="right"
+            />
+          </div>
+        <ul
+          className="flex flex-col gap-1"
           aria-label="AI failure flags"
         >
           {item.failure_flags!.map((flag, i) => (
@@ -233,6 +261,7 @@ function ApprovalCard({
             </li>
           ))}
         </ul>
+        </div>
       )}
 
       {/* Content summary */}
@@ -477,6 +506,12 @@ export default function InboxView() {
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* First-visit view orientation callout */}
+        <FirstVisitCallout
+          storageKey="ctx_os_visited_inbox"
+          title="Your Approval Queue"
+          description="Context-OS drafts briefings, proposes dependencies, and flags risks for your review. Approve to add to the knowledge graph; reject with a reason to send back to the AI."
+        />
         {isLoading && (
           <div className="flex flex-col gap-4 max-w-2xl mx-auto" aria-busy="true" aria-label="Loading inbox items">
             <SkeletonCard />
@@ -496,32 +531,42 @@ export default function InboxView() {
         {!isLoading && !isError && items.length === 0 && <EmptyState />}
 
         {!isLoading && !isError && items.length > 0 && (
-          <ul
-            className="flex flex-col gap-4 max-w-2xl mx-auto"
-            aria-label="Pending approval items"
-          >
-            <AnimatePresence mode="popLayout">
-              {items.map((item) => (
-                <li key={item.id} className="list-none">
-                  <ApprovalCard
-                    item={item}
-                    onApprove={(id) => approveMutation.mutate({ id })}
-                    onReject={(id, reason) =>
-                      rejectMutation.mutate({ id, reason })
-                    }
-                    isApproving={
-                      approveMutation.isPending &&
-                      approveMutation.variables?.id === item.id
-                    }
-                    isRejecting={
-                      rejectMutation.isPending &&
-                      rejectMutation.variables?.id === item.id
-                    }
-                  />
-                </li>
-              ))}
-            </AnimatePresence>
-          </ul>
+          <>
+            {/* First-approval orientation hint (shown above the list, only once) */}
+            <FirstVisitCallout
+              storageKey="ctx_os_inbox_hint"
+              title="Your first approval"
+              description="Read the summary, check for failure flags, then approve or reject with a reason."
+              position="bottom-center"
+            />
+
+            <ul
+              className="flex flex-col gap-4 max-w-2xl mx-auto"
+              aria-label="Pending approval items"
+            >
+              <AnimatePresence mode="popLayout">
+                {items.map((item) => (
+                  <li key={item.id} className="list-none">
+                    <ApprovalCard
+                      item={item}
+                      onApprove={(id) => approveMutation.mutate({ id })}
+                      onReject={(id, reason) =>
+                        rejectMutation.mutate({ id, reason })
+                      }
+                      isApproving={
+                        approveMutation.isPending &&
+                        approveMutation.variables?.id === item.id
+                      }
+                      isRejecting={
+                        rejectMutation.isPending &&
+                        rejectMutation.variables?.id === item.id
+                      }
+                    />
+                  </li>
+                ))}
+              </AnimatePresence>
+            </ul>
+          </>
         )}
       </div>
     </div>

@@ -1,17 +1,35 @@
 import { motion } from 'framer-motion';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+import { Tooltip } from '@/design-system/components/Tooltip';
 import type { OverlayType } from '@/types/galaxy';
 
 interface OverlayButton {
   type: OverlayType;
   label: string;
+  tooltip: string;
 }
 
 const OVERLAY_BUTTONS: OverlayButton[] = [
-  { type: 'load', label: 'Load' },
-  { type: 'risk', label: 'Risk' },
-  { type: 'autonomy', label: 'Autonomy' },
-  { type: 'ownership', label: 'Ownership' },
+  {
+    type: 'load',
+    label: 'Load',
+    tooltip: 'Workload overlay — darker nodes carry more active work. Identify overloaded teams.',
+  },
+  {
+    type: 'risk',
+    label: 'Risk',
+    tooltip: 'Risk overlay — red = flagged at-risk, amber = moderate risk.',
+  },
+  {
+    type: 'autonomy',
+    label: 'Autonomy',
+    tooltip: 'Autonomy overlay — shows AI autonomy level per initiative (0–5 scale).',
+  },
+  {
+    type: 'ownership',
+    label: 'Ownership',
+    tooltip: 'Ownership overlay — colours initiatives by owning team. Spot ownership gaps.',
+  },
 ];
 
 /**
@@ -47,36 +65,38 @@ export function OverlayControls() {
       role="group"
       aria-label="Overlay controls"
     >
-      {OVERLAY_BUTTONS.map(({ type, label }) => {
+      {OVERLAY_BUTTONS.map(({ type, label, tooltip }) => {
         const isActive = galaxyOverlay.type === type;
 
         return (
           <div key={type} className="flex flex-col items-center gap-0.5">
-            <motion.button
-              layout
-              onClick={() => handleToggle(type)}
-              aria-pressed={isActive}
-              aria-label={`${label} overlay${isActive ? ' (active)' : ''}`}
-              className={[
-                'relative flex h-10 w-10 items-center justify-center rounded-lg',
-                'text-xs font-semibold transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
-              ].join(' ')}
-              style={{
-                background: isActive
-                  ? `var(--color-overlay-${type}, oklch(55% 0.2 220))`
-                  : 'transparent',
-                color: isActive ? 'oklch(95% 0 0)' : 'oklch(60% 0 0)',
-                border: isActive
-                  ? `1px solid var(--color-overlay-${type}, oklch(55% 0.2 220))`
-                  : '1px solid oklch(100% 0 0 / 0.1)',
-              }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ duration: 0.15, ease: [0.0, 0, 0.2, 1] }}
-            >
-              <OverlayIcon type={type} />
-            </motion.button>
+            <Tooltip content={tooltip} side="right" delayDuration={500}>
+              <motion.button
+                layout
+                onClick={() => handleToggle(type)}
+                aria-pressed={isActive}
+                aria-label={`${label} overlay${isActive ? ' (active)' : ''}`}
+                className={[
+                  'relative flex h-10 w-10 items-center justify-center rounded-lg',
+                  'text-xs font-semibold transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+                ].join(' ')}
+                style={{
+                  background: isActive
+                    ? `var(--color-overlay-${type}, oklch(55% 0.2 220))`
+                    : 'transparent',
+                  color: isActive ? 'oklch(95% 0 0)' : 'oklch(60% 0 0)',
+                  border: isActive
+                    ? `1px solid var(--color-overlay-${type}, oklch(55% 0.2 220))`
+                    : '1px solid oklch(100% 0 0 / 0.1)',
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.15, ease: [0.0, 0, 0.2, 1] }}
+              >
+                <OverlayIcon type={type} />
+              </motion.button>
+            </Tooltip>
 
             <span
               className="text-[10px] leading-tight text-center"

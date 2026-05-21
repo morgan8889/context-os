@@ -12,6 +12,8 @@ import { NodeDetailPane } from './NodeDetailPane';
 import { TimeTravelBar } from './TimeTravelBar';
 import GalaxyEmpty from './GalaxyEmpty';
 import GalaxyActivating from './GalaxyActivating';
+import { GalaxyLegend } from './GalaxyLegend';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import type { InitiativeType, InitiativeStatus } from '@/types/galaxy';
 
 /** Map node type to CSS custom property name */
@@ -235,6 +237,16 @@ export default function GalaxyView() {
               <TimeTravelBar />
             </div>
           )}
+
+          {/* First-visit orientation callout */}
+          <FirstVisitCallout
+            storageKey="ctx_os_visited_galaxy"
+            title="Your Initiative Galaxy"
+            description="Each node is an initiative — a coordinated effort. Click any node to open its detail. Use the overlay controls (top-right) to colour the galaxy by Load, Risk, Autonomy, or Ownership."
+          />
+
+          {/* Node type + status legend */}
+          <GalaxyLegend />
         </div>
       )}
 

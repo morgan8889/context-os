@@ -1,6 +1,7 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useGSAP } from '@gsap/react';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -283,14 +284,21 @@ export default function TopologyView() {
 
       {topologyViewState === 'activated' && (
         isLoading ? <LoadingState /> : (
-          <ReactFlowProvider>
-            <ActivatedTopologyCanvas
-              nodes={nodes}
-              edges={edges}
-              workflows={workflows}
-              filteredWorkflowIds={filteredWorkflowIds}
+          <>
+            <ReactFlowProvider>
+              <ActivatedTopologyCanvas
+                nodes={nodes}
+                edges={edges}
+                workflows={workflows}
+                filteredWorkflowIds={filteredWorkflowIds}
+              />
+            </ReactFlowProvider>
+            <FirstVisitCallout
+              storageKey="ctx_os_visited_topology"
+              title="Workflow Topology"
+              description="Shows how work moves across your team. Each row in the sidebar is a workflow; click it to navigate the canvas to that workflow. Status colours show where things are flowing or blocked."
             />
-          </ReactFlowProvider>
+          </>
         )
       )}
     </div>
