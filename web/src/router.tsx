@@ -11,6 +11,7 @@ function SignInPage() {
   );
 }
 
+const AppShell = lazy(() => import('./components/AppShell'));
 const GalaxyView = lazy(() => import('./views/galaxy/GalaxyView'));
 const TopologyView = lazy(() => import('./views/topology/TopologyView'));
 const DecisionView = lazy(() => import('./views/decisions/DecisionView'));
@@ -40,37 +41,31 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Navigate to="/galaxy" replace />,
   },
+  // Main app shell — wraps all primary views with persistent sidebar nav
   {
-    path: '/galaxy',
     element: (
       <Protected>
-        <GalaxyView />
+        <AppShell />
       </Protected>
     ),
-  },
-  {
-    path: '/topology',
-    element: (
-      <Protected>
-        <TopologyView />
-      </Protected>
-    ),
-  },
-  {
-    path: '/decisions',
-    element: (
-      <Protected>
-        <DecisionView />
-      </Protected>
-    ),
-  },
-  {
-    path: '/inbox',
-    element: (
-      <Protected>
-        <InboxView />
-      </Protected>
-    ),
+    children: [
+      {
+        path: '/galaxy',
+        element: <GalaxyView />,
+      },
+      {
+        path: '/topology',
+        element: <TopologyView />,
+      },
+      {
+        path: '/decisions',
+        element: <DecisionView />,
+      },
+      {
+        path: '/inbox',
+        element: <InboxView />,
+      },
+    ],
   },
   {
     path: '/onboarding',
