@@ -103,6 +103,10 @@ class SynthesizerAgent(AbstractAgent):
         self._checkpointer = checkpointer
         self._graph = self._build_graph()
 
+    @property
+    def graph(self) -> Any:
+        return self._graph
+
     def _build_graph(self) -> Any:
         """Build and compile the LangGraph StateGraph.
 

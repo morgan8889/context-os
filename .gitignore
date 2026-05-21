@@ -56,3 +56,12 @@ Thumbs.db
 
 # Project-specific
 node_modules/
+
+# Claude Code tooling
+.claire/
+.claude/worktrees/
+.claude/visual-runs/*/
+!.claude/visual-runs/routes.json
+!.claude/visual-runs/latest
+.playwright-mcp/
+web/.env.local

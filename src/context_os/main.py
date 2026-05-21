@@ -44,7 +44,7 @@ async def _setup_langgraph_checkpointer(dsn: str) -> Any:
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-        checkpointer = AsyncPostgresSaver.from_conn_string(dsn)
+        checkpointer: AsyncPostgresSaver = AsyncPostgresSaver.from_conn_string(dsn)  # type: ignore[assignment]
         await checkpointer.setup()
         logger.info("LangGraph AsyncPostgresSaver initialized")
         return checkpointer

@@ -121,6 +121,8 @@ class TestRateLimit:
         """
         from context_os.ingestion.base import IngestAdapter
 
+        pages_returned = [0]
+
         class _TestAdapter(IngestAdapter):
             _fail_once = True
 
@@ -132,7 +134,10 @@ class TestRateLimit:
                     raise RateLimitError(
                         code="rate_limited", message="Limited", retry_after=1
                     )
-                return [{"id": "item1"}], "final_cursor"
+                pages_returned[0] += 1
+                if pages_returned[0] == 1:
+                    return [{"id": "item1"}], "final_cursor"
+                return [], None  # terminal page after cursor advance
 
             def _normalize(self, raw: Any, obj_type: str) -> list[Any]:
                 return []

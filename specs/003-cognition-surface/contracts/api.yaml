@@ -1,0 +1,706 @@
+openapi: "3.1.0"
+info:
+  title: Context-OS Cognition Surface API
+  version: "3.0.0"
+  description: |
+    Read-only API endpoints consumed by the Phase 3 frontend.
+    All endpoints require a Clerk JWT (Authorization: Bearer <token>).
+    Tenant ID is extracted from the JWT by the backend; it must NOT be
+    passed as a query parameter.
+
+    This contract describes what the frontend calls — not what the backend
+    implements (the backend's OpenAPI lives at /docs). These contracts drive
+    frontend integration tests and mock server setup in Vitest.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - clerkJwt: []
+
+components:
+  securitySchemes:
+    clerkJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ── Pagination ──────────────────────────────────────────────────
+    PaginatedResponse:
+      type: object
+      required: [items, next_cursor, total]
+      properties:
+        items:
+          type: array
+          items: {}
+        next_cursor:
+          type: string
+          nullable: true
+          description: Opaque cursor for the next page; null when no more pages.
+        total:
+          type: integer
+          description: Total item count across all pages.
+
+    # ── Initiative Galaxy ────────────────────────────────────────────
+    ApiNode:
+      type: object
+      required: [id, label, node_type, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        node_type:
+          type: string
+          enum: [goal, project, signal, artifact]
+        status:
+          type: string
+          enum: [active, paused, complete, at_risk]
+        owner_team:
+          type: string
+          nullable: true
+        actor_count:
+          type: integer
+          default: 0
+        risk_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          nullable: true
+        autonomy_level:
+          type: integer
+          minimum: 0
+          maximum: 5
+          nullable: true
+        edge_count:
+          type: integer
+          default: 0
+
+    ApiEdge:
+      type: object
+      required: [id, source_id, target_id, edge_type]
+      properties:
+        id:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        edge_type:
+          type: string
+          enum: [depends_on, shared_actor, shared_work]
+        weight:
+          type: number
+          format: float
+          default: 1.0
+
+    GraphSnapshot:
+      type: object
+      required: [timestamp, nodes, edges, layout_seed]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiEdge"
+        layout_seed:
+          type: integer
+          description: ForceAtlas2 seed for deterministic layout replay.
+
+    # ── Workflow Topology ────────────────────────────────────────────
+    ApiWorkflow:
+      type: object
+      required: [id, name, steps, edges]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_team:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [healthy, degraded, blocked]
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiWorkflowStep"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiWorkflowEdge"
+
+    ApiWorkflowStep:
+      type: object
+      required: [id, workflow_id, label, step_index, status, autonomy_level]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflow_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        step_index:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [active, blocked, complete, pending]
+        owner_team:
+          type: string
+          nullable: true
+        owner_actor:
+          type: string
+          nullable: true
+        autonomy_level:
+          type: integer
+          minimum: 0
+          maximum: 5
+        latency_p50_ms:
+          type: integer
+          nullable: true
+        latency_p95_ms:
+          type: integer
+          nullable: true
+
+    ApiWorkflowEdge:
+      type: object
+      required: [id, source_id, target_id]
+      properties:
+        id:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          nullable: true
+
+    # ── Decision Graph ───────────────────────────────────────────────
+    ApiDecision:
+      type: object
+      required: [id, title, rationale, captured_at, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        rationale:
+          type: string
+        alternatives:
+          type: array
+          items:
+            type: object
+            required: [label, reason]
+            properties:
+              label:
+                type: string
+              reason:
+                type: string
+        author_id:
+          type: string
+          nullable: true
+        author_name:
+          type: string
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+        impacted_systems:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, superseded, retracted]
+
+    ApiDecisionEdge:
+      type: object
+      required: [id, source_id, target_id, edge_type]
+      properties:
+        id:
+          type: string
+        source_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        edge_type:
+          type: string
+          enum: [predecessor, alternative, dependent]
+
+    # ── Inbox (Phase 2 carry-forward) ────────────────────────────────
+    ApprovalItem:
+      type: object
+      required: [id, item_type, status, content, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        item_type:
+          type: string
+          enum: [briefing_draft, proposed_dependency, proposed_risk]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        content:
+          type: object
+          description: Item-type-specific payload (see Phase 2 contracts/api.yaml).
+        failure_flags:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              detail:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ── View State ───────────────────────────────────────────────────
+    ViewStateResponse:
+      type: object
+      required: [galaxy, topology, decision_graph]
+      properties:
+        galaxy:
+          type: object
+          required: [state, initiative_count]
+          properties:
+            state:
+              type: string
+              enum: [empty, activating, activated]
+            initiative_count:
+              type: integer
+            ingest_progress:
+              type: object
+              nullable: true
+              properties:
+                discovered_count:
+                  type: integer
+                estimated_total:
+                  type: integer
+                  nullable: true
+                estimated_completion_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+        topology:
+          type: object
+          required: [state, workflow_count, discovered_count]
+          properties:
+            state:
+              type: string
+              enum: [empty, activating, activated]
+            workflow_count:
+              type: integer
+            discovered_count:
+              type: integer
+        decision_graph:
+          type: object
+          required: [state, decision_count]
+          properties:
+            state:
+              type: string
+              enum: [empty, activating, activated]
+            decision_count:
+              type: integer
+
+    # ── Error ────────────────────────────────────────────────────────
+    ApiError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  # ── View State ───────────────────────────────────────────────────
+  /api/v1/views/state:
+    get:
+      operationId: getViewState
+      summary: Get current view state for all three surfaces
+      description: |
+        Returns the view state (empty/activating/activated) for each surface.
+        The frontend uses this to decide which content variant to render.
+        Polled every 30 seconds while state is 'activating'.
+      responses:
+        "200":
+          description: View state for all surfaces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ViewStateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Initiative Galaxy ────────────────────────────────────────────
+  /api/v1/graph/nodes:
+    get:
+      operationId: listGraphNodes
+      summary: Paginated list of initiative nodes
+      description: |
+        Returns InitiativeNode-compatible records for the Galaxy view.
+        Paginated via cursor. The frontend loads all pages into Graphology
+        before handing off to Sigma for rendering.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 1000
+            maximum: 5000
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          required: false
+        - name: node_type
+          in: query
+          schema:
+            type: string
+            enum: [goal, project, signal, artifact]
+          required: false
+      responses:
+        "200":
+          description: Paginated node list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ApiNode"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/graph/edges:
+    get:
+      operationId: listGraphEdges
+      summary: Paginated list of initiative edges
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 2000
+            maximum: 10000
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          required: false
+        - name: edge_type
+          in: query
+          schema:
+            type: string
+            enum: [depends_on, shared_actor, shared_work]
+          required: false
+      responses:
+        "200":
+          description: Paginated edge list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ApiEdge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/graph/snapshots:
+    get:
+      operationId: listGraphSnapshots
+      summary: List available time-travel snapshot timestamps
+      description: |
+        Returns timestamps of available historical snapshots.
+        The frontend uses this to populate the time-travel scrubber range.
+      responses:
+        "200":
+          description: Snapshot timestamp list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timestamps:
+                    type: array
+                    items:
+                      type: string
+                      format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/graph/snapshots/{timestamp}:
+    get:
+      operationId: getGraphSnapshot
+      summary: Get a full graph snapshot at a point in time
+      description: |
+        Returns the full node+edge set as of the given timestamp.
+        Used by the time-travel scrubber to animate between snapshots.
+        Transitions must complete in < 500ms on the client side.
+      parameters:
+        - name: timestamp
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Full graph snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphSnapshot"
+        "404":
+          description: No snapshot exists at or near the given timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Workflow Topology ────────────────────────────────────────────
+  /api/v1/workflows:
+    get:
+      operationId: listWorkflows
+      summary: List all workflows with their steps and edges
+      description: |
+        Returns the full topology for the Workflow view.
+        Optionally filtered by team or initiative.
+        Sub-second filter response is a frontend responsibility (filter in Zustand
+        after initial load, not via repeated API calls).
+      parameters:
+        - name: team_id
+          in: query
+          schema:
+            type: string
+          required: false
+        - name: initiative_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          required: false
+      responses:
+        "200":
+          description: Workflow list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workflows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiWorkflow"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Decision Graph ───────────────────────────────────────────────
+  /api/v1/decisions:
+    get:
+      operationId: listDecisions
+      summary: List decisions with optional filters
+      description: |
+        Returns decision nodes and edges for the Decision Graph view.
+        Search by text query is performed on the backend (indexed).
+        Date range, author, and system filters are also applied server-side.
+        Result set ≤ 1000 decisions; no cursor pagination needed at MVP scale.
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search across title and rationale
+          schema:
+            type: string
+          required: false
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+          required: false
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+          required: false
+        - name: author_id
+          in: query
+          schema:
+            type: string
+          required: false
+        - name: impacted_system
+          in: query
+          schema:
+            type: string
+          required: false
+      responses:
+        "200":
+          description: Decision nodes and edges
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decisions, edges]
+                properties:
+                  decisions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiDecision"
+                  edges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApiDecisionEdge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Inbox (Phase 2 carry-forward) ────────────────────────────────
+  /api/v1/inbox:
+    get:
+      operationId: listInboxItems
+      summary: List pending approval items
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+          required: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          required: false
+      responses:
+        "200":
+          description: Paginated inbox items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ApprovalItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/inbox/{id}/approve:
+    post:
+      operationId: approveInboxItem
+      summary: Approve a pending inbox item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Item approved and promoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalItem"
+        "409":
+          description: Item is not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/inbox/{id}/reject:
+    post:
+      operationId: rejectInboxItem
+      summary: Reject a pending inbox item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Item rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalItem"
+        "409":
+          description: Item is not in pending state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"

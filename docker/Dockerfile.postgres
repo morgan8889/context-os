@@ -1,0 +1,8 @@
+FROM apache/age:latest
+
+RUN apt-get update && apt-get install -y \
+        git build-essential postgresql-server-dev-18 \
+    && git clone --depth 1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && cd /tmp/pgvector && make OPTFLAGS="" && make install \
+    && apt-get purge -y --auto-remove git build-essential postgresql-server-dev-18 \
+    && rm -rf /var/lib/apt/lists/* /tmp/pgvector
