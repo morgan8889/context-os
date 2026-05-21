@@ -21,7 +21,6 @@ from pydantic import BaseModel
 
 from context_os.auth.dependencies import (
     TenantContext,
-    get_current_tenant,
     require_platform_operator,
 )
 from context_os.auth.impersonation import (
@@ -97,9 +96,7 @@ class DebugTraceService:
             NotFound: When the operation_id does not exist in Langfuse.
         """
         settings = get_settings()
-        url = (
-            f"{settings.langfuse_host}/api/public/traces/{operation_id}"
-        )
+        url = f"{settings.langfuse_host}/api/public/traces/{operation_id}"
         auth = (settings.langfuse_public_key, settings.langfuse_secret_key)
 
         try:
@@ -257,7 +254,7 @@ async def revoke_impersonation(
     x_impersonation_token: str | None = Header(
         default=None, alias="X-Impersonation-Token"
     ),
-    ctx: TenantContext = Depends(get_current_tenant),
+    ctx: TenantContext = Depends(require_platform_operator),
 ) -> Response:
     """Revoke the impersonation token from the X-Impersonation-Token header.
 

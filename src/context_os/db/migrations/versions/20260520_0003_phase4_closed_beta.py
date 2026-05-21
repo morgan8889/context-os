@@ -48,9 +48,9 @@ def upgrade() -> None:
         sa.Column("survey_answer", postgresql.JSONB(), nullable=True),
         sa.Column(
             "connected_integrations",
-            postgresql.ARRAY(sa.TEXT()),
+            postgresql.JSONB(),
             nullable=False,
-            server_default=sa.text("ARRAY[]::TEXT[]"),
+            server_default=sa.text("'[]'::jsonb"),
         ),
         sa.Column("scope_selection", postgresql.JSONB(), nullable=True),
         sa.Column("ingest_job_id", postgresql.UUID(as_uuid=True), nullable=True),

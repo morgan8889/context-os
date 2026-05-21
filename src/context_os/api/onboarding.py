@@ -50,9 +50,7 @@ _SURVEY_OPTIONS = frozenset(
 class SurveyRequest(BaseModel):
     """POST /survey request body."""
 
-    option: str = Field(
-        ..., description="Survey answer option (see _SURVEY_OPTIONS)"
-    )
+    option: str = Field(..., description="Survey answer option (see _SURVEY_OPTIONS)")
     free_text: str | None = Field(
         default=None,
         max_length=500,
@@ -92,16 +90,10 @@ def _session_to_dict(session: Any) -> dict[str, Any]:
         "step_started_at": session.step_started_at,
         "step_completed_at": session.step_completed_at,
         "activated_at": (
-            session.activated_at.isoformat()
-            if session.activated_at
-            else None
+            session.activated_at.isoformat() if session.activated_at else None
         ),
-        "created_at": session.created_at.isoformat()
-        if session.created_at
-        else None,
-        "updated_at": session.updated_at.isoformat()
-        if session.updated_at
-        else None,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "updated_at": session.updated_at.isoformat() if session.updated_at else None,
     }
 
 
@@ -224,10 +216,12 @@ async def post_scope(
 
         session.ingest_job_id = job.id
         scope_data = {"sources": body.sources}
-        try:
-            await svc.advance_step(session.id, "ingest", scope_data)  # type: ignore[arg-type]
-        except InvalidTransitionError:
-            pass  # already at or past ingest — continue
+        # Two forward steps: connect → scope → ingest
+        for target_step in ("scope", "ingest"):
+            try:
+                await svc.advance_step(session.id, target_step, scope_data)  # type: ignore[arg-type]
+            except InvalidTransitionError:
+                pass  # already at or past this step
 
         await db.commit()
     return _job_to_dict(job)
@@ -343,9 +337,7 @@ async def post_activation(
 
         # Create ActivationEvent (upsert: one per tenant)
         event_result = await db.execute(
-            select(ActivationEvent).where(
-                ActivationEvent.tenant_id == ctx.db_tenant_id
-            )
+            select(ActivationEvent).where(ActivationEvent.tenant_id == ctx.db_tenant_id)
         )
         existing_event = event_result.scalar_one_or_none()
         if existing_event is None:
