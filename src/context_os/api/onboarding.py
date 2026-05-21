@@ -212,9 +212,13 @@ async def post_scope(
         source = ",".join(body.sources) if len(body.sources) > 1 else body.sources[0]
 
         ingest_svc = IngestService(db)
-        job = await ingest_svc.create_job(ctx.db_tenant_id, source)
+        # Idempotent: reuse existing job if scope already submitted
+        if session.ingest_job_id is not None:
+            job = await ingest_svc.get_job(session.ingest_job_id)
+        else:
+            job = await ingest_svc.create_job(ctx.db_tenant_id, source)
+            session.ingest_job_id = job.id
 
-        session.ingest_job_id = job.id
         scope_data = {"sources": body.sources}
         # Two forward steps: connect → scope → ingest
         for target_step in ("scope", "ingest"):

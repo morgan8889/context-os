@@ -23,7 +23,7 @@ from context_os.auth.dependencies import (
     require_platform_operator,
 )
 from context_os.db.engine import get_session_factory
-from context_os.db.models import OnboardingSession, Tenant
+from context_os.db.models import ActivationEvent, OnboardingSession, Tenant
 from context_os.graph.client import get_age_pool
 from context_os.graph.mutations import get_nodes_for_tenant
 
@@ -220,8 +220,16 @@ async def get_onboarding_funnel(
                 OnboardingSession.updated_at,
                 OnboardingSession.step_started_at,
                 OnboardingSession.step_completed_at,
+                ActivationEvent.signup_to_connect_ms,
+                ActivationEvent.connect_to_ingest_ms,
+                ActivationEvent.ingest_to_briefing_ms,
+                ActivationEvent.total_active_attention_ms,
             )
             .join(Tenant, Tenant.id == OnboardingSession.tenant_id)
+            .outerjoin(
+                ActivationEvent,
+                ActivationEvent.tenant_id == OnboardingSession.tenant_id,
+            )
         )
         result = await db.execute(stmt)
         raw_rows = result.all()

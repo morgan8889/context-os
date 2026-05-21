@@ -52,9 +52,7 @@ class IngestService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    async def create_job(
-        self, tenant_id: uuid.UUID, source: str = "all"
-    ) -> IngestJob:
+    async def create_job(self, tenant_id: uuid.UUID, source: str = "all") -> IngestJob:
         """Create and persist a new IngestJob at status='running'.
 
         Args:
@@ -213,13 +211,25 @@ class IngestService:
         threshold = datetime.now(UTC) - _STALL_THRESHOLD
         return job.last_record_at < threshold
 
+    async def get_job(self, job_id: uuid.UUID) -> IngestJob:
+        """Fetch an IngestJob by PK.
+
+        Args:
+            job_id: PK of the IngestJob.
+
+        Returns:
+            The IngestJob.
+
+        Raises:
+            JobNotFoundError: If no job with the given ID exists.
+        """
+        return await self._get_job(job_id)
+
     # ── internals ─────────────────────────────────────────────────────────────
 
     async def _get_job(self, job_id: uuid.UUID) -> IngestJob:
         """Fetch an IngestJob by PK or raise JobNotFoundError."""
-        result = await self._db.execute(
-            select(IngestJob).where(IngestJob.id == job_id)
-        )
+        result = await self._db.execute(select(IngestJob).where(IngestJob.id == job_id))
         job = result.scalar_one_or_none()
         if job is None:
             raise JobNotFoundError(job_id)
