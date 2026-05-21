@@ -90,7 +90,7 @@ class OnboardingService:
         self,
         session_id: uuid.UUID,
         step: str,
-        data: dict | None = None,
+        data: dict[str, object] | None = None,
     ) -> OnboardingSession:
         """Advance the onboarding session to the next step.
 
@@ -195,7 +195,7 @@ class OnboardingService:
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _apply_step_data(
-        self, session: OnboardingSession, step: str, data: dict
+        self, session: OnboardingSession, step: str, data: dict[str, object]
     ) -> None:
         """Persist step-specific payload fields onto the session row."""
         if step == "connect" and "option" in data:

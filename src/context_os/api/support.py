@@ -115,14 +115,14 @@ class DebugTraceService:
             logger.error("Langfuse trace fetch failed for %s: %s", operation_id, exc)
             raise NotFound(operation_id) from exc
 
-        raw_spans: list[dict] = data.get("observations", [])
+        raw_spans: list[dict[str, object]] = data.get("observations", [])
         spans = [
             DebugTraceSpan(
-                span_id=s.get("id", ""),
-                name=s.get("name", ""),
-                started_at=s.get("startTime", ""),
-                ended_at=s.get("endTime"),
-                span_type=s.get("type", "SPAN"),
+                span_id=str(s.get("id", "")),
+                name=str(s.get("name", "")),
+                started_at=str(s.get("startTime", "")),
+                ended_at=str(s["endTime"]) if "endTime" in s else None,
+                span_type=str(s.get("type", "SPAN")),
                 input=s.get("input"),
                 output=s.get("output"),
             )
@@ -311,7 +311,7 @@ async def revoke_impersonation(
 async def get_debug_trace(
     operation_id: str,
     _ctx: TenantContext = Depends(require_platform_operator),
-) -> dict:
+) -> dict[str, object]:
     """Retrieve a full debug trace from Langfuse by operation ID.
 
     Args:

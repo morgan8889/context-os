@@ -102,7 +102,7 @@ class IngestService:
         now = datetime.now(UTC)
 
         job.progress_pct = progress_pct
-        job.record_counts = record_counts
+        job.record_counts = dict(record_counts)  # type: ignore[assignment]
         job.last_record_at = now
         job.updated_at = now
 
@@ -146,7 +146,7 @@ class IngestService:
             await email_svc.notify_ingest_complete(
                 job.tenant_id,
                 recipient_email="",  # caller should pass real email; stub for now
-                counts=dict(job.record_counts or {}),
+                counts={k: int(v) for k, v in (job.record_counts or {}).items()},  # type: ignore[arg-type]
             )
         except Exception as exc:
             logger.error(

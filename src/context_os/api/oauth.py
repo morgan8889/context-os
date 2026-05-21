@@ -171,7 +171,7 @@ async def oauth_callback(
             expires_at = expires_at.replace(tzinfo=UTC)
 
         if now > expires_at:
-            session.delete(pending)
+            await session.delete(pending)
             await session.flush()
             await session.commit()
             raise HTTPException(
@@ -218,7 +218,7 @@ async def oauth_callback(
             onboarding.connected_integrations = connected
 
         # Clean up pending session
-        session.delete(pending)
+        await session.delete(pending)
         await session.flush()
         await session.commit()
 

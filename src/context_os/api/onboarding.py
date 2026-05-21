@@ -180,7 +180,7 @@ async def post_survey(
 
         data = {"option": body.option, "free_text": body.free_text}
         try:
-            session = await svc.advance_step(session.id, "connect", data)
+            session = await svc.advance_step(session.id, "connect", data)  # type: ignore[arg-type]
         except InvalidTransitionError:
             if session.current_step != "survey":
                 # Session already past survey — idempotent return
@@ -225,7 +225,7 @@ async def post_scope(
         session.ingest_job_id = job.id
         scope_data = {"sources": body.sources}
         try:
-            await svc.advance_step(session.id, "ingest", scope_data)
+            await svc.advance_step(session.id, "ingest", scope_data)  # type: ignore[arg-type]
         except InvalidTransitionError:
             pass  # already at or past ingest — continue
 
@@ -321,16 +321,16 @@ async def post_activation(
 
         # Compute timing segments from step timestamps
         signup_to_connect_ms = _compute_ms(
-            session.step_started_at.get("survey"),
-            session.step_completed_at.get("connect"),
+            str(session.step_started_at.get("survey")) if session.step_started_at.get("survey") else None,
+            str(session.step_completed_at.get("connect")) if session.step_completed_at.get("connect") else None,
         )
         connect_to_ingest_ms = _compute_ms(
-            session.step_completed_at.get("connect"),
-            session.step_completed_at.get("ingest"),
+            str(session.step_completed_at.get("connect")) if session.step_completed_at.get("connect") else None,
+            str(session.step_completed_at.get("ingest")) if session.step_completed_at.get("ingest") else None,
         )
         ingest_to_briefing_ms = _compute_ms(
-            session.step_completed_at.get("ingest"),
-            session.step_started_at.get("briefing"),
+            str(session.step_completed_at.get("ingest")) if session.step_completed_at.get("ingest") else None,
+            str(session.step_started_at.get("briefing")) if session.step_started_at.get("briefing") else None,
         )
         total_ms = sum(
             v
