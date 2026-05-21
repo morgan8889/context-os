@@ -57,6 +57,10 @@ Thumbs.db
 # Project-specific
 node_modules/
 
+# Docusaurus
+docs-site/.docusaurus/
+docs-site/build/
+
 # Claude Code tooling
 .claire/
 .claude/worktrees/

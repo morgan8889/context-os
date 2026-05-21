@@ -6,7 +6,7 @@
  * - Shows selection count
  * - On confirm: calls useScopeMutation
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { useOnboardingSession, useScopeMutation } from '@/lib/hooks/useOnboardingSession';
@@ -133,8 +133,8 @@ export default function ScopeStep() {
     }
   }, [resources]);
 
-  function toggle(set: Set<string>, setFn: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
-    setFn((prev) => {
+  function toggle(set: Set<string>, setFn: Dispatch<SetStateAction<Set<string>>>, id: string) {
+    setFn((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -160,9 +160,9 @@ export default function ScopeStep() {
 
   function handleConfirm() {
     mutate({
-      jira_projects: jiraCount > 0 ? Array.from(selectedJira) : undefined,
-      github_repos: githubCount > 0 ? Array.from(selectedGithub) : undefined,
-      slack_channels: slackCount > 0 ? Array.from(selectedSlack) : undefined,
+      ...(jiraCount > 0 ? { jira_projects: Array.from(selectedJira) } : {}),
+      ...(githubCount > 0 ? { github_repos: Array.from(selectedGithub) } : {}),
+      ...(slackCount > 0 ? { slack_channels: Array.from(selectedSlack) } : {}),
     });
   }
 

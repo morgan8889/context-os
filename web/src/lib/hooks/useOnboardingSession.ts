@@ -28,13 +28,13 @@ export interface OnboardingSession {
 
 export interface SurveyPayload {
   option: string;
-  free_text?: string;
+  free_text?: string | undefined;
 }
 
 export interface ScopePayload {
-  jira_projects?: string[];
-  github_repos?: string[];
-  slack_channels?: string[];
+  jira_projects?: string[] | undefined;
+  github_repos?: string[] | undefined;
+  slack_channels?: string[] | undefined;
 }
 
 export interface ActivationPayload {

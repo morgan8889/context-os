@@ -6,7 +6,7 @@ import { ProtectedRoute } from './App';
 function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
-      <ClerkSignIn signUpUrl="/sign-up" afterSignInUrl="/galaxy" />
+      <ClerkSignIn signUpUrl="/sign-up" fallbackRedirectUrl="/galaxy" />
     </div>
   );
 }

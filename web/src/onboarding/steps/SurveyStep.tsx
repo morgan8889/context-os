@@ -4,7 +4,7 @@
  * 5 option buttons. "Something else" reveals a textarea.
  * On submit: calls useSurveyMutation; shows spinner while mutating.
  */
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useSurveyMutation } from '@/lib/hooks/useOnboardingSession';
 
 // ── Option Config ──────────────────────────────────────────────────────────────
@@ -29,10 +29,12 @@ export default function SurveyStep() {
 
   function handleSubmit() {
     if (!selected) return;
-    mutate({
-      option: selected,
-      free_text: selected === 'something_else' && freeText.trim() ? freeText.trim() : undefined,
-    });
+    const hasFreeText = selected === 'something_else' && freeText.trim().length > 0;
+    mutate(
+      hasFreeText
+        ? { option: selected, free_text: freeText.trim() }
+        : { option: selected }
+    );
   }
 
   const canSubmit =
@@ -99,7 +101,7 @@ export default function SurveyStep() {
           <textarea
             id="survey-free-text"
             value={freeText}
-            onChange={(e) => setFreeText(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFreeText(e.target.value)}
             rows={3}
             placeholder="Describe the biggest friction in your workflow…"
             className={[

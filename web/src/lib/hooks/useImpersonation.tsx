@@ -13,6 +13,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  type MutableRefObject,
   type ReactNode,
   type FC,
 } from 'react';
@@ -147,10 +148,10 @@ export function useImpersonation(): ImpersonationContextValue {
  * This is the recommended pattern for injecting auth tokens into an axios
  * interceptor without re-registering the interceptor on every render.
  */
-let _globalTokenRef: React.MutableRefObject<string | null> | null = null;
+let _globalTokenRef: MutableRefObject<string | null> | null = null;
 
 export function registerImpersonationTokenRef(
-  ref: React.MutableRefObject<string | null>
+  ref: MutableRefObject<string | null>
 ): void {
   _globalTokenRef = ref;
 }

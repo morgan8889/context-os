@@ -126,7 +126,10 @@ class Settings(BaseSettings):
     # ── Phase 4: Closed Beta ───────────────────────────────────────────────────
     resend_api_key: str | None = Field(
         default=None,
-        description="Resend API key for transactional email (optional — email disabled when absent)",
+        description=(
+            "Resend API key for transactional email "
+            "(optional — email disabled when absent)"
+        ),
     )
     resend_from_email: str = Field(
         default="noreply@contextops.ai",
@@ -138,7 +141,9 @@ class Settings(BaseSettings):
     )
     platform_operator_clerk_user_id: str = Field(
         default="",
-        description="Clerk user ID that is allowed to access Platform Operator endpoints",
+        description=(
+            "Clerk user ID that is allowed to access Platform Operator endpoints"
+        ),
     )
 
     @field_validator("encryption_key")

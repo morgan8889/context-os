@@ -8,12 +8,16 @@
  * - Show loading skeleton during initial fetch
  * - Redirect to /galaxy when current_step === 'activated'
  */
-import { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useOnboardingSession } from '@/lib/hooks/useOnboardingSession';
 
 const SurveyStep = lazy(() => import('./steps/SurveyStep'));
-const ConnectStep = lazy(() => import('./steps/ConnectStep'));
+const ConnectStep = lazy(() =>
+  import('./steps/ConnectStep').then((m) => ({
+    default: m.default as React.ComponentType<Record<string, never>>,
+  }))
+);
 const ScopeStep = lazy(() => import('./steps/ScopeStep'));
 const IngestStep = lazy(() => import('./steps/IngestStep'));
 const BriefingStep = lazy(() => import('./steps/BriefingStep'));
@@ -44,58 +48,79 @@ function ProgressBar({ currentStep }: ProgressBarProps) {
   const currentIdx = stepIndex(currentStep);
 
   return (
-    <nav aria-label="Onboarding progress" className="flex items-center gap-0">
-      {STEPS.map((step, idx) => {
-        const isComplete = idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-
-        return (
-          <div key={step.key} className="flex items-center">
-            {/* Connector line */}
-            {idx > 0 && (
+    <nav aria-label="Onboarding progress" className="w-full max-w-lg px-4">
+      {/* Mobile: compact dot row */}
+      <div className="flex items-center justify-between sm:hidden">
+        {STEPS.map((step, idx) => {
+          const isComplete = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          return (
+            <div key={step.key} className="flex items-center">
+              {idx > 0 && (
+                <div
+                  className={['h-0.5 w-4 transition-colors duration-300', isComplete ? 'bg-blue-600' : 'bg-neutral-200'].join(' ')}
+                  aria-hidden="true"
+                />
+              )}
               <div
                 className={[
-                  'h-0.5 w-8 transition-colors duration-300',
-                  isComplete ? 'bg-blue-600' : 'bg-neutral-200',
-                ].join(' ')}
-                aria-hidden="true"
-              />
-            )}
-
-            {/* Step circle */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div
-                className={[
-                  'flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold',
-                  'transition-all duration-300',
-                  isComplete
-                    ? 'bg-blue-600 text-white'
-                    : isCurrent
-                      ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                      : 'bg-neutral-100 text-neutral-400',
+                  'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300',
+                  isComplete ? 'bg-blue-600 text-white' : isCurrent ? 'bg-blue-600 text-white ring-4 ring-blue-100' : 'bg-neutral-100 text-neutral-400',
                 ].join(' ')}
                 aria-current={isCurrent ? 'step' : undefined}
               >
                 {isComplete ? (
-                  <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                     <path d="M13.485 1.431a1.473 1.473 0 0 0-2.084 0l-6.25 6.25-.952-.952a1.473 1.473 0 1 0-2.083 2.083l2 2a1.473 1.473 0 0 0 2.083 0l7.292-7.292a1.473 1.473 0 0 0 0-2.083z" />
                   </svg>
-                ) : (
-                  idx + 1
-                )}
+                ) : idx + 1}
               </div>
-              <span
-                className={[
-                  'text-xs font-medium whitespace-nowrap',
-                  isCurrent ? 'text-blue-600' : isComplete ? 'text-neutral-600' : 'text-neutral-400',
-                ].join(' ')}
-              >
-                {step.label}
-              </span>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {/* Desktop: full step labels */}
+      <div className="hidden items-center sm:flex">
+        {STEPS.map((step, idx) => {
+          const isComplete = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          return (
+            <div key={step.key} className="flex items-center">
+              {idx > 0 && (
+                <div
+                  className={['h-0.5 w-8 transition-colors duration-300', isComplete ? 'bg-blue-600' : 'bg-neutral-200'].join(' ')}
+                  aria-hidden="true"
+                />
+              )}
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={[
+                    'flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold',
+                    'transition-all duration-300',
+                    isComplete ? 'bg-blue-600 text-white' : isCurrent ? 'bg-blue-600 text-white ring-4 ring-blue-100' : 'bg-neutral-100 text-neutral-400',
+                  ].join(' ')}
+                  aria-current={isCurrent ? 'step' : undefined}
+                >
+                  {isComplete ? (
+                    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                      <path d="M13.485 1.431a1.473 1.473 0 0 0-2.084 0l-6.25 6.25-.952-.952a1.473 1.473 0 1 0-2.083 2.083l2 2a1.473 1.473 0 0 0 2.083 0l7.292-7.292a1.473 1.473 0 0 0 0-2.083z" />
+                    </svg>
+                  ) : idx + 1}
+                </div>
+                <span
+                  className={[
+                    'text-xs font-medium whitespace-nowrap',
+                    isCurrent ? 'text-blue-600' : isComplete ? 'text-neutral-600' : 'text-neutral-400',
+                  ].join(' ')}
+                >
+                  {step.label}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </nav>
   );
 }
@@ -107,11 +132,11 @@ function OnboardingSkeleton() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4">
       <div className="w-full max-w-lg space-y-8">
         {/* Progress bar skeleton */}
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center gap-2">
-              {i > 0 && <div className="h-0.5 w-8 animate-pulse rounded bg-neutral-200" />}
-              <div className="h-8 w-8 animate-pulse rounded-full bg-neutral-200" />
+            <div key={i} className="flex items-center">
+              {i > 0 && <div className="h-0.5 w-4 animate-pulse rounded bg-neutral-200 sm:w-8" />}
+              <div className="h-7 w-7 animate-pulse rounded-full bg-neutral-200 sm:h-8 sm:w-8" />
             </div>
           ))}
         </div>
@@ -198,7 +223,7 @@ export default function OnboardingShell() {
       </div>
 
       {/* Progress */}
-      <div className="mb-10">
+      <div className="mb-10 w-full max-w-lg">
         <ProgressBar currentStep={current_step} />
       </div>
 

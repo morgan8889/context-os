@@ -63,10 +63,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <QueryClientProvider client={queryClient}>
-        <RadixTooltip.Provider delayDuration={500}>
-          <ClerkTokenWirer />
-          <RouterProvider router={router} />
-        </RadixTooltip.Provider>
+        <ImpersonationProvider>
+          <RadixTooltip.Provider delayDuration={500}>
+            <ClerkTokenWirer />
+            <ImpersonationTokenWirer />
+            <RouterProvider router={router} />
+          </RadixTooltip.Provider>
+        </ImpersonationProvider>
       </QueryClientProvider>
     </ClerkProvider>
   </StrictMode>

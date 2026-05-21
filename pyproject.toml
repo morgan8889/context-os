@@ -30,6 +30,7 @@ dependencies = [
     "langgraph-checkpoint-postgres",
     "anthropic>=0.30",
     "python-levenshtein>=0.25",
+    "opentelemetry-exporter-prometheus>=0.46",
     "prometheus-client>=0.25.0",
 ]
 

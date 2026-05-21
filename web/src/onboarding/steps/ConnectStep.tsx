@@ -6,6 +6,7 @@
  * - Shows green checkmark on connected sources
  * - "Continue" enabled when at least one integration is connected
  */
+import { type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { onboardingKeys } from '@/lib/hooks/useOnboardingSession';
@@ -17,7 +18,7 @@ interface Integration {
   source: string;
   name: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }
 
 const INTEGRATIONS: Integration[] = [
@@ -97,11 +98,11 @@ function CheckBadge() {
 
 interface ConnectStepProps {
   /** Injected in tests to skip the real query. */
-  connectedIntegrations?: string[];
-  onContinue?: () => void;
+  connectedIntegrations?: string[] | undefined;
+  onContinue?: (() => void) | undefined;
 }
 
-export default function ConnectStep({ connectedIntegrations: propConnected, onContinue }: ConnectStepProps = {}) {
+export default function ConnectStep({ connectedIntegrations: propConnected, onContinue }: ConnectStepProps) {
   // Poll every 2s to detect newly connected integrations
   const { data: session } = useQuery<OnboardingSession, Error>({
     queryKey: onboardingKeys.session(),

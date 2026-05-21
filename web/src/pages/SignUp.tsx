@@ -25,7 +25,7 @@ export default function SignUp() {
       {/* Clerk sign-up widget */}
       <ClerkSignUp
         signInUrl="/sign-in"
-        afterSignUpUrl="/onboarding"
+        fallbackRedirectUrl="/onboarding"
       />
 
       <p className="mt-6 text-xs text-neutral-400">
