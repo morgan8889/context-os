@@ -146,19 +146,19 @@ async def run_cypher(
     col_clause = ", ".join(f"{name} {dtype}" for name, dtype in columns)
 
     if params:
-        # Serialize params to agtype-compatible JSON string
         params_json = json.dumps(params)
         query = (
             f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$,"
-            f" '{params_json}'::agtype) AS ({col_clause})"
+            f" $1::agtype) AS ({col_clause})"
         )
     else:
+        params_json = None
         query = (
             f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$) AS ({col_clause})"
         )
 
     async with pool.acquire() as conn:
-        rows = await conn.fetch(query)
+        rows = await conn.fetch(query, *([params_json] if params_json else []))
 
     results = []
     for row in rows:
