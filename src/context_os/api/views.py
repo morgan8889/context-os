@@ -10,12 +10,35 @@ state with its own empty-state components.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from context_os.auth.dependencies import TenantContext, get_current_tenant
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+async def _count_age_nodes(tenant_id: str, node_type: str) -> int:
+    """Count AGE nodes of a given label for a tenant. Returns 0 on any error."""
+    try:
+        from context_os.graph.client import get_age_pool, run_cypher
+
+        pool = get_age_pool()
+        cypher = (
+            f"MATCH (n:{node_type} {{tenant_id: $tenant_id}}) RETURN count(n) AS cnt"  # noqa: S608
+        )
+        rows = await run_cypher(
+            pool,
+            cypher,
+            {"tenant_id": tenant_id},
+            columns=[("cnt", "agtype")],
+        )
+        return int(rows[0]["cnt"]) if rows else 0
+    except Exception:
+        return 0
 
 
 class IngestProgress(BaseModel):
@@ -51,17 +74,14 @@ class ViewStateResponse(BaseModel):
 async def get_view_state(
     tenant: TenantContext = Depends(get_current_tenant),
 ) -> ViewStateResponse:
-    """Return the current activation state for all three canvas views.
+    """Return the current activation state for all three canvas views."""
+    initiative_count = await _count_age_nodes(tenant.tenant_id, "Initiative")
+    galaxy_state = "activated" if initiative_count > 0 else "empty"
 
-    All views are reported as "activated" once the backend is running.
-    Item counts reflect whatever has been ingested for this tenant.
-    """
-    # Views are "activated" as soon as the backend is up — the frontend
-    # renders the appropriate empty-state when counts are zero.
     return ViewStateResponse(
         galaxy=GalaxyState(
-            state="activated",
-            initiative_count=0,
+            state=galaxy_state,
+            initiative_count=initiative_count,
             ingest_progress=None,
         ),
         topology=TopologyState(
