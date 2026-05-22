@@ -36,7 +36,8 @@ function ActivatingGraphLoader({
         y: node.y || Math.random() * 100 - 50,
         size: node.size,
         color: `color-mix(in oklch, var(--color-node-${node.type}), transparent 50%)`,
-        type: node.type,
+        type: 'circle',
+        nodeType: node.type,
       });
     });
 

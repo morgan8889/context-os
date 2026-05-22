@@ -19,6 +19,18 @@
   --color-bottleneck:       var(--color-bottleneck);
 }
 
+/* ── Sigma.js container fix ─────────────────────────────────── */
+/* .sigma-container is absolutely positioned inside .react-sigma,
+   so it needs an explicit height or the canvas reads 0 and stays 1px. */
+.react-sigma {
+  display: flex !important;
+  flex-direction: column;
+}
+.sigma-container {
+  flex: 1;
+  min-height: 0;
+}
+
 /* ── Base Styles ────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;

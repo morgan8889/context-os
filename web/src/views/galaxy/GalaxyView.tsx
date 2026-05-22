@@ -24,10 +24,21 @@ const NODE_COLOR_MAP: Record<InitiativeType, string> = {
   artifact: '--color-node-artifact',
 };
 
-/** Resolve a CSS custom property to its computed value */
+// Sigma v3's WebGL renderer only understands hex / rgb(a). It does not parse
+// oklch(). Use a 1×1 canvas to convert any CSS color string to rgb().
+const _colorCanvas = typeof document !== 'undefined'
+  ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 })
+  : null;
+const _colorCtx = _colorCanvas?.getContext('2d') ?? null;
+
 function getCSSVar(varName: string): string {
-  if (typeof window === 'undefined') return 'oklch(60% 0 0)';
-  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  if (typeof window === 'undefined' || !_colorCtx) return '#888888';
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  _colorCtx.clearRect(0, 0, 1, 1);
+  _colorCtx.fillStyle = raw;
+  _colorCtx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = _colorCtx.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r},${g},${b})`;
 }
 
 /** Map status to color var */
@@ -70,7 +81,7 @@ function GraphEventWiring() {
 
     setSettings({
       nodeReducer: (node: string, data: Record<string, unknown>) => {
-        const nodeType = (data['type'] as InitiativeType) ?? 'project';
+        const nodeType = (data['nodeType'] as InitiativeType) ?? 'project';
         const nodeStatus = (data['status'] as InitiativeStatus) ?? 'active';
 
         // Base color from type
@@ -159,7 +170,7 @@ export default function GalaxyView() {
     return {
       id: focusedNodeId,
       label: (attrs['label'] as string) ?? focusedNodeId,
-      type: (attrs['type'] as InitiativeType) ?? 'project',
+      type: (attrs['nodeType'] as InitiativeType) ?? 'project',
       status: (attrs['status'] as InitiativeStatus) ?? 'active',
       ownerTeam: (attrs['ownerTeam'] as string | null) ?? null,
       actorCount: (attrs['actorCount'] as number) ?? 0,
@@ -192,7 +203,7 @@ export default function GalaxyView() {
       {galaxyState === 'activated' && (
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Sigma canvas fills available space */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-h-0">
             <SigmaContainer
               style={{
                 width: '100%',

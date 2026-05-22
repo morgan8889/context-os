@@ -69,7 +69,8 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
             x: node.x,
             y: node.y,
             size: node.size,
-            type: node.type,
+            type: 'circle',
+            nodeType: node.type,
             status: node.status,
             ownerTeam: node.ownerTeam,
             actorCount: node.actorCount,
@@ -86,7 +87,8 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
             snapshotGraph.hasNode(edge.target)
           ) {
             snapshotGraph.addEdgeWithKey(edge.id, edge.source, edge.target, {
-              type: edge.type,
+              type: 'line',
+              edgeType: edge.type,
               weight: edge.weight,
             });
           }

@@ -108,7 +108,11 @@ export function useGalaxyGraph(): UseGalaxyGraphResult {
         x: node.x,
         y: node.y,
         size: node.size,
-        type: node.type,
+        // Sigma reads 'type' as a rendering program name; use 'nodeType' for
+        // the semantic type (goal/project/signal/artifact) so nodeReducer can
+        // map it to a color without triggering an unknown-program error.
+        type: 'circle',
+        nodeType: node.type,
         status: node.status,
         ownerTeam: node.ownerTeam,
         actorCount: node.actorCount,
@@ -128,7 +132,8 @@ export function useGalaxyGraph(): UseGalaxyGraphResult {
       !graph.hasEdge(edge.id)
     ) {
       graph.addEdgeWithKey(edge.id, edge.source, edge.target, {
-        type: edge.type,
+        type: 'line',
+        edgeType: edge.type,
         weight: edge.weight,
       });
     }
