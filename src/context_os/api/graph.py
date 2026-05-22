@@ -483,8 +483,7 @@ async def list_edges(
         from context_os.graph.client import run_cypher
 
         cypher = """
-        MATCH (s:Initiative {tenant_id: $tenant_id})-[r]->
-              (t:Initiative {tenant_id: $tenant_id})
+        MATCH (s {tenant_id: $tenant_id})-[r]->(t {tenant_id: $tenant_id})
         RETURN s.id AS source_id, t.id AS target_id,
                type(r) AS edge_type, r.id AS edge_id, r.weight AS weight
         """
@@ -537,7 +536,10 @@ async def seed_nodes(
     """Seed initiative nodes from a demo dataset."""
     from context_os.graph.mutations import upsert_node
 
-    pool = get_age_pool()
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
     seeded = 0
     for node in body.nodes:
         try:
@@ -573,7 +575,10 @@ async def seed_edges(
     """Seed graph edges from a demo dataset."""
     from context_os.graph.mutations import upsert_edge
 
-    pool = get_age_pool()
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
     seeded = 0
     for edge in body.edges:
         try:

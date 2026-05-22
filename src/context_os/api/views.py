@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+_ALLOWED_NODE_LABELS = frozenset({"Initiative", "WorkflowStep", "Decision"})
+
+
 async def _count_age_nodes(tenant_id: str, node_type: str) -> int:
     """Count AGE nodes of a given label for a tenant. Returns 0 on any error."""
+    if node_type not in _ALLOWED_NODE_LABELS:
+        return 0
     try:
         from context_os.graph.client import get_age_pool, run_cypher
 
