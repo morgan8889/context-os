@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from context_os.config import get_settings
@@ -132,6 +133,20 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # ── CORS ──────────────────────────────────────────────────────────────────
+    # Allow the Vite dev server and any localhost origin to call the API.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     # ── Error handlers ────────────────────────────────────────────────────────
 
     @app.exception_handler(ContextOSError)
@@ -157,21 +172,27 @@ def create_app() -> FastAPI:
 
     from context_os.api.admin import router as admin_router
     from context_os.api.briefing import router as briefing_router
+    from context_os.api.decisions_api import router as decisions_router
     from context_os.api.eval_api import router as eval_router
     from context_os.api.graph import router as graph_router
     from context_os.api.inbox import router as inbox_router
     from context_os.api.ingest import router as ingest_router
     from context_os.api.mapper import router as mapper_router
     from context_os.api.vector import router as vector_router
+    from context_os.api.views import router as views_router
+    from context_os.api.workflows import router as workflows_router
 
-    app.include_router(ingest_router, prefix="/ingest", tags=["Ingest"])
-    app.include_router(graph_router, prefix="/graph", tags=["Graph"])
-    app.include_router(vector_router, prefix="/vector", tags=["Vector"])
-    app.include_router(admin_router, prefix="/admin", tags=["Admin"])
-    app.include_router(briefing_router, prefix="/briefing", tags=["Briefing"])
-    app.include_router(inbox_router, prefix="/inbox", tags=["Inbox"])
-    app.include_router(mapper_router, prefix="/mapper", tags=["Mapper"])
-    app.include_router(eval_router, prefix="/eval", tags=["Eval"])
+    app.include_router(ingest_router, prefix="/api/v1/ingest", tags=["Ingest"])
+    app.include_router(graph_router, prefix="/api/v1/graph", tags=["Graph"])
+    app.include_router(vector_router, prefix="/api/v1/vector", tags=["Vector"])
+    app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
+    app.include_router(briefing_router, prefix="/api/v1/briefing", tags=["Briefing"])
+    app.include_router(inbox_router, prefix="/api/v1/inbox", tags=["Inbox"])
+    app.include_router(mapper_router, prefix="/api/v1/mapper", tags=["Mapper"])
+    app.include_router(eval_router, prefix="/api/v1/eval", tags=["Eval"])
+    app.include_router(views_router, prefix="/api/v1/views", tags=["Views"])
+    app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
+    app.include_router(decisions_router, prefix="/api/v1/decisions", tags=["Decisions"])
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:

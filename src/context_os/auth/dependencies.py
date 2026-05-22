@@ -13,6 +13,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from context_os.auth.middleware import verify_clerk_jwt
+from context_os.config import get_settings
 from context_os.core.errors import AuthError
 from context_os.db.engine import get_session_factory
 from context_os.observability.schema import (
@@ -40,6 +41,21 @@ class TenantContext:
     user_id: str = ""
 
 
+_dev_tenant: TenantContext | None = None
+
+
+def _get_dev_tenant() -> TenantContext:
+    """Return a fixed dev tenant for local bypass mode."""
+    global _dev_tenant
+    if _dev_tenant is None:
+        _dev_tenant = TenantContext(
+            tenant_id="org_dev_bypass",
+            db_tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            user_id="user_dev",
+        )
+    return _dev_tenant
+
+
 async def get_current_tenant(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> TenantContext:
@@ -59,6 +75,10 @@ async def get_current_tenant(
         HTTPException(401): If the token is missing, invalid, or the tenant
                             is not found in the database.
     """
+    # Dev bypass: skip JWT verification for local testing
+    if get_settings().dev_bypass_auth:
+        return _get_dev_tenant()
+
     if credentials is None:
         emit_structured_log(
             StructuredLogRecord(

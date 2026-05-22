@@ -305,3 +305,75 @@ async def traverse_graph(
                 span_ctx.__exit__(None, None, None)  # type: ignore[attr-defined]
             except Exception:
                 pass
+
+
+# ── GET /nodes, /edges, /snapshots ───────────────────────────────────────────
+
+
+class ApiNodeResponse(BaseModel):
+    """Graph node for the galaxy canvas."""
+
+    id: str
+    label: str
+    node_type: str
+    status: str
+    owner_team: str | None
+    actor_count: int
+    risk_score: float | None
+    autonomy_level: int | None
+    edge_count: int
+
+
+class ApiEdgeResponse(BaseModel):
+    """Graph edge for the galaxy canvas."""
+
+    id: str
+    source_id: str
+    target_id: str
+    edge_type: str
+    weight: float
+
+
+class PaginatedNodes(BaseModel):
+    items: list[ApiNodeResponse]
+    next_cursor: str | None
+    total: int
+
+
+class PaginatedEdges(BaseModel):
+    items: list[ApiEdgeResponse]
+    next_cursor: str | None
+    total: int
+
+
+class GraphSnapshotResponse(BaseModel):
+    timestamp: str
+    nodes: list[ApiNodeResponse]
+    edges: list[ApiEdgeResponse]
+    layout_seed: int
+
+
+@router.get("/nodes", response_model=PaginatedNodes)
+async def list_nodes(
+    cursor: str | None = None,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> PaginatedNodes:
+    """Paginated list of initiative nodes for the galaxy canvas."""
+    # Returns empty list until data is ingested from source systems.
+    return PaginatedNodes(items=[], next_cursor=None, total=0)
+
+
+@router.get("/edges", response_model=PaginatedEdges)
+async def list_edges(
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> PaginatedEdges:
+    """List all graph edges for the galaxy canvas."""
+    return PaginatedEdges(items=[], next_cursor=None, total=0)
+
+
+@router.get("/snapshots", response_model=list[GraphSnapshotResponse])
+async def list_snapshots(
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> list[GraphSnapshotResponse]:
+    """List available time-travel graph snapshots."""
+    return []

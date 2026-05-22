@@ -123,6 +123,12 @@ class Settings(BaseSettings):
         description="Cron expression for scheduled briefing runs (optional)",
     )
 
+    # ── Dev / Local Testing ────────────────────────────────────────────────────
+    dev_bypass_auth: bool = Field(
+        default=False,
+        description="Skip Clerk JWT; return a fixed dev tenant (local testing only)",
+    )
+
     @field_validator("encryption_key")
     @classmethod
     def validate_encryption_key(cls, v: str) -> str:
