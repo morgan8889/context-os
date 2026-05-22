@@ -21,12 +21,17 @@ initOtel({
 instrumentQueryClient(queryClient);
 
 function ClerkTokenWirer() {
-  const { getToken } = useAuth();
+  const { isLoaded, getToken } = useAuth();
   const { user } = useUser();
 
   useEffect(() => {
-    setTokenProvider(() => getToken());
-  }, [getToken]);
+    // Only wire up the token provider once Clerk has finished loading.
+    // Before isLoaded, getToken() returns a Promise that hangs indefinitely,
+    // which would stall every API request interceptor.
+    if (isLoaded) {
+      setTokenProvider(() => getToken());
+    }
+  }, [isLoaded, getToken]);
 
   // Once we have a Clerk user, extract the org/tenant ID and wire into OTEL
   useEffect(() => {

@@ -14,7 +14,8 @@ export default function DecisionEmpty() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, ease: [0.0, 0, 0.2, 1] }}
       data-state="empty"
-      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[oklch(98%_0_0)]"
+      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
+      style={{ background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {/* Organizational tree silhouette */}
       <div
@@ -204,13 +205,13 @@ export default function DecisionEmpty() {
       >
         <h1
           className="text-lg font-semibold"
-          style={{ color: 'oklch(35% 0 0)' }}
+          style={{ color: 'oklch(85% 0 0)' }}
         >
           Decisions accumulate over time
         </h1>
         <p
           className="text-sm leading-relaxed max-w-sm"
-          style={{ color: 'oklch(45% 0 0)' }}
+          style={{ color: 'oklch(65% 0 0)' }}
         >
           Context-OS proposes decisions from briefing reviews — each approval
           becomes a node here. After your first briefing cycle, decisions will

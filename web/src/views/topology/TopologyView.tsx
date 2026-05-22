@@ -272,7 +272,8 @@ export default function TopologyView() {
     <div
       ref={containerRef}
       data-view={`topology-${topologyViewState}`}
-      className="relative flex h-full w-full flex-col overflow-hidden bg-white"
+      className="relative flex h-full w-full flex-col overflow-hidden"
+      style={{ background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {topologyViewState === 'empty' && <TopologyEmpty />}
 

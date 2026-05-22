@@ -200,6 +200,7 @@ export default function GalaxyView() {
                 background: 'var(--color-galaxy-bg, oklch(8% 0 0))',
               }}
               settings={{
+                allowInvalidContainer: true,
                 labelColor: { color: 'oklch(70% 0 0)' },
                 labelSize: 11,
                 labelWeight: '500',

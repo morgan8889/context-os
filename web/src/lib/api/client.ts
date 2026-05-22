@@ -16,9 +16,13 @@ export function setTokenProvider(fn: () => Promise<string | null>) {
 
 apiClient.interceptors.request.use(async (config) => {
   if (getTokenFn) {
-    const token = await getTokenFn();
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    try {
+      const token = await getTokenFn();
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch {
+      // Clerk not yet initialized — send request without token (dev bypass handles it)
     }
   }
   return config;

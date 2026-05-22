@@ -50,7 +50,7 @@ export default function TopologyEmpty() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, ease: [0.0, 0, 0.2, 1] }}
-      style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}
+      style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {/* ReactFlow canvas — fills space */}
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -66,7 +66,7 @@ export default function TopologyEmpty() {
             elementsSelectable={false}
             zoomOnScroll={false}
             panOnDrag={false}
-            style={{ opacity: 0.4 }}
+            style={{ opacity: 0.4, background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
           />
         </ReactFlowProvider>
       </div>
@@ -82,11 +82,12 @@ export default function TopologyEmpty() {
           justifyContent: 'center',
           gap: '1.5rem',
           pointerEvents: 'none',
+          zIndex: 10,
         }}
       >
         <div style={{ pointerEvents: 'auto', maxWidth: 440, textAlign: 'center' }}>
           <p
-            className="text-sm text-[oklch(45%_0_0)] leading-relaxed mb-4"
+            className="text-sm text-[oklch(65%_0_0)] leading-relaxed mb-4"
             style={{ padding: '0 1rem' }}
           >
             Workflows derive from your team's coordination patterns. Executive Briefing
