@@ -25,7 +25,7 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
   const prevCursorRef = useRef<string | null>(null);
 
   const { start, stop, isRunning } = useWorkerLayoutForceAtlas2({
-    settings: { slowDown: 10, gravity: 1.0, scalingRatio: 2.0 },
+    settings: { slowDown: 3, gravity: 0.05, scalingRatio: 2.0 },
   });
 
   // Load the graph when it changes
@@ -109,9 +109,11 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galaxyTimeCursor]);
 
-  // Auto-fit camera after initial layout has had time to spread nodes
+  // Let layout converge, then stop it and fit the camera to frozen positions
   useEffect(() => {
     const timer = setTimeout(() => {
+      stop();
+
       const camera = sigma.getCamera();
       const cam = camera.getState();
       const { width, height } = sigma.getDimensions();
@@ -134,7 +136,7 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
       const newRatio = Math.max(R2x, R2y, 0.05);
 
       camera.animate({ x: normCx, y: normCy, ratio: newRatio }, { duration: 600 });
-    }, 2500);
+    }, 5000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
