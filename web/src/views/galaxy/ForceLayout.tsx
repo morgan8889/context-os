@@ -109,6 +109,36 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galaxyTimeCursor]);
 
+  // Auto-fit camera after initial layout has had time to spread nodes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const camera = sigma.getCamera();
+      const cam = camera.getState();
+      const { width, height } = sigma.getDimensions();
+      const bbox = sigma.getBBox();
+
+      const tl = sigma.graphToViewport({ x: bbox.x[0], y: bbox.y[0] });
+      const br = sigma.graphToViewport({ x: bbox.x[1], y: bbox.y[1] });
+
+      const bboxW = Math.abs(br.x - tl.x);
+      const bboxH = Math.abs(br.y - tl.y);
+      const vcx = (tl.x + br.x) / 2;
+      const vcy = (tl.y + br.y) / 2;
+
+      const normCx = ((vcx - width / 2) * cam.ratio) / width + cam.x;
+      const normCy = ((vcy - height / 2) * cam.ratio) / height + cam.y;
+
+      const FILL = 0.85;
+      const R2x = (bboxW * cam.ratio) / (FILL * width);
+      const R2y = (bboxH * cam.ratio) / (FILL * height);
+      const newRatio = Math.max(R2x, R2y, 0.05);
+
+      camera.animate({ x: normCx, y: normCy, ratio: newRatio }, { duration: 600 });
+    }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Stop supervisor on unmount
   useEffect(() => {
     return () => {
