@@ -64,7 +64,8 @@ class GitHubNormalizer:
         status = "archived" if repo.get("archived") else "active"
 
         return {
-            "node_type": "Initiative",
+            "_age_label": "Initiative",
+            "node_type": "project",
             "id": _make_id(source_id, self.tenant_id, "gh_repo"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -99,7 +100,8 @@ class GitHubNormalizer:
         status = status_map.get(state, "open")
 
         return {
-            "node_type": "Goal",
+            "_age_label": "Goal",
+            "node_type": "goal",
             "id": _make_id(source_id, self.tenant_id, "gh_milestone"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -139,7 +141,8 @@ class GitHubNormalizer:
             status = "open"
 
         return {
-            "node_type": "Artifact",
+            "_age_label": "Artifact",
+            "node_type": "artifact",
             "id": _make_id(source_id, self.tenant_id, "gh_pr"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -175,7 +178,8 @@ class GitHubNormalizer:
 
         if state == "closed":
             return {
-                "node_type": "Artifact",
+                "_age_label": "Artifact",
+                "node_type": "artifact",
                 "id": _make_id(source_id, self.tenant_id, "gh_issue"),
                 "tenant_id": self.tenant_id,
                 "source": "github",
@@ -191,7 +195,8 @@ class GitHubNormalizer:
             }
         else:
             return {
-                "node_type": "Signal",
+                "_age_label": "Signal",
+                "node_type": "signal",
                 "id": _make_id(source_id, self.tenant_id, "gh_issue"),
                 "tenant_id": self.tenant_id,
                 "source": "github",
@@ -272,7 +277,8 @@ class GitHubNormalizer:
         content = " ".join(content_parts)
 
         return {
-            "node_type": "Signal",
+            "_age_label": "Signal",
+            "node_type": "signal",
             "id": _make_id(source_id, self.tenant_id, "gh_review"),
             "tenant_id": self.tenant_id,
             "source": "github",

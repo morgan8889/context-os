@@ -161,13 +161,16 @@ async def run_ingest(
 
         for node in nodes:
             node_type = node.get("node_type", "")
+            # _age_label carries the Cypher label; fall back to node_type for
+            # nodes that don't distinguish the two (e.g. demo/seed nodes).
+            age_label = node.pop("_age_label", node_type)
             node_id_str = str(node.get("id", ""))
 
             try:
                 await upsert_node(
                     pool=pool,
                     tenant_id=tenant_ctx.tenant_id,
-                    node_type=node_type,
+                    node_type=age_label,
                     props=node,
                 )
                 nodes_created += 1  # simplified: count all as created

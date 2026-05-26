@@ -45,10 +45,9 @@ export default function TopologyEmpty() {
           width="100%"
           height="400"
           viewBox="0 0 640 400"
-          style={{ maxWidth: 640 }}
+          style={{ maxWidth: 640, opacity: 0.12 }}
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style={{ opacity: 0.12 }}
         >
           {/* Edges */}
           <line x1="100" y1="200" x2="220" y2="120" stroke="var(--color-placeholder-grey)" strokeWidth="2" />

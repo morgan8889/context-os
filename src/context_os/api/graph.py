@@ -450,7 +450,7 @@ async def list_nodes(
 
         limit = 500
         raw_nodes, total = await get_nodes_for_tenant(
-            pool, tenant.tenant_id, node_type="Initiative", limit=limit, offset=offset
+            pool, tenant.tenant_id, node_type=None, limit=limit, offset=offset
         )
 
         items: list[ApiNodeResponse] = []
@@ -609,3 +609,91 @@ async def list_snapshots(
 ) -> list[GraphSnapshotResponse]:
     """List available time-travel graph snapshots."""
     return []
+
+
+# ── Manual signals ────────────────────────────────────────────────────────────
+
+
+class ManualSignalRequest(BaseModel):
+    """Request body for creating a manual signal."""
+
+    content: str
+    signal_type: str = "observation"
+    initiative_id: str | None = None
+
+
+class ManualSignalResponse(BaseModel):
+    id: str
+
+
+@router.post("/signals", response_model=ManualSignalResponse, status_code=201)
+async def create_signal(
+    body: ManualSignalRequest,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> ManualSignalResponse:
+    """Create a manual Signal node in the knowledge graph.
+
+    Accepts free-text observations, risks, blockers, and decisions.
+    If initiative_id is provided, attaches a SIGNALS_TO edge.
+
+    Args:
+        body: Signal content and optional attachment.
+        tenant: Authenticated tenant context.
+
+    Returns:
+        The UUID of the created Signal node.
+    """
+    import uuid as _uuid
+    from datetime import UTC, datetime
+
+    from context_os.graph.mutations import upsert_edge
+
+    now = datetime.now(UTC).isoformat()
+    node_id = str(
+        _uuid.uuid5(
+            _uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            f"{tenant.tenant_id}:manual:{body.content[:64]}:{now}",
+        )
+    )
+
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
+
+    from context_os.graph.mutations import upsert_node as _upsert_node
+
+    await _upsert_node(
+        pool,
+        tenant.tenant_id,
+        "Signal",
+        {
+            "id": node_id,
+            "node_type": "signal",
+            "content": body.content,
+            "signal_type": body.signal_type,
+            "source": "manual",
+            "occurred_at": now,
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+
+    if body.initiative_id:
+        try:
+            await upsert_edge(
+                pool,
+                tenant.tenant_id,
+                from_id=node_id,
+                to_id=body.initiative_id,
+                edge_type="SIGNALS_TO",
+                props={},
+            )
+        except Exception as e:
+            logger.warning(
+                "create_signal: could not attach edge to %s: %s",
+                body.initiative_id,
+                e,
+            )
+
+    return ManualSignalResponse(id=node_id)

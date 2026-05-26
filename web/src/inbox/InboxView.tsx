@@ -6,8 +6,7 @@
  * mutations with optimistic updates.
  */
 
-import { useState } from 'react';
-import type { ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api/client';
@@ -419,6 +418,196 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
+// ── Generate Briefing ─────────────────────────────────────────────────────────
+
+type BriefingStatus = 'idle' | 'generating' | 'done' | 'error';
+
+interface BriefingStatusResponse {
+  status: string;
+  run_id: string;
+}
+
+function GenerateBriefingButton({ onDone }: { onDone: () => void }) {
+  const [status, setStatus] = useState<BriefingStatus>('idle');
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setStatus('generating');
+    setMsg(null);
+    try {
+      const res = await apiClient.post<{ run_id: string }>('/api/v1/briefing/generate', {});
+      const runId = res.data.run_id;
+
+      // Poll until complete
+      const poll = setInterval(async () => {
+        try {
+          const statusRes = await apiClient.get<BriefingStatusResponse>(
+            `/api/v1/briefing/status/${runId}`
+          );
+          if (statusRes.data.status === 'completed' || statusRes.data.status === 'approved') {
+            clearInterval(poll);
+            setStatus('done');
+            setMsg('Briefing ready — check the list below.');
+            onDone();
+            setTimeout(() => { setStatus('idle'); setMsg(null); }, 4000);
+          } else if (statusRes.data.status === 'failed') {
+            clearInterval(poll);
+            setStatus('error');
+            setMsg('Briefing generation failed.');
+          }
+        } catch {
+          clearInterval(poll);
+          setStatus('error');
+          setMsg('Could not check briefing status.');
+        }
+      }, 3000);
+    } catch (err) {
+      setStatus('error');
+      const detail =
+        err instanceof Error ? err.message : 'Unknown error';
+      setMsg(
+        detail.includes('404') || detail.includes('no ingest')
+          ? 'Connect GitHub first to generate a briefing.'
+          : detail
+      );
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={handleGenerate}
+        disabled={status === 'generating'}
+        className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2"
+        style={{
+          background: status === 'done' ? 'oklch(45% 0.12 145)' : 'oklch(55% 0.2 250)',
+          color: 'oklch(97% 0 0)',
+          opacity: status === 'generating' ? 0.6 : 1,
+          cursor: status === 'generating' ? 'default' : 'pointer',
+        }}
+      >
+        {status === 'generating' ? 'Generating…' : status === 'done' ? 'Done' : 'Generate Briefing'}
+      </button>
+      {msg && (
+        <p
+          className="text-xs"
+          style={{ color: status === 'error' ? 'oklch(55% 0.2 25)' : 'oklch(45% 0.15 145)' }}
+        >
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Log Signal ────────────────────────────────────────────────────────────────
+
+const SIGNAL_TYPES = [
+  { value: 'observation', label: 'Observation' },
+  { value: 'risk', label: 'Risk' },
+  { value: 'blocker', label: 'Blocker' },
+  { value: 'decision', label: 'Decision' },
+] as const;
+
+type SignalType = typeof SIGNAL_TYPES[number]['value'];
+
+function LogSignalForm() {
+  const [expanded, setExpanded] = useState(false);
+  const [content, setContent] = useState('');
+  const [signalType, setSignalType] = useState<SignalType>('observation');
+  const [logStatus, setLogStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+  async function handleLog() {
+    if (!content.trim()) return;
+    setLogStatus('saving');
+    try {
+      await apiClient.post('/api/v1/graph/signals', {
+        content: content.trim(),
+        signal_type: signalType,
+      });
+      setLogStatus('done');
+      setContent('');
+      setTimeout(() => { setLogStatus('idle'); setExpanded(false); }, 2500);
+    } catch {
+      setLogStatus('error');
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
+        style={{
+          background: 'oklch(96% 0 0)',
+          color: 'oklch(35% 0 0)',
+          border: '1px solid oklch(87% 0 0)',
+        }}
+      >
+        Log Signal
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-4 flex flex-col gap-3"
+      style={{ background: 'oklch(99% 0 0)', borderColor: 'oklch(90% 0 0)' }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold" style={{ color: 'oklch(20% 0 0)' }}>
+          Log a signal
+        </span>
+        <button
+          onClick={() => { setExpanded(false); setContent(''); setLogStatus('idle'); }}
+          className="text-xs"
+          style={{ color: 'oklch(55% 0 0)' }}
+        >
+          Cancel
+        </button>
+      </div>
+      <textarea
+        rows={3}
+        placeholder="What's happening? e.g. &quot;Customer escalated billing issue&quot;"
+        value={content}
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+        className="w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(60%_0.2_250)]"
+        style={{ background: 'oklch(99% 0 0)', borderColor: 'oklch(85% 0 0)', color: 'oklch(15% 0 0)' }}
+      />
+      <div className="flex items-center gap-3">
+        <select
+          value={signalType}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setSignalType(e.target.value as SignalType)}
+          className="rounded-lg border px-2.5 py-1.5 text-sm focus-visible:outline-none"
+          style={{ background: 'oklch(98% 0 0)', borderColor: 'oklch(85% 0 0)', color: 'oklch(20% 0 0)' }}
+        >
+          {SIGNAL_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleLog}
+          disabled={logStatus === 'saving' || !content.trim()}
+          className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50"
+          style={{ background: 'oklch(55% 0.2 250)', color: 'oklch(97% 0 0)' }}
+        >
+          {logStatus === 'saving' ? 'Saving…' : logStatus === 'done' ? 'Logged' : 'Log'}
+        </button>
+      </div>
+      {logStatus === 'done' && (
+        <p className="text-xs" style={{ color: 'oklch(45% 0.15 145)' }}>
+          Signal logged — it will inform your next briefing.
+        </p>
+      )}
+      {logStatus === 'error' && (
+        <p className="text-xs" style={{ color: 'oklch(55% 0.2 25)' }}>
+          Failed to log signal. Try again.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export default function InboxView() {
@@ -496,12 +685,20 @@ export default function InboxView() {
           borderColor: 'oklch(91% 0 0)',
         }}
       >
-        <h1 className="text-base font-semibold" style={{ color: 'oklch(12% 0 0)' }}>
-          Inbox
-        </h1>
-        <p className="mt-0.5 text-xs" style={{ color: 'oklch(50% 0 0)' }}>
-          Review and approve AI-generated drafts before they enter the knowledge graph.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-base font-semibold" style={{ color: 'oklch(12% 0 0)' }}>
+              Inbox
+            </h1>
+            <p className="mt-0.5 text-xs" style={{ color: 'oklch(50% 0 0)' }}>
+              Review and approve AI-generated drafts before they enter the knowledge graph.
+            </p>
+          </div>
+          <div className="flex items-start gap-2 shrink-0 pt-0.5">
+            <GenerateBriefingButton onDone={() => qc.invalidateQueries({ queryKey })} />
+            <LogSignalForm />
+          </div>
+        </div>
       </header>
 
       {/* Scrollable content area */}
