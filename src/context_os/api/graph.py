@@ -305,3 +305,384 @@ async def traverse_graph(
                 span_ctx.__exit__(None, None, None)  # type: ignore[attr-defined]
             except Exception:
                 pass
+
+
+# ── GET /nodes, /edges, /snapshots  +  POST /nodes/seed, /edges/seed ─────────
+
+
+class ApiNodeResponse(BaseModel):
+    """Graph node for the galaxy canvas."""
+
+    id: str
+    label: str
+    node_type: str
+    status: str
+    owner_team: str | None
+    actor_count: int
+    risk_score: float | None
+    autonomy_level: int | None
+    edge_count: int
+
+
+class ApiEdgeResponse(BaseModel):
+    """Graph edge for the galaxy canvas."""
+
+    id: str
+    source_id: str
+    target_id: str
+    edge_type: str
+    weight: float
+
+
+class PaginatedNodes(BaseModel):
+    items: list[ApiNodeResponse]
+    next_cursor: str | None
+    total: int
+
+
+class PaginatedEdges(BaseModel):
+    items: list[ApiEdgeResponse]
+    next_cursor: str | None
+    total: int
+
+
+class GraphSnapshotResponse(BaseModel):
+    timestamp: str
+    nodes: list[ApiNodeResponse]
+    edges: list[ApiEdgeResponse]
+    layout_seed: int
+
+
+class SeedNodeItem(BaseModel):
+    id: str
+    label: str
+    node_type: str
+    status: str
+    owner_team: str | None = None
+    actor_count: int = 0
+    risk_score: float | None = None
+    autonomy_level: int | None = None
+    edge_count: int = 0
+
+
+class SeedNodesRequest(BaseModel):
+    nodes: list[SeedNodeItem]
+
+
+class SeedEdgeItem(BaseModel):
+    id: str
+    source_id: str
+    target_id: str
+    edge_type: str
+    weight: float = 1.0
+
+
+class SeedEdgesRequest(BaseModel):
+    edges: list[SeedEdgeItem]
+
+
+class SeedResponse(BaseModel):
+    seeded: int
+
+
+def _safe_int(v: Any, default: int = 0) -> int:
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(v: Any) -> float | None:
+    if v is None or v == "None":
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_str_or_none(v: Any) -> str | None:
+    if v is None or v == "None":
+        return None
+    s = str(v)
+    return s if s else None
+
+
+def _props_to_api_node(props: dict[str, Any]) -> ApiNodeResponse | None:
+    """Map AGE node property dict to ApiNodeResponse. Returns None on error."""
+    raw_autonomy = props.get("autonomy_level")
+    autonomy_level = (
+        _safe_int(raw_autonomy, 0) if raw_autonomy not in (None, "None") else None
+    )
+    try:
+        return ApiNodeResponse(
+            id=str(props.get("id", "")),
+            label=str(props.get("label", "")),
+            node_type=str(props.get("node_type", "project")),
+            status=str(props.get("status", "active")),
+            owner_team=_safe_str_or_none(props.get("owner_team")),
+            actor_count=_safe_int(props.get("actor_count"), 0),
+            risk_score=_safe_float(props.get("risk_score")),
+            autonomy_level=autonomy_level,
+            edge_count=_safe_int(props.get("edge_count"), 0),
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to map AGE node to ApiNodeResponse: %s props=%s", e, props
+        )
+        return None
+
+
+@router.get("/nodes", response_model=PaginatedNodes)
+async def list_nodes(
+    cursor: str | None = None,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> PaginatedNodes:
+    """Paginated list of initiative nodes for the galaxy canvas."""
+    try:
+        pool = get_age_pool()
+        from context_os.graph.mutations import get_nodes_for_tenant
+
+        offset = _safe_int(cursor, 0) if cursor else 0
+        limit = 500
+        raw_nodes, total = await get_nodes_for_tenant(
+            pool, tenant.tenant_id, node_type=None, limit=limit, offset=offset
+        )
+
+        items = [n for n in (_props_to_api_node(p) for p in raw_nodes) if n]
+        next_cursor = str(offset + limit) if offset + limit < total else None
+
+        return PaginatedNodes(items=items, next_cursor=next_cursor, total=total)
+
+    except RuntimeError:
+        # AGE pool not yet initialized
+        return PaginatedNodes(items=[], next_cursor=None, total=0)
+    except Exception as e:
+        logger.error("list_nodes failed: %s", e)
+        return PaginatedNodes(items=[], next_cursor=None, total=0)
+
+
+@router.get("/edges", response_model=PaginatedEdges)
+async def list_edges(
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> PaginatedEdges:
+    """List all graph edges for the galaxy canvas."""
+    try:
+        pool = get_age_pool()
+        from context_os.graph.client import run_cypher
+
+        cypher = """
+        MATCH (s {tenant_id: $tenant_id})-[r]->(t {tenant_id: $tenant_id})
+        RETURN s.id AS source_id, t.id AS target_id,
+               type(r) AS edge_type, r.id AS edge_id, r.weight AS weight
+        """
+        rows = await run_cypher(
+            pool,
+            cypher,
+            {"tenant_id": tenant.tenant_id},
+            columns=[
+                ("source_id", "agtype"),
+                ("target_id", "agtype"),
+                ("edge_type", "agtype"),
+                ("edge_id", "agtype"),
+                ("weight", "agtype"),
+            ],
+        )
+
+        items: list[ApiEdgeResponse] = []
+        for row in rows:
+            src = str(row.get("source_id") or "")
+            tgt = str(row.get("target_id") or "")
+            raw_type = str(row.get("edge_type") or "DEPENDS_ON")
+            edge_type = raw_type.lower()
+            edge_id = str(row.get("edge_id") or f"{src}_{tgt}_{edge_type}")
+            weight = _safe_float(row.get("weight")) or 1.0
+            if src and tgt:
+                items.append(
+                    ApiEdgeResponse(
+                        id=edge_id,
+                        source_id=src,
+                        target_id=tgt,
+                        edge_type=edge_type,
+                        weight=weight,
+                    )
+                )
+
+        return PaginatedEdges(items=items, next_cursor=None, total=len(items))
+
+    except RuntimeError:
+        return PaginatedEdges(items=[], next_cursor=None, total=0)
+    except Exception as e:
+        logger.error("list_edges failed: %s", e)
+        return PaginatedEdges(items=[], next_cursor=None, total=0)
+
+
+@router.post("/nodes/seed", response_model=SeedResponse)
+async def seed_nodes(
+    body: SeedNodesRequest,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> SeedResponse:
+    """Seed initiative nodes from a demo dataset."""
+    from context_os.graph.mutations import upsert_node
+
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
+    seeded = 0
+    for node in body.nodes:
+        try:
+            await upsert_node(
+                pool,
+                tenant.tenant_id,
+                "Initiative",
+                {
+                    "id": node.id,
+                    "label": node.label,
+                    "node_type": node.node_type,
+                    "status": node.status,
+                    "owner_team": node.owner_team,
+                    "actor_count": node.actor_count,
+                    "risk_score": node.risk_score,
+                    "autonomy_level": node.autonomy_level,
+                    "edge_count": node.edge_count,
+                    "source": "demo",
+                },
+            )
+            seeded += 1
+        except Exception as e:
+            logger.warning("seed_nodes: failed to upsert node %s: %s", node.id, e)
+
+    return SeedResponse(seeded=seeded)
+
+
+@router.post("/edges/seed", response_model=SeedResponse)
+async def seed_edges(
+    body: SeedEdgesRequest,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> SeedResponse:
+    """Seed graph edges from a demo dataset."""
+    from context_os.graph.mutations import upsert_edge
+
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
+    seeded = 0
+    for edge in body.edges:
+        try:
+            age_label = edge.edge_type.upper().replace("-", "_")
+            await upsert_edge(
+                pool,
+                tenant.tenant_id,
+                from_id=edge.source_id,
+                to_id=edge.target_id,
+                edge_type=age_label,
+                props={"id": edge.id, "weight": str(edge.weight)},
+            )
+            seeded += 1
+        except Exception as e:
+            logger.warning(
+                "seed_edges: failed to upsert edge %s->%s: %s",
+                edge.source_id,
+                edge.target_id,
+                e,
+            )
+
+    return SeedResponse(seeded=seeded)
+
+
+@router.get("/snapshots", response_model=list[GraphSnapshotResponse])
+async def list_snapshots(
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> list[GraphSnapshotResponse]:
+    """List available time-travel graph snapshots."""
+    return []
+
+
+# ── Manual signals ────────────────────────────────────────────────────────────
+
+
+class ManualSignalRequest(BaseModel):
+    """Request body for creating a manual signal."""
+
+    content: str
+    signal_type: str = "observation"
+    initiative_id: str | None = None
+
+
+class ManualSignalResponse(BaseModel):
+    id: str
+
+
+@router.post("/signals", response_model=ManualSignalResponse, status_code=201)
+async def create_signal(
+    body: ManualSignalRequest,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> ManualSignalResponse:
+    """Create a manual Signal node in the knowledge graph.
+
+    Accepts free-text observations, risks, blockers, and decisions.
+    If initiative_id is provided, attaches a SIGNALS_TO edge.
+
+    Args:
+        body: Signal content and optional attachment.
+        tenant: Authenticated tenant context.
+
+    Returns:
+        The UUID of the created Signal node.
+    """
+    import uuid as _uuid
+    from datetime import UTC, datetime
+
+    from context_os.graph.mutations import upsert_edge
+
+    now = datetime.now(UTC).isoformat()
+    node_id = str(
+        _uuid.uuid5(
+            _uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            f"{tenant.tenant_id}:manual:{body.content[:64]}:{now}",
+        )
+    )
+
+    try:
+        pool = get_age_pool()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Graph store unavailable")
+
+    from context_os.graph.mutations import upsert_node as _upsert_node
+
+    await _upsert_node(
+        pool,
+        tenant.tenant_id,
+        "Signal",
+        {
+            "id": node_id,
+            "node_type": "signal",
+            "content": body.content,
+            "signal_type": body.signal_type,
+            "source": "manual",
+            "occurred_at": now,
+            "created_at": now,
+            "updated_at": now,
+        },
+    )
+
+    if body.initiative_id:
+        try:
+            await upsert_edge(
+                pool,
+                tenant.tenant_id,
+                from_id=node_id,
+                to_id=body.initiative_id,
+                edge_type="SIGNALS_TO",
+                props={},
+            )
+        except Exception as e:
+            logger.warning(
+                "create_signal: could not attach edge to %s: %s",
+                body.initiative_id,
+                e,
+            )
+
+    return ManualSignalResponse(id=node_id)

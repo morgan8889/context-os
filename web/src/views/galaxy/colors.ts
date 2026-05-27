@@ -1,13 +1,27 @@
 /**
  * Galaxy color helpers.
  *
- * Sigma renders with WebGL and cannot evaluate CSS expressions — passing a
- * `var(--x)` or `color-mix(...)` string as a node color silently renders the
- * node black. These helpers resolve CSS custom properties to concrete computed
- * values and bake opacity into the color string instead.
+ * Sigma renders with WebGL and cannot evaluate CSS expressions. These helpers
+ * resolve CSS custom properties to browser-normalized canvas color strings and
+ * bake opacity into the color string instead.
  */
 
 const DEFAULT_FALLBACK = 'oklch(60% 0 0)';
+
+const colorCanvas = typeof document !== 'undefined'
+  ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 })
+  : null;
+const colorCtx = colorCanvas?.getContext('2d') ?? null;
+
+function normalizeCanvasColor(color: string, alpha?: number): string {
+  if (!colorCtx) return color;
+  colorCtx.clearRect(0, 0, 1, 1);
+  colorCtx.fillStyle = color;
+  colorCtx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = colorCtx.getImageData(0, 0, 1, 1).data;
+  if (alpha === undefined) return `${'rgb'}(${r},${g},${b})`;
+  return `${'rgba'}(${r},${g},${b},${alpha})`;
+}
 
 /** Resolve a CSS custom property to its computed value, with a fallback. */
 export function getCssVar(varName: string, fallback: string = DEFAULT_FALLBACK): string {
@@ -15,7 +29,7 @@ export function getCssVar(varName: string, fallback: string = DEFAULT_FALLBACK):
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(varName)
     .trim();
-  return value || fallback;
+  return normalizeCanvasColor(value || fallback);
 }
 
 /** Resolve a node domain type to a concrete, Sigma-safe base color. */
@@ -29,7 +43,5 @@ export function resolveNodeColor(type: string): string {
  * per-node opacity channel). Non-oklch colors are returned unchanged.
  */
 export function withAlpha(color: string, alpha: number): string {
-  const match = color.match(/^oklch\(([^)/]+)\)$/);
-  if (!match) return color;
-  return `oklch(${match[1]!.trim()} / ${alpha})`;
+  return normalizeCanvasColor(color, alpha);
 }

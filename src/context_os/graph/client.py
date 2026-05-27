@@ -26,15 +26,23 @@ async def _age_setup(conn: asyncpg.Connection) -> None:  # type: ignore[type-arg
     """Initialize AGE on each new connection in the pool.
 
     Runs LOAD 'age' and sets search_path so AGE functions are visible.
-    This is required because AGE is a PostgreSQL extension that must be
-    loaded per-connection — it cannot be loaded at the session level via
-    connection string parameters alone.
+    Also registers the agtype codec so asyncpg can bind $1::agtype parameters
+    through the Extended Query Protocol without an OID resolution failure.
 
     Args:
         conn: New asyncpg connection from the pool.
     """
     await conn.execute("LOAD 'age'")
     await conn.execute('SET search_path = ag_catalog, "$user", public')
+    # Register agtype as a text-passthrough codec so asyncpg resolves its OID
+    # when parameterized cypher() calls use $1::agtype bind parameters.
+    await conn.set_type_codec(
+        "agtype",
+        schema="ag_catalog",
+        encoder=lambda v: v,
+        decoder=lambda v: v,
+        format="text",
+    )
 
 
 async def create_age_pool() -> asyncpg.Pool:  # type: ignore[type-arg]
@@ -105,6 +113,10 @@ async def init_graph(
                 logger.debug("AGE graph '%s' already exists", graph_name)
             else:
                 raise
+        finally:
+            # create_graph resets search_path on the connection; restore it so
+            # ag_catalog.agtype remains accessible for subsequent cypher queries.
+            await conn.execute('SET search_path = ag_catalog, "$user", public')
 
 
 async def run_cypher(
@@ -145,20 +157,29 @@ async def run_cypher(
 
     col_clause = ", ".join(f"{name} {dtype}" for name, dtype in columns)
 
-    if params:
-        # Serialize params to agtype-compatible JSON string
-        params_json = json.dumps(params)
-        query = (
-            f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$,"
-            f" '{params_json}'::agtype) AS ({col_clause})"
-        )
-    else:
-        query = (
-            f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$) AS ({col_clause})"
-        )
-
     async with pool.acquire() as conn:
-        rows = await conn.fetch(query)
+        # create_graph resets search_path on any connection it uses; restore it
+        # so $1::agtype resolves correctly (agtype lives in ag_catalog).
+        await conn.execute('SET search_path = ag_catalog, "$user", public')
+
+        if params:
+            params_json = json.dumps(params)
+            # AGE 1.7 requires the third argument to cypher() to be a PostgreSQL
+            # bind parameter ($1::agtype), not a string literal.
+            # Note: avoid ON CREATE SET / ON MATCH SET in Cypher — PostgreSQL 18
+            # parses "MERGE ... ON" as its own MERGE DML syntax even inside $$...$$
+            # strings, causing a parser error. Use plain SET instead.
+            query = (
+                f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$,"
+                f" $1::agtype) AS ({col_clause})"
+            )
+            rows = await conn.fetch(query, params_json)
+        else:
+            query = (
+                f"SELECT * FROM cypher('{graph_name}', $$ {cypher} $$)"
+                f" AS ({col_clause})"
+            )
+            rows = await conn.fetch(query)
 
     results = []
     for row in rows:

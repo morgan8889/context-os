@@ -12,6 +12,8 @@ import { NodeDetailPane } from './NodeDetailPane';
 import { TimeTravelBar } from './TimeTravelBar';
 import GalaxyEmpty from './GalaxyEmpty';
 import GalaxyActivating from './GalaxyActivating';
+import { GalaxyLegend } from './GalaxyLegend';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import type { InitiativeType, InitiativeStatus } from '@/types/galaxy';
 
 /** Map node type to CSS custom property name */
@@ -22,10 +24,21 @@ const NODE_COLOR_MAP: Record<InitiativeType, string> = {
   artifact: '--color-node-artifact',
 };
 
-/** Resolve a CSS custom property to its computed value */
+// Sigma v3's WebGL renderer cannot parse oklch(). Use a 1x1 canvas to convert
+// design-token colors into a browser-normalized canvas color string.
+const _colorCanvas = typeof document !== 'undefined'
+  ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 })
+  : null;
+const _colorCtx = _colorCanvas?.getContext('2d') ?? null;
+
 function getCSSVar(varName: string): string {
-  if (typeof window === 'undefined') return 'oklch(60% 0 0)';
-  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  if (typeof window === 'undefined' || !_colorCtx) return 'var(--color-placeholder-grey)';
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  _colorCtx.clearRect(0, 0, 1, 1);
+  _colorCtx.fillStyle = raw;
+  _colorCtx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = _colorCtx.getImageData(0, 0, 1, 1).data;
+  return `${'rgb'}(${r},${g},${b})`;
 }
 
 /** Map status to color var */
@@ -35,19 +48,6 @@ const STATUS_COLOR_MAP: Record<InitiativeStatus, string> = {
   at_risk: '--color-status-at-risk',
   complete: '--color-status-complete',
 };
-
-/** Exposes sigma instance on window.__sigma in dev mode for benchmark scripts. */
-function BenchmarkRef() {
-  const sigma = useSigma();
-  useEffect(() => {
-    if (!import.meta.env.DEV) return undefined;
-    (window as typeof window & { __sigma?: unknown }).__sigma = sigma;
-    return () => {
-      delete (window as typeof window & { __sigma?: unknown }).__sigma;
-    };
-  }, [sigma]);
-  return null;
-}
 
 /**
  * GraphEventWiring — registers Sigma event handlers and node/edge reducers.
@@ -203,14 +203,15 @@ export default function GalaxyView() {
       {galaxyState === 'activated' && (
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Sigma canvas fills available space */}
-          <div className="flex-1 relative" style={{ minHeight: 0 }}>
+          <div className="flex-1 relative min-h-0">
             <SigmaContainer
               style={{
-                position: 'absolute',
-                inset: 0,
+                width: '100%',
+                height: '100%',
                 background: 'var(--color-galaxy-bg, oklch(8% 0 0))',
               }}
               settings={{
+                allowInvalidContainer: true,
                 labelColor: { color: 'oklch(70% 0 0)' },
                 labelSize: 11,
                 labelWeight: '500',
@@ -219,7 +220,6 @@ export default function GalaxyView() {
                 maxCameraRatio: 6,
                 defaultEdgeColor: 'oklch(35% 0 0)',
                 defaultEdgeType: 'line',
-                allowInvalidContainer: true,
               }}
             >
               {/* Loads graph + runs ForceAtlas2 in Web Worker */}
@@ -230,9 +230,6 @@ export default function GalaxyView() {
 
               {/* Event wiring and reducers */}
               <GraphEventWiring />
-
-              {/* Dev-only: expose sigma instance for benchmark scripts */}
-              <BenchmarkRef />
             </SigmaContainer>
 
             {/* Overlay controls — top right */}
@@ -252,6 +249,16 @@ export default function GalaxyView() {
               <TimeTravelBar />
             </div>
           )}
+
+          {/* First-visit orientation callout */}
+          <FirstVisitCallout
+            storageKey="ctx_os_visited_galaxy"
+            title="Your Initiative Galaxy"
+            description="Each node is an initiative — a coordinated effort. Click any node to open its detail. Use the overlay controls (top-right) to colour the galaxy by Load, Risk, Autonomy, or Ownership."
+          />
+
+          {/* Node type + status legend */}
+          <GalaxyLegend />
         </div>
       )}
 

@@ -1,15 +1,13 @@
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { StateCTA } from '@/design-system/primitives/StateCTA';
 
 /**
  * DecisionEmpty — shown when the decision graph view state is 'empty'.
  *
- * Renders a blank canvas with a centered organizational tree silhouette,
- * explanatory copy, and a CTA to manually capture a decision.
+ * Renders a blank canvas with a centered organizational tree silhouette
+ * and honest copy about how decisions enter the graph via briefing approvals.
  */
 export default function DecisionEmpty() {
-  const navigate = useNavigate();
 
   return (
     <motion.div
@@ -17,7 +15,8 @@ export default function DecisionEmpty() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, ease: [0.0, 0, 0.2, 1] }}
       data-state="empty"
-      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-[oklch(98%_0_0)]"
+      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
+      style={{ background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {/* Organizational tree silhouette */}
       <div
@@ -205,17 +204,25 @@ export default function DecisionEmpty() {
         transition={{ delay: 0.18, duration: 0.32, ease: [0.0, 0, 0.2, 1] }}
         className="relative z-10 flex flex-col items-center gap-6 px-6 text-center"
       >
+        <h1
+          className="text-lg font-semibold"
+          style={{ color: 'oklch(85% 0 0)' }}
+        >
+          Decisions accumulate over time
+        </h1>
         <p
           className="text-sm leading-relaxed max-w-sm"
-          style={{ color: 'oklch(45% 0 0)' }}
+          style={{ color: 'oklch(65% 0 0)' }}
         >
-          Organizational decisions will appear here as they&apos;re captured from meetings,
-          documents, and structured reviews.
+          Context-OS proposes decisions from briefing reviews — each approval
+          becomes a node here. After your first briefing cycle, decisions will
+          appear automatically.
         </p>
-
         <StateCTA
           label="Capture a decision manually"
-          onClick={() => navigate('/decisions/new')}
+          onClick={() => {
+            /* manual capture flow ships in a later phase */
+          }}
         />
       </motion.div>
     </motion.div>

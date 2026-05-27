@@ -145,6 +145,10 @@ class Settings(BaseSettings):
             "Clerk user ID that is allowed to access Platform Operator endpoints"
         ),
     )
+    dev_bypass_auth: bool = Field(
+        default=False,
+        description="Skip Clerk JWT; return a fixed dev tenant (local testing only)",
+    )
 
     @field_validator("encryption_key")
     @classmethod

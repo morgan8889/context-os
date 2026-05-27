@@ -1,152 +1,181 @@
-import { type ReactNode } from 'react';
-import { Outlet, NavLink, useMatch } from 'react-router-dom';
-import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { type ReactNode, type MouseEvent } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
+import { inboxKeys } from '@/lib/api/queryKeys';
+import { Tooltip } from '@/design-system/components/Tooltip';
+import type { ApiApprovalItem } from '@/types/api';
 
-interface NavItem {
-  to: string;
-  label: string;
-  description: string;
-  icon: ReactNode;
+interface InboxListResponse {
+  items: ApiApprovalItem[];
+  next_cursor: string | null;
 }
+
+async function fetchInboxCount(): Promise<InboxListResponse> {
+  const res = await apiClient.get<InboxListResponse>('/api/v1/inbox', {
+    params: { status: 'pending' },
+  });
+  return res.data;
+}
+
+const INBOX_QUERY_KEY = inboxKeys.list({ status: 'pending' });
+
+// ── Nav icons ─────────────────────────────────────────────────────────────────
 
 function GalaxyIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <circle cx="12" cy="12" r="8" strokeDasharray="2 3" />
-      <line x1="12" y1="4" x2="12" y2="9" />
-      <line x1="12" y1="15" x2="12" y2="20" />
-      <line x1="4" y1="12" x2="9" y2="12" />
-      <line x1="15" y1="12" x2="20" y2="12" />
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <circle cx="10" cy="10" r="2" />
+      <ellipse cx="10" cy="10" rx="8" ry="3" stroke="currentColor" strokeWidth="1.5" fill="none" transform="rotate(-30 10 10)" />
+      <ellipse cx="10" cy="10" rx="8" ry="3" stroke="currentColor" strokeWidth="1.5" fill="none" transform="rotate(30 10 10)" />
     </svg>
   );
 }
 
 function TopologyIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="9" width="6" height="6" rx="1" />
-      <rect x="16" y="4" width="6" height="6" rx="1" />
-      <rect x="16" y="14" width="6" height="6" rx="1" />
-      <line x1="8" y1="12" x2="16" y2="7" />
-      <line x1="8" y1="12" x2="16" y2="17" />
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <circle cx="10" cy="4" r="2" />
+      <circle cx="4" cy="15" r="2" />
+      <circle cx="16" cy="15" r="2" />
+      <line x1="10" y1="6" x2="4" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="10" y1="6" x2="16" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
 
 function DecisionsIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="2" width="6" height="5" rx="1" />
-      <rect x="2" y="17" width="6" height="5" rx="1" />
-      <rect x="16" y="17" width="6" height="5" rx="1" />
-      <line x1="12" y1="7" x2="12" y2="13" />
-      <line x1="12" y1="13" x2="5" y2="17" />
-      <line x1="12" y1="13" x2="19" y2="17" />
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="7" y="2" width="6" height="4" rx="1.5" fill="currentColor" />
+      <line x1="10" y1="6" x2="10" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="5" y1="9" x2="5" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="15" y1="9" x2="15" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="2" y="12" width="6" height="4" rx="1.5" fill="currentColor" />
+      <rect x="12" y="12" width="6" height="4" rx="1.5" fill="currentColor" />
     </svg>
   );
 }
 
 function InboxIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 13 16 13 14 16 10 16 8 13 2 13" />
-      <path d="M5.5 5.1L2 13v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-7.9A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.74 1.1z" />
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2 11h4l2 3h4l2-3h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    to: '/galaxy',
-    label: 'Galaxy',
-    description: 'Initiatives & signals',
-    icon: <GalaxyIcon />,
-  },
-  {
-    to: '/topology',
-    label: 'Topology',
-    description: 'Team workflows',
-    icon: <TopologyIcon />,
-  },
-  {
-    to: '/decisions',
-    label: 'Decisions',
-    description: 'Architectural decisions',
-    icon: <DecisionsIcon />,
-  },
-  {
-    to: '/inbox',
-    label: 'Inbox',
-    description: 'Pending approvals',
-    icon: <InboxIcon />,
-  },
-];
-
-function NavItemButton({ item }: { item: NavItem }) {
-  const isActive = Boolean(useMatch(item.to));
-  const base = 'flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-[150ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(65%_0.25_250)]';
-  const activeClass = 'bg-[oklch(65%_0.25_250/0.15)] text-[oklch(75%_0.2_250)]';
-  const inactiveClass = 'text-[oklch(55%_0_0)] hover:bg-white/5 hover:text-[oklch(75%_0_0)]';
-
+function HelpIcon() {
   return (
-    <RadixTooltip.Root>
-      <RadixTooltip.Trigger asChild>
-        <NavLink
-          to={item.to}
-          aria-label={item.label}
-          aria-current={isActive ? 'page' : undefined}
-          className={`${base} ${isActive ? activeClass : inactiveClass}`}
-        >
-          {item.icon}
-        </NavLink>
-      </RadixTooltip.Trigger>
-      <RadixTooltip.Portal>
-        <RadixTooltip.Content
-          side="right"
-          sideOffset={12}
-          className={[
-            'z-50 select-none rounded-md px-3 py-2',
-            'bg-[oklch(20%_0_0)] shadow-lg',
-            'data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0',
-            'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
-          ].join(' ')}
-        >
-          <p className="text-xs font-semibold text-[oklch(90%_0_0)]">{item.label}</p>
-          <p className="text-xs text-[oklch(60%_0_0)]">{item.description}</p>
-          <RadixTooltip.Arrow className="fill-[oklch(20%_0_0)]" />
-        </RadixTooltip.Content>
-      </RadixTooltip.Portal>
-    </RadixTooltip.Root>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+      <text x="8" y="12" textAnchor="middle" fontSize="9" fontWeight="600" fill="currentColor" fontFamily="sans-serif">?</text>
+    </svg>
   );
 }
 
-export default function AppShell() {
-  return (
-    <div className="flex h-screen">
-      {/* Fixed left sidebar */}
-      <nav
-        className="fixed left-0 top-0 z-40 flex h-full w-14 flex-col items-center border-r border-white/[0.06] bg-[oklch(11%_0_0)] py-3"
-        aria-label="Main navigation"
-      >
-        {/* Logo mark */}
-        <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-[oklch(65%_0.25_250/0.15)]">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="oklch(75% 0.2 250)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </div>
+// ── Nav item ──────────────────────────────────────────────────────────────────
 
-        {/* Nav items */}
-        <div className="flex flex-1 flex-col items-center gap-1">
-          {NAV_ITEMS.map((item) => (
-            <NavItemButton key={item.to} item={item} />
-          ))}
+interface NavItemProps {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  badge?: number;
+}
+
+function NavItem({ to, label, icon, badge }: NavItemProps) {
+  const { pathname } = useLocation();
+  const isActive = pathname === to || pathname.startsWith(to + '/');
+
+  return (
+    <Tooltip content={label} side="right" delayDuration={400}>
+      <NavLink
+        to={to}
+        aria-label={label}
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        style={{
+          color: isActive ? 'oklch(95% 0 0)' : 'oklch(50% 0 0)',
+          background: isActive ? 'oklch(100% 0 0 / 0.10)' : 'transparent',
+        }}
+      >
+        {icon}
+        {badge !== undefined && badge > 0 && (
+          <span
+            aria-label={`${badge} pending approvals`}
+            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold leading-none"
+            style={{
+              background: 'oklch(60% 0.22 25)',
+              color: 'oklch(100% 0 0)',
+            }}
+          >
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </NavLink>
+    </Tooltip>
+  );
+}
+
+// ── AppShell ──────────────────────────────────────────────────────────────────
+
+export default function AppShell() {
+  const location = useLocation();
+  const isInbox = location.pathname === '/inbox';
+
+  const { data } = useQuery({
+    queryKey: INBOX_QUERY_KEY,
+    queryFn: fetchInboxCount,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const pendingCount = data?.items?.length ?? 0;
+
+  return (
+    <div className="flex h-screen w-screen overflow-hidden">
+      {/* Sidebar */}
+      <nav
+        aria-label="Main navigation"
+        className="relative flex h-full shrink-0 flex-col items-center py-3 gap-1"
+        style={{
+          width: 56,
+          background: 'oklch(10% 0 0)',
+          borderRight: '1px solid oklch(100% 0 0 / 0.08)',
+          zIndex: 40,
+        }}
+      >
+        <NavItem to="/galaxy" label="Galaxy" icon={<GalaxyIcon />} />
+        <NavItem to="/topology" label="Topology" icon={<TopologyIcon />} />
+        <NavItem to="/decisions" label="Decisions" icon={<DecisionsIcon />} />
+        <NavItem
+          to="/inbox"
+          label="Inbox"
+          icon={<InboxIcon />}
+          badge={isInbox ? 0 : pendingCount}
+        />
+
+        {/* Help link pinned to bottom */}
+        <div className="mt-auto">
+          <Tooltip content="Docs coming soon" side="right" delayDuration={400}>
+            <a
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Documentation and help"
+              className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              style={{ color: 'oklch(40% 0 0)' }}
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => e.preventDefault()}
+            >
+              <HelpIcon />
+            </a>
+          </Tooltip>
         </div>
       </nav>
 
-      {/* Content area — offset by sidebar width */}
-      <main className="ml-14 flex-1 overflow-hidden">
+      {/* Content area */}
+      <main className="flex flex-1 flex-col overflow-hidden">
         <Outlet />
       </main>
     </div>

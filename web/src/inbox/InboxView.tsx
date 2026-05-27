@@ -6,12 +6,13 @@
  * mutations with optimistic updates.
  */
 
-import { useState } from 'react';
-import type { ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api/client';
 import { inboxKeys } from '@/lib/api/queryKeys';
+import { HintTooltip } from '@/design-system/primitives/HintTooltip';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import type { ApiApprovalItem } from '@/types/api';
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -99,6 +100,15 @@ function typeLabel(itemType: string): string {
   }
 }
 
+const TYPE_TOOLTIPS: Record<string, string> = {
+  briefing_draft:
+    'A weekly synthesis drafted by the Operational Synthesizer agent. Approve to schedule delivery; reject to flag an issue.',
+  proposed_dependency:
+    'A dependency relationship between two initiatives, inferred from your work signals. Approve to record in the graph.',
+  proposed_risk:
+    'A risk flag raised by the AI against a specific initiative. Approve to acknowledge; reject if it’s not applicable.',
+};
+
 // ── Skeleton card ─────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
@@ -163,13 +173,8 @@ function ApprovalCard({
 
   // Extract a human-readable summary from content
   const contentSummary =
-    typeof item.content['summary'] === 'string'
-      ? (item.content['summary'] as string)
-      : typeof item.content['title'] === 'string'
-        ? (item.content['title'] as string)
-        : typeof item.content['description'] === 'string'
-          ? (item.content['description'] as string)
-          : 'No summary available.';
+    [item.content['summary'], item.content['title'], item.content['description']]
+      .find((v): v is string => typeof v === 'string') ?? 'No summary available.';
 
   function handleRejectSubmit() {
     onReject(item.id, rejectReason);
@@ -194,15 +199,20 @@ function ApprovalCard({
     >
       {/* Header row: type badge + date */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span
-          className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
-          style={{
-            background: badgeStyle.background,
-            color: badgeStyle.color,
-            border: `1px solid ${badgeStyle.border}`,
-          }}
-        >
-          {typeLabel(item.item_type)}
+        <span className="inline-flex items-center">
+          <span
+            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{
+              background: badgeStyle.background,
+              color: badgeStyle.color,
+              border: `1px solid ${badgeStyle.border}`,
+            }}
+          >
+            {typeLabel(item.item_type)}
+          </span>
+          {TYPE_TOOLTIPS[item.item_type] && (
+            <HintTooltip content={TYPE_TOOLTIPS[item.item_type]} />
+          )}
         </span>
         <time
           dateTime={item.created_at}
@@ -215,9 +225,21 @@ function ApprovalCard({
 
       {/* Failure flags warning list */}
       {hasFailureFlags && (
-        <ul
-          className="flex flex-col gap-1 rounded-lg px-3 py-2"
+        <div
+          className="rounded-lg px-3 py-2"
           style={{ background: 'oklch(96% 0.06 55)', border: '1px solid oklch(82% 0.1 55)' }}
+        >
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs font-semibold" style={{ color: 'oklch(40% 0.15 55)' }}>
+              Failure flags
+            </span>
+            <HintTooltip
+              content="Failure flags are quality checks the AI ran on its own draft. They don't block approval — they're signals to review before deciding."
+              side="right"
+            />
+          </div>
+        <ul
+          className="flex flex-col gap-1"
           aria-label="AI failure flags"
         >
           {item.failure_flags!.map((flag, i) => (
@@ -233,6 +255,7 @@ function ApprovalCard({
             </li>
           ))}
         </ul>
+        </div>
       )}
 
       {/* Content summary */}
@@ -390,6 +413,197 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
+// ── Generate Briefing ─────────────────────────────────────────────────────────
+
+type BriefingStatus = 'idle' | 'generating' | 'done' | 'error';
+
+interface BriefingStatusResponse {
+  status: string;
+  run_id: string;
+}
+
+function GenerateBriefingButton({ onDone }: { onDone: () => void }) {
+  const [status, setStatus] = useState<BriefingStatus>('idle');
+  const [msg, setMsg] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  async function handleGenerate() {
+    setStatus('generating');
+    setMsg(null);
+    try {
+      const res = await apiClient.post<{ run_id: string }>('/api/v1/briefing/generate', {});
+      const runId = res.data.run_id;
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await apiClient.get<BriefingStatusResponse>(
+            `/api/v1/briefing/status/${runId}`
+          );
+          if (statusRes.data.status === 'completed' || statusRes.data.status === 'approved') {
+            clearInterval(pollRef.current!);
+            setStatus('done');
+            setMsg('Briefing ready — check the list below.');
+            onDone();
+            setTimeout(() => { setStatus('idle'); setMsg(null); }, 4000);
+          } else if (statusRes.data.status === 'failed') {
+            clearInterval(pollRef.current!);
+            setStatus('error');
+            setMsg('Briefing generation failed.');
+          }
+        } catch {
+          clearInterval(pollRef.current!);
+          setStatus('error');
+          setMsg('Could not check briefing status.');
+        }
+      }, 3000);
+    } catch (err) {
+      setStatus('error');
+      const detail = err instanceof Error ? err.message : 'Unknown error';
+      setMsg(
+        detail.includes('404') || detail.includes('no ingest')
+          ? 'Connect GitHub first to generate a briefing.'
+          : detail
+      );
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={handleGenerate}
+        disabled={status === 'generating'}
+        className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2"
+        style={{
+          background: status === 'done' ? 'oklch(45% 0.12 145)' : 'oklch(55% 0.2 250)',
+          color: 'oklch(97% 0 0)',
+          opacity: status === 'generating' ? 0.6 : 1,
+          cursor: status === 'generating' ? 'default' : 'pointer',
+        }}
+      >
+        {status === 'generating' ? 'Generating…' : status === 'done' ? 'Done' : 'Generate Briefing'}
+      </button>
+      {msg && (
+        <p
+          className="text-xs"
+          style={{ color: status === 'error' ? 'oklch(55% 0.2 25)' : 'oklch(45% 0.15 145)' }}
+        >
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Log Signal ────────────────────────────────────────────────────────────────
+
+const SIGNAL_TYPES = [
+  { value: 'observation', label: 'Observation' },
+  { value: 'risk', label: 'Risk' },
+  { value: 'blocker', label: 'Blocker' },
+  { value: 'decision', label: 'Decision' },
+] as const;
+
+type SignalType = typeof SIGNAL_TYPES[number]['value'];
+
+function LogSignalForm() {
+  const [expanded, setExpanded] = useState(false);
+  const [content, setContent] = useState('');
+  const [signalType, setSignalType] = useState<SignalType>('observation');
+  const [logStatus, setLogStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+  async function handleLog() {
+    if (!content.trim()) return;
+    setLogStatus('saving');
+    try {
+      await apiClient.post('/api/v1/graph/signals', {
+        content: content.trim(),
+        signal_type: signalType,
+      });
+      setLogStatus('done');
+      setContent('');
+      setTimeout(() => { setLogStatus('idle'); setExpanded(false); }, 2500);
+    } catch {
+      setLogStatus('error');
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
+        style={{
+          background: 'oklch(96% 0 0)',
+          color: 'oklch(35% 0 0)',
+          border: '1px solid oklch(87% 0 0)',
+        }}
+      >
+        Log Signal
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-4 flex flex-col gap-3"
+      style={{ background: 'oklch(99% 0 0)', borderColor: 'oklch(90% 0 0)' }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold" style={{ color: 'oklch(20% 0 0)' }}>
+          Log a signal
+        </span>
+        <button
+          onClick={() => { setExpanded(false); setContent(''); setLogStatus('idle'); }}
+          className="text-xs"
+          style={{ color: 'oklch(55% 0 0)' }}
+        >
+          Cancel
+        </button>
+      </div>
+      <textarea
+        rows={3}
+        placeholder="What's happening? e.g. &quot;Customer escalated billing issue&quot;"
+        value={content}
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+        className="w-full resize-none rounded-lg border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[oklch(60%_0.2_250)]"
+        style={{ background: 'oklch(99% 0 0)', borderColor: 'oklch(85% 0 0)', color: 'oklch(15% 0 0)' }}
+      />
+      <div className="flex items-center gap-3">
+        <select
+          value={signalType}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setSignalType(e.target.value as SignalType)}
+          className="rounded-lg border px-2.5 py-1.5 text-sm focus-visible:outline-none"
+          style={{ background: 'oklch(98% 0 0)', borderColor: 'oklch(85% 0 0)', color: 'oklch(20% 0 0)' }}
+        >
+          {SIGNAL_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleLog}
+          disabled={logStatus === 'saving' || !content.trim()}
+          className="rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50"
+          style={{ background: 'oklch(55% 0.2 250)', color: 'oklch(97% 0 0)' }}
+        >
+          {logStatus === 'saving' ? 'Saving…' : logStatus === 'done' ? 'Logged' : 'Log'}
+        </button>
+      </div>
+      {logStatus === 'done' && (
+        <p className="text-xs" style={{ color: 'oklch(45% 0.15 145)' }}>
+          Signal logged — it will inform your next briefing.
+        </p>
+      )}
+      {logStatus === 'error' && (
+        <p className="text-xs" style={{ color: 'oklch(55% 0.2 25)' }}>
+          Failed to log signal. Try again.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export default function InboxView() {
@@ -408,9 +622,9 @@ export default function InboxView() {
     staleTime: 30_000,
   });
 
-  const approveMutation = useMutation({
-    mutationFn: ({ id }: { id: string }) => approveItem(id),
-    onMutate: async ({ id }) => {
+  // Shared optimistic-removal callbacks for approve/reject mutations.
+  const optimisticRemove = {
+    onMutate: async ({ id }: { id: string }) => {
       await qc.cancelQueries({ queryKey });
       const prev = qc.getQueryData<InboxListResponse>(queryKey);
       if (prev) {
@@ -419,36 +633,25 @@ export default function InboxView() {
           items: prev.items.filter((item) => item.id !== id),
         });
       }
-      return { prev };
+      return prev ? { prev } : {};
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: unknown, _vars: unknown, ctx: { prev?: InboxListResponse } | undefined) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey });
     },
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id }: { id: string }) => approveItem(id),
+    ...optimisticRemove,
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       rejectItem(id, reason),
-    onMutate: async ({ id }) => {
-      await qc.cancelQueries({ queryKey });
-      const prev = qc.getQueryData<InboxListResponse>(queryKey);
-      if (prev) {
-        qc.setQueryData<InboxListResponse>(queryKey, {
-          ...prev,
-          items: prev.items.filter((item) => item.id !== id),
-        });
-      }
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey });
-    },
+    ...optimisticRemove,
   });
 
   const items = data?.items ?? [];
@@ -467,16 +670,30 @@ export default function InboxView() {
           borderColor: 'oklch(91% 0 0)',
         }}
       >
-        <h1 className="text-base font-semibold" style={{ color: 'oklch(12% 0 0)' }}>
-          Inbox
-        </h1>
-        <p className="mt-0.5 text-xs" style={{ color: 'oklch(50% 0 0)' }}>
-          Review and approve AI-generated drafts before they enter the knowledge graph.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-base font-semibold" style={{ color: 'oklch(12% 0 0)' }}>
+              Inbox
+            </h1>
+            <p className="mt-0.5 text-xs" style={{ color: 'oklch(50% 0 0)' }}>
+              Review and approve AI-generated drafts before they enter the knowledge graph.
+            </p>
+          </div>
+          <div className="flex items-start gap-2 shrink-0 pt-0.5">
+            <GenerateBriefingButton onDone={() => qc.invalidateQueries({ queryKey })} />
+            <LogSignalForm />
+          </div>
+        </div>
       </header>
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* First-visit view orientation callout */}
+        <FirstVisitCallout
+          storageKey="ctx_os_visited_inbox"
+          title="Your Approval Queue"
+          description="Context-OS drafts briefings, proposes dependencies, and flags risks for your review. Approve to add to the knowledge graph; reject with a reason to send back to the AI."
+        />
         {isLoading && (
           <div className="flex flex-col gap-4 max-w-2xl mx-auto" aria-busy="true" aria-label="Loading inbox items">
             <SkeletonCard />
@@ -496,32 +713,42 @@ export default function InboxView() {
         {!isLoading && !isError && items.length === 0 && <EmptyState />}
 
         {!isLoading && !isError && items.length > 0 && (
-          <ul
-            className="flex flex-col gap-4 max-w-2xl mx-auto"
-            aria-label="Pending approval items"
-          >
-            <AnimatePresence mode="popLayout">
-              {items.map((item) => (
-                <li key={item.id} className="list-none">
-                  <ApprovalCard
-                    item={item}
-                    onApprove={(id) => approveMutation.mutate({ id })}
-                    onReject={(id, reason) =>
-                      rejectMutation.mutate({ id, reason })
-                    }
-                    isApproving={
-                      approveMutation.isPending &&
-                      approveMutation.variables?.id === item.id
-                    }
-                    isRejecting={
-                      rejectMutation.isPending &&
-                      rejectMutation.variables?.id === item.id
-                    }
-                  />
-                </li>
-              ))}
-            </AnimatePresence>
-          </ul>
+          <>
+            {/* First-approval orientation hint (shown above the list, only once) */}
+            <FirstVisitCallout
+              storageKey="ctx_os_inbox_hint"
+              title="Your first approval"
+              description="Read the summary, check for failure flags, then approve or reject with a reason."
+              position="bottom-center"
+            />
+
+            <ul
+              className="flex flex-col gap-4 max-w-2xl mx-auto"
+              aria-label="Pending approval items"
+            >
+              <AnimatePresence mode="popLayout">
+                {items.map((item) => (
+                  <li key={item.id} className="list-none">
+                    <ApprovalCard
+                      item={item}
+                      onApprove={(id) => approveMutation.mutate({ id })}
+                      onReject={(id, reason) =>
+                        rejectMutation.mutate({ id, reason })
+                      }
+                      isApproving={
+                        approveMutation.isPending &&
+                        approveMutation.variables?.id === item.id
+                      }
+                      isRejecting={
+                        rejectMutation.isPending &&
+                        rejectMutation.variables?.id === item.id
+                      }
+                    />
+                  </li>
+                ))}
+              </AnimatePresence>
+            </ul>
+          </>
         )}
       </div>
     </div>

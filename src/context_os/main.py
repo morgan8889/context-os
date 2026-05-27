@@ -133,10 +133,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ── CORS (dev: allow Vite dev server) ────────────────────────────────────
+    # ── CORS ──────────────────────────────────────────────────────────────────
+    # Allow any localhost origin for local dev (Vite picks an available port).
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000"],
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -167,6 +168,7 @@ def create_app() -> FastAPI:
 
     from context_os.api.admin import router as admin_router
     from context_os.api.briefing import router as briefing_router
+    from context_os.api.decisions_api import router as decisions_router
     from context_os.api.dev_router import router as dev_router
     from context_os.api.eval_api import router as eval_router
     from context_os.api.graph import router as graph_router
@@ -177,6 +179,8 @@ def create_app() -> FastAPI:
     from context_os.api.onboarding import router as onboarding_router
     from context_os.api.support import router as support_router
     from context_os.api.vector import router as vector_router
+    from context_os.api.views import router as views_router
+    from context_os.api.workflows import router as workflows_router
 
     app.include_router(ingest_router, prefix="/ingest", tags=["Ingest"])
     app.include_router(graph_router, prefix="/graph", tags=["Graph"])
@@ -190,6 +194,24 @@ def create_app() -> FastAPI:
     app.include_router(onboarding_router, prefix="/onboarding", tags=["Onboarding"])
     app.include_router(oauth_router, prefix="/oauth", tags=["OAuth"])
     app.include_router(support_router, tags=["Support"])
+
+    api_v1_routers = [
+        (ingest_router, "/api/v1/ingest", "Ingest"),
+        (graph_router, "/api/v1/graph", "Graph"),
+        (vector_router, "/api/v1/vector", "Vector"),
+        (admin_router, "/api/v1/admin", "Admin"),
+        (briefing_router, "/api/v1/briefing", "Briefing"),
+        (inbox_router, "/api/v1/inbox", "Inbox"),
+        (mapper_router, "/api/v1/mapper", "Mapper"),
+        (eval_router, "/api/v1/eval", "Eval"),
+        (views_router, "/api/v1/views", "Views"),
+        (workflows_router, "/api/v1/workflows", "Workflows"),
+        (decisions_router, "/api/v1/decisions", "Decisions"),
+        (onboarding_router, "/api/v1/onboarding", "Onboarding"),
+        (oauth_router, "/api/v1/oauth", "OAuth"),
+    ]
+    for router_obj, prefix, tag in api_v1_routers:
+        app.include_router(router_obj, prefix=prefix, tags=[tag])
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:

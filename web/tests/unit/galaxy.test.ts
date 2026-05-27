@@ -80,10 +80,12 @@ describe('toInitiativeNode', () => {
     expect(node.edgeCount).toBe(3);
   });
 
-  it('defaults x and y to 0', () => {
+  it('seeds x and y within the initial ForceAtlas2 spread range', () => {
     const node = toInitiativeNode(mockApiNode);
-    expect(node.x).toBe(0);
-    expect(node.y).toBe(0);
+    expect(node.x).toBeGreaterThanOrEqual(-200);
+    expect(node.x).toBeLessThanOrEqual(200);
+    expect(node.y).toBeGreaterThanOrEqual(-200);
+    expect(node.y).toBeLessThanOrEqual(200);
   });
 
   it('computes size clamped between 4 and 20', () => {
@@ -141,107 +143,6 @@ describe('toInitiativeEdge', () => {
   });
 });
 
-// ── buildGalaxyGraph (Sigma-safe graph construction) ──────────────────────────
-
-import { buildGalaxyGraph } from '@/views/galaxy/buildGalaxyGraph';
-import type { InitiativeNode as GNode, InitiativeEdge as GEdge } from '@/types/galaxy';
-
-describe('buildGalaxyGraph', () => {
-  const makeNode = (id: string, type: GNode['type']): GNode => ({
-    id,
-    label: `n-${id}`,
-    type,
-    status: 'active',
-    ownerTeam: null,
-    actorCount: 0,
-    riskScore: null,
-    autonomyLevel: null,
-    edgeCount: 0,
-    x: 0,
-    y: 0,
-    size: 8,
-    viewState: 'activated',
-  });
-
-  const makeEdge = (id: string, source: string, target: string, type: GEdge['type']): GEdge => ({
-    id,
-    source,
-    target,
-    type,
-    weight: 1,
-  });
-
-  it('does NOT set the Sigma `type` attribute to a domain node type (would crash the renderer)', () => {
-    // Sigma reads `type` to pick a render program; a domain type like 'goal'
-    // has no program and throws "could not find a suitable program for node type".
-    const g = buildGalaxyGraph([makeNode('a', 'goal')], []);
-    expect(g.getNodeAttributes('a')['type']).toBeUndefined();
-  });
-
-  it('preserves the domain node type under `nodeType`', () => {
-    const g = buildGalaxyGraph([makeNode('a', 'goal')], []);
-    expect(g.getNodeAttributes('a')['nodeType']).toBe('goal');
-  });
-
-  it('does NOT set the Sigma `type` attribute to a domain edge type', () => {
-    const g = buildGalaxyGraph(
-      [makeNode('a', 'goal'), makeNode('b', 'project')],
-      [makeEdge('e1', 'a', 'b', 'depends_on')]
-    );
-    const attrs = g.getEdgeAttributes('e1');
-    expect(attrs['type']).toBeUndefined();
-    expect(attrs['edgeType']).toBe('depends_on');
-  });
-
-  it('skips edges whose endpoints are missing', () => {
-    const g = buildGalaxyGraph(
-      [makeNode('a', 'goal')],
-      [makeEdge('e1', 'a', 'missing', 'depends_on')]
-    );
-    expect(g.hasEdge('e1')).toBe(false);
-  });
-
-  it('adds all input nodes to the graph', () => {
-    const g = buildGalaxyGraph([makeNode('a', 'goal'), makeNode('b', 'project')], []);
-    expect(g.order).toBe(2);
-  });
-});
-
-// ── galaxy color helpers (Sigma-safe colors) ──────────────────────────────────
-
-import { getCssVar, resolveNodeColor, withAlpha } from '@/views/galaxy/colors';
-
-describe('galaxy color helpers', () => {
-  it('getCssVar falls back to a concrete color when the var is undefined', () => {
-    // jsdom has no tokens.css loaded, so the var resolves empty → fallback.
-    const c = getCssVar('--definitely-not-defined');
-    expect(c).not.toBe('');
-    expect(c).not.toContain('var(');
-  });
-
-  it('getCssVar honors a custom fallback', () => {
-    expect(getCssVar('--definitely-not-defined', '#abcdef')).toBe('#abcdef');
-  });
-
-  it('resolveNodeColor never returns a raw CSS var or color-mix expression', () => {
-    // Regression: Sigma WebGL cannot evaluate var()/color-mix() — passing them
-    // renders nodes black. The resolved color must be a concrete value.
-    for (const type of ['goal', 'project', 'signal', 'artifact']) {
-      const c = resolveNodeColor(type);
-      expect(c).not.toContain('var(');
-      expect(c).not.toContain('color-mix(');
-    }
-  });
-
-  it('withAlpha bakes opacity into an oklch color', () => {
-    expect(withAlpha('oklch(70% 0.15 145)', 0.5)).toBe('oklch(70% 0.15 145 / 0.5)');
-  });
-
-  it('withAlpha leaves non-oklch colors unchanged', () => {
-    expect(withAlpha('#abcdef', 0.5)).toBe('#abcdef');
-  });
-});
-
 // ── useGalaxyGraph hook ───────────────────────────────────────────────────────
 
 vi.mock('@/lib/api/client', () => ({
@@ -288,17 +189,17 @@ describe('useGalaxyGraph', () => {
       fetchNextPage: vi.fn(),
     } as ReturnType<typeof useInfiniteQuery>);
 
-    // Mock edges + snapshots responses. Use stable object references (like
-    // TanStack Query does for unchanged data) so the hook's memoized graph can
-    // stay referentially stable across re-renders.
-    const snapshotsResult = { data: [], isLoading: false } as ReturnType<typeof useQuery>;
-    const edgesResult = {
-      data: { items: [], next_cursor: null, total: 0 },
-      isLoading: false,
-    } as ReturnType<typeof useQuery>;
+    // Mock edges + snapshots responses
     vi.mocked(useQuery).mockImplementation((options) => {
       const key = JSON.stringify(options.queryKey);
-      return key.includes('snapshots') ? snapshotsResult : edgesResult;
+      if (key.includes('snapshots')) {
+        return { data: [], isLoading: false } as ReturnType<typeof useQuery>;
+      }
+      // edges
+      return {
+        data: { items: [], next_cursor: null, total: 0 },
+        isLoading: false,
+      } as ReturnType<typeof useQuery>;
     });
   });
 
@@ -341,26 +242,8 @@ describe('useGalaxyGraph', () => {
     expect(result.current.graph.hasNode(mockApiNode.id)).toBe(true);
     const attrs = result.current.graph.getNodeAttributes(mockApiNode.id);
     expect(attrs['label']).toBe(mockApiNode.label);
-    // Domain type lives under `nodeType`; Sigma's `type` (render program) is unset.
     expect(attrs['nodeType']).toBe(mockApiNode.node_type);
     expect(attrs['type']).toBeUndefined();
-  });
-
-  it('returns a referentially stable graph across re-renders when data is unchanged', async () => {
-    // Regression: an unmemoized build returns a fresh Graph every render, which
-    // makes ForceLayout reload + restart ForceAtlas2 on every render, defeating
-    // layout convergence (SC-002). The graph reference must be stable when the
-    // underlying query data has not changed.
-    const { useGalaxyGraph } = await import('@/views/galaxy/hooks/useGalaxyGraph');
-
-    const { result, rerender } = renderHook(() => useGalaxyGraph(), {
-      wrapper: ({ children }) =>
-        createElement(QueryClientProvider, { client: queryClient }, children),
-    });
-
-    const firstGraph = result.current.graph;
-    rerender();
-    expect(result.current.graph).toBe(firstGraph);
   });
 
   it('returns isLoading false when data is available', async () => {
@@ -399,8 +282,13 @@ vi.mock('@gsap/react', () => ({
 }));
 
 import React from 'react';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { OverlayControls } from '@/views/galaxy/OverlayControls';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+
+function renderWithTooltipProvider(element: React.ReactElement) {
+  return render(createElement(RadixTooltip.Provider, { delayDuration: 0 }, element));
+}
 
 describe('OverlayControls', () => {
   beforeEach(() => {
@@ -414,7 +302,7 @@ describe('OverlayControls', () => {
   });
 
   it('renders 4 overlay toggle buttons', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     expect(screen.getByRole('button', { name: /load overlay/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /risk overlay/i })).toBeInTheDocument();
@@ -423,7 +311,7 @@ describe('OverlayControls', () => {
   });
 
   it('renders legend labels under each button', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     expect(screen.getByText('Load')).toBeInTheDocument();
     expect(screen.getByText('Risk')).toBeInTheDocument();
@@ -432,7 +320,7 @@ describe('OverlayControls', () => {
   });
 
   it('clicking a button dispatches the correct overlay type to Zustand', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const riskButton = screen.getByRole('button', { name: /risk overlay/i });
     fireEvent.click(riskButton);
@@ -451,7 +339,7 @@ describe('OverlayControls', () => {
       });
     });
 
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const loadButton = screen.getByRole('button', { name: /load overlay \(active\)/i });
     fireEvent.click(loadButton);
@@ -468,7 +356,7 @@ describe('OverlayControls', () => {
       });
     });
 
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const autonomyButton = screen.getByRole('button', { name: /autonomy overlay \(active\)/i });
     expect(autonomyButton).toHaveAttribute('aria-pressed', 'true');

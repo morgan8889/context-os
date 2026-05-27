@@ -24,8 +24,8 @@ function ActivatingGraphLoader({
   // Wire up ForceAtlas2 in Web Worker
   const { start, stop } = useWorkerLayoutForceAtlas2({
     settings: {
-      slowDown: 10,
-      gravity: 1.0,
+      slowDown: 3,
+      gravity: 0.05,
       scalingRatio: 2.0,
     },
   });

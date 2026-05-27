@@ -1,108 +1,52 @@
-# Final Code Simplification Pass — Phase 4 Closed-Beta Readiness
+# Code Simplifier Pass — 5-goal-driven-ux
 
-Branch: `4-closed-beta-readiness`
-Date: 2026-05-21
+## Files Reviewed
 
-## Scope
+- `/Users/nick/Code/context-os/src/context_os/api/admin.py`
+- `/Users/nick/Code/context-os/src/context_os/api/graph.py`
+- `/Users/nick/Code/context-os/src/context_os/api/ingest.py`
+- `/Users/nick/Code/context-os/src/context_os/ingestion/github/normalizer.py`
+- `/Users/nick/Code/context-os/web/src/views/onboarding/OnboardingView.tsx`
+- `/Users/nick/Code/context-os/web/src/inbox/InboxView.tsx`
 
-Reviewed all 10 designated Phase 4 files for safe, behaviour-preserving
-simplifications. Four files received changes; six were already clean and were
-left untouched.
+## Changes Applied
 
-## Verification
+### `src/context_os/api/admin.py`
+- Collapsed `_node_to_response` intermediate locals into a single `GraphNodeResponse(...)` construction; moved `base_fields` to the top where it is actually used.
+- Tightened `list_entities` return: dropped trailing 5-line constructor and added explicit `items: list[GraphNodeResponse]` typing.
 
-- **Tests**: `41 passed, 2 failed`. The 2 failures
-  (`test_oauth.py::TestOAuthCallback::test_callback_expired_state_returns_400`
-  and `test_valid_callback_updates_connected_integrations`) are **pre-existing**
-  and unrelated to this pass — they fail identically on the unmodified branch
-  HEAD and stem from mock-setup issues in the test file, not in `oauth.py`. No
-  new failures were introduced.
-- **Type checking**: `pyright` reports `0 errors` on all changed files.
-- **Lint/format**: `ruff check` and `ruff format --check` pass on all changed
-  files.
+### `src/context_os/api/graph.py`
+- `_props_to_api_node`: hoisted `autonomy_level` computation out of the `ApiNodeResponse(...)` call. The original wrapped `_safe_int(...)` inside an `if ... else None` conditional inline, which was hard to scan and double-called `props.get`.
+- `list_nodes`: replaced 4-line `try/int(cursor)/except ValueError/offset=0` with one-line `_safe_int(cursor, 0)`; replaced 4-line append-loop with a single list comprehension; collapsed `next_cursor` 3-line conditional into one line.
 
-Net change: **+49 / -72 lines** across 4 files.
+### `src/context_os/api/ingest.py`
+- Removed unhelpful trailing comment `# simplified: count all as created` next to `nodes_created += 1` (the comment described the code, not the why).
 
-## Files changed
+### `src/context_os/ingestion/github/normalizer.py`
+- `milestone_to_goal`: replaced 3-line `status_map = {...}; status = status_map.get(state, "open")` with a single conditional expression. Open is the only non-closed state for GitHub milestones, so `{"open": "open", "closed": "done"}` was equivalent.
+- `issue_to_signal_or_artifact`: extracted shared base fields (`id`, `tenant_id`, `source`, `source_id`, `fetch_ts`, `created_at`, `updated_at`, `url`) into a `base` dict; both branches now spread it. Removed `state = ...` intermediate and `else` (early return). Output identical.
 
-### 1. `src/context_os/auth/dependencies.py`
+### `web/src/views/onboarding/OnboardingView.tsx`
+- `GitHubConnectTab`: replaced a 4-level nested ternary in `style.background` and a separate 4-branch ternary for the button label with named `buttonBg` / `buttonLabel` derived above the JSX. Added `hasToken` and `disabled` helpers used by `disabled`, `cursor`, and `color` props.
+- `SampleDataTab`: inverted the `cursor` ternary (`'pointer' : 'default'` based on `idle/error` states) to remove the duplicated `status === 'loading' || status === 'done'` expression on the button.
 
-What was complex: the impersonation header branch created three separate
-session factories (`factory`, `factory2`, `factory3`) for sequential lookups,
-and caught exceptions with the redundant `except (pyjwt.InvalidTokenError,
-Exception)`.
+### `web/src/inbox/InboxView.tsx`
+- Replaced `contentSummary` 3-deep nested ternary checking `summary` / `title` / `description` with a single `.find(...)` over the candidate array.
+- Extracted shared `onMutate` / `onError` / `onSettled` callbacks for `approveMutation` and `rejectMutation` into one `optimisticRemove` object spread into both — was ~30 lines of duplicated code.
 
-Changes:
-- Reused the already-bound `factory` for both impersonation sessions instead of
-  creating `factory2` / `factory3` (identical objects — `get_session_factory()`
-  returns the same factory each call).
-- Simplified `except (pyjwt.InvalidTokenError, Exception)` to `except
-  Exception` (`Exception` already subsumes `InvalidTokenError`).
-- Removed the now-unused `import jwt as pyjwt`.
+## Summary
 
-Trade-offs: none — behaviour identical, fewer names to track.
+Six files, net **-50 lines** (75 insertions, 125 deletions). All changes are
+behavior-preserving — verified by:
 
-### 2. `src/context_os/api/support.py`
+- `ruff check` — clean on all changed Python files.
+- `pyright` — 0 errors, 0 warnings on all changed Python files.
+- `tsc --noEmit` (web) — passes with zero errors in strict mode.
+- `pytest tests/unit/test_normalizers.py` — same 6 pre-existing failures
+  before and after (verified by stash + re-run). No regressions introduced
+  by this pass.
 
-What was complex: two endpoints (`get_debug_trace`, `export_debug_trace`)
-duplicated an identical ~14-line span-serialisation dict literal, and three
-imports (`datetime`, `jwt as pyjwt`, `json`) were declared function-locally.
-
-Changes:
-- Extracted `_trace_to_dict(trace)` helper and used it in both trace endpoints,
-  removing the duplicated span-serialisation block.
-- Hoisted the function-local imports (`json`, `datetime`/`UTC`/`timedelta`,
-  `jwt as pyjwt`) to module level.
-
-Trade-offs: none — single source of truth for trace serialisation.
-
-### 3. `src/context_os/api/onboarding.py`
-
-What was complex: `post_activation` defined a defensive `_ts` closure that did
-`mapping.get(key) if hasattr(mapping, "get") else None` plus `str(...)`
-coercion, guarding against a non-dict that the JSONB columns can never be.
-
-Changes:
-- Removed the `_ts` closure; read step timestamps directly via
-  `started.get(...)` / `completed.get(...)` after a `or {}` default.
-- Widened `_compute_ms` signature to accept `object` (the real type of JSONB
-  values) and coerce internally with `str(...)`, so the simplification stays
-  fully type-safe under `pyright`.
-
-Trade-offs: `_compute_ms` parameter type is now `object` rather than `str |
-None`, which honestly reflects the JSONB-sourced inputs and keeps parsing
-guarded.
-
-### 4. `src/context_os/api/oauth.py`
-
-What was complex: `_provider_auth_url` repeated the dev mock-callback URL
-literal in four places with hard-coded `source=jira` / `source=github` strings.
-
-Changes:
-- Computed `mock_url` once at the top and returned it from every fallback path.
-- Collapsed the redundant `if source == "slack"` plus the trailing unknown-
-  source return into a single fallback `return mock_url` with a clarifying
-  comment.
-
-Trade-offs: none — for the jira/github branches the literal `source=jira` /
-`source=github` is provably equal to `source={source}` (the branch only runs
-when `source` holds exactly that value).
-
-## Files reviewed, left unchanged (already clean)
-
-- `src/context_os/services/onboarding_service.py` — clear state machine, well-
-  documented, idempotent transitions. The `_apply_step_data` "connect → stores
-  survey_answer" branch is intentional (survey payload arrives with the connect
-  transition); left as-is to avoid behaviour change.
-- `src/context_os/services/email_service.py` — straightforward; `_build_html`
-  is template assembly that does not benefit from further decomposition.
-- `src/context_os/services/ingest_service.py` — `mark_complete` best-effort
-  side-effects (email + onboarding advance) are correctly isolated in
-  try/except; the inline OnboardingSession lookup is justified (no public
-  find-by-tenant method that avoids creating a session).
-- `src/context_os/auth/impersonation.py` — concise issue/verify/revoke; nothing
-  to remove.
-- `src/context_os/api/admin.py` — Pydantic schemas + two PO-only endpoints are
-  appropriately structured; the `list_entities` log-and-reraise preserves
-  useful failure context.
-- `src/context_os/api/admin_funnel.py` — single well-tested helper; clean.
+The two highest-leverage fixes were the 30-line mutation-callback
+deduplication in `InboxView.tsx` and the nested-ternary unwinding in
+`OnboardingView.tsx` — both materially improve scanability without changing
+any observed behavior, prop semantics, or API shapes.

@@ -1,6 +1,8 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useGSAP } from '@gsap/react';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
+import { useViewState } from '@/lib/api/viewState';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -15,7 +17,6 @@ import '@xyflow/react/dist/style.css';
 
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { animateStateEnter } from '@/lib/animations/stateTransitions';
-import { useViewState } from '@/lib/api/viewState';
 import { useTopologyData } from './hooks/useTopologyData';
 import { useTopologyFilters } from './hooks/useTopologyFilters';
 import TopologyEmpty from './TopologyEmpty';
@@ -244,6 +245,7 @@ function LoadingState() {
  */
 export default function TopologyView() {
   useViewState();
+
   const viewStates = useGraphInteractionStore((s) => s.viewStates);
   const topologyViewState = viewStates.topology.state;
   const workflowCount = viewStates.topology.workflowCount;
@@ -273,23 +275,35 @@ export default function TopologyView() {
     <div
       ref={containerRef}
       data-view={`topology-${topologyViewState}`}
-      className="relative flex h-full w-full flex-col overflow-hidden bg-white"
+      className="relative flex h-full w-full flex-col overflow-hidden"
+      style={{ background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {topologyViewState === 'empty' && <TopologyEmpty />}
 
       {topologyViewState === 'activating' && (
-        <TopologyActivating workflowCount={workflowCount} partialNodes={isLoading ? [] : nodes} />
+        isLoading ? <LoadingState /> : (
+          <TopologyActivating workflowCount={workflowCount} partialNodes={nodes} />
+        )
       )}
 
       {topologyViewState === 'activated' && (
-        <ReactFlowProvider>
-          <ActivatedTopologyCanvas
-            nodes={isLoading ? [] : nodes}
-            edges={isLoading ? [] : edges}
-            workflows={isLoading ? [] : workflows}
-            filteredWorkflowIds={filteredWorkflowIds}
-          />
-        </ReactFlowProvider>
+        isLoading ? <LoadingState /> : (
+          <>
+            <ReactFlowProvider>
+              <ActivatedTopologyCanvas
+                nodes={nodes}
+                edges={edges}
+                workflows={workflows}
+                filteredWorkflowIds={filteredWorkflowIds}
+              />
+            </ReactFlowProvider>
+            <FirstVisitCallout
+              storageKey="ctx_os_visited_topology"
+              title="Workflow Topology"
+              description="Shows how work moves across your team. Each row in the sidebar is a workflow; click it to navigate the canvas to that workflow. Status colours show where things are flowing or blocked."
+            />
+          </>
+        )
       )}
     </div>
   );

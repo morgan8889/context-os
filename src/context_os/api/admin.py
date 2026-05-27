@@ -1,8 +1,9 @@
 """Admin API endpoints for entity inspection and onboarding funnel analytics.
 
-GET /admin/entities           — list all normalized entities for the tenant
-GET /admin/funnel             — onboarding funnel report (Platform Operator only)
-GET /admin/survey-responses   — raw survey answers (Platform Operator only)
+GET  /admin/entities                         — list all normalized entities
+POST /admin/integrations/github/connect      — store a GitHub PAT
+GET  /admin/funnel                           — onboarding funnel report
+GET  /admin/survey-responses                 — raw survey answers
 
 Protected routes use require_platform_operator().
 """
@@ -12,19 +13,21 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select, text
 
 from context_os.api.admin_funnel import build_funnel_rows
 from context_os.auth.dependencies import (
     TenantContext,
+    get_current_tenant,
     require_platform_operator,
 )
 from context_os.db.engine import get_session_factory
 from context_os.db.models import ActivationEvent, OnboardingSession, Tenant
 from context_os.graph.client import get_age_pool
 from context_os.graph.mutations import get_nodes_for_tenant
+from context_os.relational.repositories import OAuthTokenRepository
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -66,17 +69,6 @@ def _node_to_response(node_props: dict[str, Any]) -> GraphNodeResponse:
     Returns:
         GraphNodeResponse with provenance extracted.
     """
-    node_id = str(node_props.get("id", ""))
-    node_type = str(node_props.get("node_type", node_props.get("label", "Unknown")))
-    tenant_id = str(node_props.get("tenant_id", ""))
-
-    provenance = Provenance(
-        source=str(node_props.get("source", "internal")),
-        source_id=str(node_props.get("source_id", "")),
-        fetch_ts=str(node_props.get("fetch_ts", "")),
-    )
-
-    # Properties dict excludes base fields for cleaner output
     base_fields = {
         "id",
         "tenant_id",
@@ -87,14 +79,17 @@ def _node_to_response(node_props: dict[str, Any]) -> GraphNodeResponse:
         "updated_at",
         "node_type",
     }
-    properties = {k: v for k, v in node_props.items() if k not in base_fields}
 
     return GraphNodeResponse(
-        id=node_id,
-        type=node_type,
-        tenant_id=tenant_id,
-        provenance=provenance,
-        properties=properties,
+        id=str(node_props.get("id", "")),
+        type=str(node_props.get("node_type", node_props.get("label", "Unknown"))),
+        tenant_id=str(node_props.get("tenant_id", "")),
+        provenance=Provenance(
+            source=str(node_props.get("source", "internal")),
+            source_id=str(node_props.get("source_id", "")),
+            fetch_ts=str(node_props.get("fetch_ts", "")),
+        ),
+        properties={k: v for k, v in node_props.items() if k not in base_fields},
     )
 
 
@@ -136,7 +131,7 @@ async def list_entities(
         logger.error("Failed to query entities for tenant %s: %s", tenant.tenant_id, e)
         raise
 
-    items = []
+    items: list[GraphNodeResponse] = []
     for node_props in nodes_data:
         try:
             items.append(_node_to_response(node_props))
@@ -149,6 +144,53 @@ async def list_entities(
         limit=limit,
         offset=offset,
     )
+
+
+# ── GitHub integration ────────────────────────────────────────────────────────
+
+
+class GitHubConnectRequest(BaseModel):
+    """Request body for storing a GitHub PAT."""
+
+    token: str
+
+
+class GitHubConnectResponse(BaseModel):
+    connected: bool
+
+
+@router.post(
+    "/integrations/github/connect",
+    response_model=GitHubConnectResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def connect_github(
+    body: GitHubConnectRequest,
+    tenant: TenantContext = Depends(get_current_tenant),
+) -> GitHubConnectResponse:
+    """Store an encrypted GitHub PAT for this tenant."""
+    factory = get_session_factory()
+    try:
+        async with factory() as session:
+            repo = OAuthTokenRepository(session)
+            await repo.upsert(
+                tenant_id=tenant.db_tenant_id,
+                integration="github",
+                access_token=body.token,
+                scope="repo",
+                metadata={"source": "pat"},
+            )
+            await session.commit()
+    except Exception as e:
+        logger.error(
+            "Failed to store GitHub token for tenant %s: %s", tenant.tenant_id, e
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "token_store_error", "message": str(e)},
+        ) from e
+
+    return GitHubConnectResponse(connected=True)
 
 
 # ── Phase 4: Admin funnel + survey-responses ───────────────────────────────────

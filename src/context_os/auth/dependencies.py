@@ -46,6 +46,21 @@ class TenantContext:
     is_impersonation: bool = False
 
 
+_dev_tenant: TenantContext | None = None
+
+
+def _get_dev_tenant() -> TenantContext:
+    """Return a fixed dev tenant for local bypass mode."""
+    global _dev_tenant
+    if _dev_tenant is None:
+        _dev_tenant = TenantContext(
+            tenant_id="org_dev_bypass",
+            db_tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            user_id="user_dev",
+        )
+    return _dev_tenant
+
+
 async def get_current_tenant(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     x_impersonation_token: str | None = Header(
@@ -68,6 +83,10 @@ async def get_current_tenant(
         HTTPException(401): If the token is missing, invalid, or the tenant
                             is not found in the database.
     """
+    # Dev bypass: skip JWT verification for local testing
+    if get_settings().dev_bypass_auth:
+        return _get_dev_tenant()
+
     if credentials is None:
         emit_structured_log(
             StructuredLogRecord(

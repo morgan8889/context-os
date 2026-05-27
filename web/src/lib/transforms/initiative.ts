@@ -14,8 +14,8 @@ export function toInitiativeNode(raw: ApiNode): InitiativeNode {
     riskScore: raw.risk_score,
     autonomyLevel: raw.autonomy_level,
     edgeCount: raw.edge_count,
-    x: 0,
-    y: 0,
+    x: (Math.random() - 0.5) * 400,
+    y: (Math.random() - 0.5) * 400,
     size: Math.max(4, Math.min(20, 4 + raw.edge_count * 0.8)),
     viewState: 'activated',
   };

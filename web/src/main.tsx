@@ -38,12 +38,14 @@ function ImpersonationTokenWirer() {
 }
 
 function ClerkTokenWirer() {
-  const { getToken } = useAuth();
+  const { isLoaded, getToken } = useAuth();
   const { user } = useUser();
 
   useEffect(() => {
-    setTokenProvider(() => getToken());
-  }, [getToken]);
+    if (isLoaded) {
+      setTokenProvider(() => getToken());
+    }
+  }, [isLoaded, getToken]);
 
   // Once we have a Clerk user, extract the org/tenant ID and wire into OTEL
   useEffect(() => {

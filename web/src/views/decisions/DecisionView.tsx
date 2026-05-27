@@ -23,6 +23,7 @@ import { DecisionSearch } from './DecisionSearch';
 import { DecisionFilters } from './DecisionFilters';
 import DecisionEmpty from './DecisionEmpty';
 import DecisionActivating from './DecisionActivating';
+import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
 import type { DecisionNode } from '@/types/decisions';
 import type { Node } from '@xyflow/react';
 
@@ -355,7 +356,8 @@ export default function DecisionView() {
     <div
       ref={containerRef}
       data-view={`decisions-${viewState}`}
-      className="relative flex h-full w-full flex-col overflow-hidden bg-white"
+      className="relative flex h-full w-full flex-col overflow-hidden"
+      style={{ background: 'var(--color-galaxy-bg, oklch(8% 0 0))' }}
     >
       {viewState === 'empty' && <DecisionEmpty />}
 
@@ -367,9 +369,16 @@ export default function DecisionView() {
       )}
 
       {viewState === 'activated' && (
-        <ReactFlowProvider>
-          <ActivatedDecisionGraph />
-        </ReactFlowProvider>
+        <>
+          <ReactFlowProvider>
+            <ActivatedDecisionGraph />
+          </ReactFlowProvider>
+          <FirstVisitCallout
+            storageKey="ctx_os_visited_decisions"
+            title="Decision Graph"
+            description="Every architectural decision is captured here with rationale and alternatives. Search by keyword; click any node to read the full context. Edges show predecessor and dependent relationships."
+          />
+        </>
       )}
     </div>
   );

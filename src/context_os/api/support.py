@@ -304,7 +304,7 @@ async def revoke_impersonation(
             from context_os.auth.impersonation import verify_impersonation_token
 
             claims = await verify_impersonation_token(x_impersonation_token, session)
-            jti = claims.get("jti", "")
+            jti = str(claims.get("jti", ""))
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

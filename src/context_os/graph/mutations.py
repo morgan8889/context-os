@@ -89,10 +89,12 @@ async def upsert_node(
         create_set_parts.append(f"n.{k} = ${k}")
     create_set_clause = ", ".join(create_set_parts)
 
+    # Note: avoid ON CREATE SET / ON MATCH SET — PostgreSQL 18 parses
+    # "MERGE ... ON" as its native MERGE DML even inside $$...$$, causing a
+    # parser error. Plain SET applies unconditionally (upsert semantics).
     cypher = f"""
     MERGE (n:{node_type} {{id: $id, tenant_id: $tenant_id}})
-    ON CREATE SET {create_set_clause}
-    ON MATCH SET n.updated_at = $updated_at, n.fetch_ts = $fetch_ts
+    SET {create_set_clause}
     RETURN n.id AS id
     """
 
@@ -159,7 +161,7 @@ async def upsert_edge(
     MATCH (a {{id: $from_id, tenant_id: $tenant_id}})
     MATCH (b {{id: $to_id, tenant_id: $tenant_id}})
     MERGE (a)-[r:{edge_type}]->(b)
-    ON CREATE SET {set_clause}
+    SET {set_clause}
     RETURN r
     """
 
@@ -222,10 +224,9 @@ async def upsert_pending_edge(
     MERGE (b:PendingNode {
         source_id: $to_source_id, source: $to_source, tenant_id: $tenant_id
     })
-    ON CREATE SET b.created_at = $created_at
+    SET b.created_at = $created_at
     MERGE (a)-[r:DEPENDS_ON]->(b)
-    ON CREATE SET
-        r.tenant_id = $tenant_id,
+    SET r.tenant_id = $tenant_id,
         r.dependency_type = $dependency_type,
         r.resolved = $resolved,
         r.created_at = $created_at
@@ -315,7 +316,7 @@ async def promote_briefing_to_artifact(
 
     cypher = """
     MERGE (n:Artifact {id: $id, tenant_id: $tenant_id})
-    ON CREATE SET
+    SET
         n.subtype = $subtype,
         n.title = $title,
         n.content = $content,
@@ -328,9 +329,6 @@ async def promote_briefing_to_artifact(
         n.source = $source,
         n.created_at = $created_at,
         n.updated_at = $updated_at
-    ON MATCH SET
-        n.updated_at = $updated_at,
-        n.content = $content
     RETURN n.id AS id
     """
 
@@ -403,7 +401,7 @@ async def promote_risk_node(
 
     cypher = """
     MERGE (n:Risk {id: $id, tenant_id: $tenant_id})
-    ON CREATE SET
+    SET
         n.description = $description,
         n.severity = $severity,
         n.status = $status,
@@ -412,8 +410,6 @@ async def promote_risk_node(
         n.operator_id = $operator_id,
         n.approved_at = $approved_at,
         n.created_at = $created_at,
-        n.updated_at = $updated_at
-    ON MATCH SET
         n.updated_at = $updated_at
     RETURN n.id AS id
     """
@@ -492,7 +488,7 @@ async def promote_dependency_edge(
     MATCH (a {id: $from_id, tenant_id: $tenant_id})
     MATCH (b {id: $to_id, tenant_id: $tenant_id})
     MERGE (a)-[r:DEPENDS_ON]->(b)
-    ON CREATE SET
+    SET
         r.tenant_id = $tenant_id,
         r.mapper_confidence = $mapper_confidence,
         r.evidence_item_ids = $evidence_item_ids,
@@ -501,9 +497,6 @@ async def promote_dependency_edge(
         r.approved_at = $approved_at,
         r.created_at = $created_at,
         r.updated_at = $updated_at
-    ON MATCH SET
-        r.updated_at = $updated_at,
-        r.operator_id = $operator_id
     RETURN r
     """
 

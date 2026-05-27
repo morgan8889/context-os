@@ -1,15 +1,13 @@
 """SQLAlchemy 2.0 async engine and session factory.
 
-Registers pgvector asyncpg codec via sync_engine connect event so that
-Vector columns are transparently serialized/deserialized.
+Uses pgvector.sqlalchemy.Vector ORM type which handles Vector column
+serialization/deserialization without asyncpg codec registration.
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
-from pgvector.asyncpg import register_vector
-from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -23,25 +21,12 @@ _engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
-def _register_pgvector_codec(dbapi_conn: object, _connection_record: object) -> None:
-    """Register pgvector codec on each new sync connection.
-
-    Called via SQLAlchemy sync_engine connect event. The asyncpg codec
-    is required for Vector column reads and writes to work correctly.
-    """
-    import asyncio
-
-    async def _register(conn: object) -> None:
-        await register_vector(conn)  # type: ignore[arg-type]
-
-    asyncio.get_event_loop().run_until_complete(_register(dbapi_conn))
-
-
 async def init_db() -> None:
     """Initialize the async engine and session factory.
 
-    Creates a connection pool backed by asyncpg. The pgvector codec is
-    registered via the sync_engine connect event fired on first connection.
+    Creates a connection pool backed by asyncpg. pgvector.sqlalchemy.Vector
+    is used in ORM models and handles type conversion without requiring
+    asyncpg-level codec registration.
 
     Must be called once at application startup (FastAPI lifespan).
     """
@@ -55,9 +40,6 @@ async def init_db() -> None:
         max_overflow=20,
         echo=False,
     )
-
-    # Register pgvector codec on new sync-layer connections
-    event.listen(_engine.sync_engine, "connect", _register_pgvector_codec)
 
     _async_session_factory = async_sessionmaker(
         bind=_engine,

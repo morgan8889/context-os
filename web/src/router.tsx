@@ -16,6 +16,7 @@ const GalaxyView = lazy(() => import('./views/galaxy/GalaxyView'));
 const TopologyView = lazy(() => import('./views/topology/TopologyView'));
 const DecisionView = lazy(() => import('./views/decisions/DecisionView'));
 const InboxView = lazy(() => import('./inbox/InboxView'));
+const OnboardingView = lazy(() => import('./views/onboarding/OnboardingView'));
 const OnboardingShell = lazy(() => import('./onboarding/OnboardingShell'));
 const SignUp = lazy(() => import('./pages/SignUp'));
 const AdminShell = lazy(() => import('./admin/AdminShell'));
@@ -73,6 +74,16 @@ export const router = createBrowserRouter([
       <Protected>
         <Suspense fallback={<PageLoader />}>
           <OnboardingShell />
+        </Suspense>
+      </Protected>
+    ),
+  },
+  {
+    path: '/connect-github',
+    element: (
+      <Protected>
+        <Suspense fallback={<PageLoader />}>
+          <OnboardingView />
         </Suspense>
       </Protected>
     ),

@@ -64,7 +64,8 @@ class GitHubNormalizer:
         status = "archived" if repo.get("archived") else "active"
 
         return {
-            "node_type": "Initiative",
+            "_age_label": "Initiative",
+            "node_type": "project",
             "id": _make_id(source_id, self.tenant_id, "gh_repo"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -93,13 +94,11 @@ class GitHubNormalizer:
         """
         source_id = f"{repo_full_name}/milestone/{milestone['number']}"
         now = _now_iso()
-
-        state = milestone.get("state", "open")
-        status_map = {"open": "open", "closed": "done"}
-        status = status_map.get(state, "open")
+        status = "done" if milestone.get("state") == "closed" else "open"
 
         return {
-            "node_type": "Goal",
+            "_age_label": "Goal",
+            "node_type": "goal",
             "id": _make_id(source_id, self.tenant_id, "gh_milestone"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -139,7 +138,8 @@ class GitHubNormalizer:
             status = "open"
 
         return {
-            "node_type": "Artifact",
+            "_age_label": "Artifact",
+            "node_type": "artifact",
             "id": _make_id(source_id, self.tenant_id, "gh_pr"),
             "tenant_id": self.tenant_id,
             "source": "github",
@@ -171,43 +171,40 @@ class GitHubNormalizer:
         """
         source_id = f"{repo_full_name}/issue/{issue['number']}"
         now = _now_iso()
-        state = issue.get("state", "open")
+        created_at = issue.get("created_at", now)
 
-        if state == "closed":
+        base = {
+            "id": _make_id(source_id, self.tenant_id, "gh_issue"),
+            "tenant_id": self.tenant_id,
+            "source": "github",
+            "source_id": source_id,
+            "fetch_ts": now,
+            "created_at": created_at,
+            "updated_at": issue.get("updated_at", now),
+            "url": issue.get("html_url", ""),
+        }
+
+        if issue.get("state") == "closed":
             return {
-                "node_type": "Artifact",
-                "id": _make_id(source_id, self.tenant_id, "gh_issue"),
-                "tenant_id": self.tenant_id,
-                "source": "github",
-                "source_id": source_id,
-                "fetch_ts": now,
-                "created_at": issue.get("created_at", now),
-                "updated_at": issue.get("updated_at", now),
+                **base,
+                "_age_label": "Artifact",
+                "node_type": "artifact",
                 "title": issue.get("title", ""),
                 "content": issue.get("body") or "",
                 "artifact_type": "issue",
                 "status": "closed",
-                "url": issue.get("html_url", ""),
             }
-        else:
-            return {
-                "node_type": "Signal",
-                "id": _make_id(source_id, self.tenant_id, "gh_issue"),
-                "tenant_id": self.tenant_id,
-                "source": "github",
-                "source_id": source_id,
-                "fetch_ts": now,
-                "created_at": issue.get("created_at", now),
-                "updated_at": issue.get("updated_at", now),
-                "content": (
-                    f"{issue.get('title', '')} — {issue.get('body', '') or ''}".strip(
-                        " —"
-                    )
-                ),
-                "signal_type": "comment",
-                "url": issue.get("html_url", ""),
-                "occurred_at": issue.get("created_at", now),
-            }
+
+        return {
+            **base,
+            "_age_label": "Signal",
+            "node_type": "signal",
+            "content": (
+                f"{issue.get('title', '')} — {issue.get('body', '') or ''}".strip(" —")
+            ),
+            "signal_type": "comment",
+            "occurred_at": created_at,
+        }
 
     def user_to_actor(self, user: dict[str, Any]) -> dict[str, Any]:
         """Map a GitHub user to an Actor node.
@@ -272,7 +269,8 @@ class GitHubNormalizer:
         content = " ".join(content_parts)
 
         return {
-            "node_type": "Signal",
+            "_age_label": "Signal",
+            "node_type": "signal",
             "id": _make_id(source_id, self.tenant_id, "gh_review"),
             "tenant_id": self.tenant_id,
             "source": "github",
