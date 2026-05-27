@@ -46,7 +46,8 @@ class TestGitHubNormalizerRepo:
         }
         result = self.normalizer.repo_to_initiative(repo)
 
-        assert result["node_type"] == "Initiative"
+        assert result["_age_label"] == "Initiative"
+        assert result["node_type"] == "project"
         assert result["source"] == "github"
         assert result["source_id"] == "12345"
         assert result["title"] == "my-repo"
@@ -108,7 +109,8 @@ class TestGitHubNormalizerPR:
         }
         result = self.normalizer.pr_to_artifact(pr, self.repo)
 
-        assert result["node_type"] == "Artifact"
+        assert result["_age_label"] == "Artifact"
+        assert result["node_type"] == "artifact"
         assert result["source"] == "github"
         assert result["title"] == "Fix authentication bug"
         assert result["content"] == "This PR fixes the auth issue"
@@ -170,7 +172,8 @@ class TestGitHubNormalizerIssue:
         }
         result = self.normalizer.issue_to_signal_or_artifact(issue, self.repo)
 
-        assert result["node_type"] == "Signal"
+        assert result["_age_label"] == "Signal"
+        assert result["node_type"] == "signal"
         assert result["source"] == "github"
 
     def test_closed_issue_to_artifact(self) -> None:
@@ -183,7 +186,8 @@ class TestGitHubNormalizerIssue:
         }
         result = self.normalizer.issue_to_signal_or_artifact(issue, self.repo)
 
-        assert result["node_type"] == "Artifact"
+        assert result["_age_label"] == "Artifact"
+        assert result["node_type"] == "artifact"
         assert result["artifact_type"] == "issue"
         assert result["status"] == "closed"
 
@@ -208,7 +212,8 @@ class TestGitHubNormalizerMilestone:
         }
         result = self.normalizer.milestone_to_goal(milestone, "owner/repo")
 
-        assert result["node_type"] == "Goal"
+        assert result["_age_label"] == "Goal"
+        assert result["node_type"] == "goal"
         assert result["source"] == "github"
         assert result["title"] == "v2.0 Release"
         assert result["status"] == "open"
@@ -271,7 +276,8 @@ class TestGitHubNormalizerReview:
         }
         result = self.normalizer.review_to_signal(review, "owner/repo", 42)
 
-        assert result["node_type"] == "Signal"
+        assert result["_age_label"] == "Signal"
+        assert result["node_type"] == "signal"
         assert result["signal_type"] == "review"
         assert "APPROVED" in result["content"]
         assert "LGTM" in result["content"]

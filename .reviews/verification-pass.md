@@ -1,15 +1,40 @@
-# Verification Before Completion — 2-phase-2-intelligence
+# Verification Before Completion — Phase 4 Closed Beta
 
-**Date**: 2026-05-18
+**Branch**: 4-closed-beta-readiness
+**Date**: 2026-05-21
+**HEAD**: 498d02f8d17be62c9a77361efa506307458ffea0
 
-## Checks
+## Test Results
 
-- [x] `uv run ruff check src/` — passed
-- [x] `uv run pyright src/` — 0 errors
-- [x] `uv run pytest tests/` — 57 passed, 0 failed
-- [x] No pending review markers
-- [x] No UI changes (backend-only Python project)
-- [x] All Critical/High review blockers resolved
+- [x] Python unit tests: 71 passed, 0 failed (`uv run pytest tests/unit tests/fault -q`)
+- [x] Ruff lint: all checks passed
+- [x] Pyright: 0 errors, 0 warnings
+- [x] TypeScript typecheck: 0 errors (`cd web && npm run typecheck`)
+- [x] Vitest unit tests: 132 passed (`cd web && npm run test`)
+
+## Visual Verification
+
+- [x] Verdict: pass — 9 Playwright fixtures (3 viewports × 3 onboarding steps)
+- [x] No UI regressions in admin module or impersonation banner
+- [x] No UI files changed in post-frontend commits (39fb151, 113afe6, 36dc7e7, 498d02f)
+
+## Functional Completeness
+
+- [x] Alembic migration 0003 — 5 new tables, ALTER TABLE tenants
+- [x] OnboardingService state machine — survey→connect→scope→ingest→briefing→activated
+- [x] EmailService — Resend wrapper, no-op without RESEND_API_KEY
+- [x] IngestService — job lifecycle, Prometheus gauge, stall detection
+- [x] Impersonation — HS256 JWT issue/verify/revoke, JTI blocklist
+- [x] API routes — /onboarding, /oauth, /admin, /support registered
+- [x] Platform Operator guard on all admin/support write paths
+- [x] Impersonation write-block on onboarding write paths
+- [x] Admin funnel — LEFT JOIN activation_events, drop-off flags, timing segments
+- [x] Telemetry — OTEL Collector + Prometheus + Grafana in docker-compose (port 3002)
+- [x] Nightly eval — cron workflow + @pytest.mark.nightly_eval marker
+- [x] Docusaurus doc site — 12 pages, npm run build exits 0
+- [x] Frontend onboarding wizard — 5 steps + shell + complete screen
+- [x] Admin module — FunnelView, SurveyResponsesTable, OrgDetail, ImpersonationBanner
+- [x] Tenant isolation test suite
 
 ## Verdict: PASS
 

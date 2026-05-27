@@ -36,6 +36,12 @@
   box-sizing: border-box;
 }
 
+/* ── Third-party a11y overrides ─────────────────────────────── */
+/* React Flow attribution link fails WCAG AA contrast at its default #999 */
+.react-flow__attribution a {
+  color: oklch(48% 0 0) !important;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;

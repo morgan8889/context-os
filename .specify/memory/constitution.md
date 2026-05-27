@@ -1,45 +1,50 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0
-Rationale: MINOR bump. Relaxes the Architectural Constraint mandating
-polyglot physical persistence to allow a single-store option
-(PostgreSQL + pgvector + Apache AGE) for MVP, with explicit sunset
-triggers. This is a relaxation of an existing constraint, not removal of
-a principle or governance rule. Driven by the solo + AI-assisted MVP
-build model documented in docs/plans/2026-05-17-prd-enrichment-design.md.
+Version change: 1.1.0 → 1.2.0
+Rationale: MINOR bump. Adds a new NON-NEGOTIABLE principle VIII
+(Test-Driven Development) mandating test-first development for
+deterministic application and library code. Scoped to deterministic
+code only: probabilistic agent and workflow behavior remains governed
+by Principle V (Evaluation-First), with the two declared complementary.
+Also adds a corresponding TDD quality gate to the Development Workflow &
+Quality Gates section so the principle is enforced at merge time.
 
-Principles (unchanged, 7):
-  I.   Intent Over Tasks
-  II.  Persistent Semantic Memory (NON-NEGOTIABLE)
-  III. Human Governance, AI Execution (NON-NEGOTIABLE)
-  IV.  Visualization as Cognition
-  V.   Evaluation-First for Agents and Workflows (NON-NEGOTIABLE)
-  VI.  Observable Autonomy (NON-NEGOTIABLE)
-  VII. Domain-Adapter Extensibility
+Principles (8, +1 new):
+  I.    Intent Over Tasks
+  II.   Persistent Semantic Memory (NON-NEGOTIABLE)
+  III.  Human Governance, AI Execution (NON-NEGOTIABLE)
+  IV.   Visualization as Cognition
+  V.    Evaluation-First for Agents and Workflows (NON-NEGOTIABLE)
+  VI.   Observable Autonomy (NON-NEGOTIABLE)
+  VII.  Domain-Adapter Extensibility
+  VIII. Test-Driven Development (NON-NEGOTIABLE)  ← NEW
 
 Modified sections:
-  - Architectural Constraints — first bullet ("Polyglot persistence is
-    required") replaced with a logical-vs-physical formulation plus
-    sunset triggers.
+  - Core Principles — added Principle VIII (Test-Driven Development).
+  - Development Workflow & Quality Gates — added a TDD gate bullet
+    requiring evidence of test-first discipline before merge.
 
 Unchanged sections:
-  - Core Principles (all seven)
-  - Development Workflow & Quality Gates
+  - Principles I–VII (verbatim)
+  - Architectural Constraints
   - Governance
 
 Templates status:
   ✅ .specify/templates/plan-template.md      — Constitution Check gate
        principle-agnostic; no edits needed.
   ✅ .specify/templates/spec-template.md      — Compatible.
-  ✅ .specify/templates/tasks-template.md     — Compatible.
+  ✅ .specify/templates/tasks-template.md     — Compatible; "Tests are
+       OPTIONAL" guidance now overridden by Principle VIII for
+       deterministic code (eval/test tasks no longer optional there).
   ✅ .specify/templates/checklist-template.md — Compatible.
   ⚠ .specify/templates/commands/*.md          — Pending review at next use.
   ⚠ README.md / docs/quickstart.md            — Not yet present in repo.
 
 Prior-version note:
   Initial ratification 2026-05-17 at v1.0.0 (constitution from template).
-  v1.1.0 amended same day during PRD enrichment brainstorming session;
+  v1.1.0 amended 2026-05-17 (single-store persistence relaxation).
+  v1.2.0 amended 2026-05-20 (added Test-Driven Development principle);
   no policy in force between versions required a migration plan.
 
 Deferred items:
@@ -153,6 +158,32 @@ PMO, engineering, consulting, personal productivity, health, and investment
 research. Domain coupling in the core would foreclose that future and trap
 the system in its seed domain.
 
+### VIII. Test-Driven Development (NON-NEGOTIABLE)
+
+All deterministic application and library code MUST be developed test-first:
+a failing test that specifies the desired behavior MUST be written and
+observed to fail before the implementation that satisfies it. The
+red-green-refactor cycle is mandatory — write a failing test (red), write the
+minimum code to pass it (green), then refactor under a green suite. Tests MUST
+NOT be backfilled to retroactively rubber-stamp existing code, weakened, or
+skipped to unblock a release. Every bug fix MUST begin with a failing
+regression test that reproduces the defect before the fix is written.
+
+Probabilistic agent and workflow behavior remains governed by Principle V
+(Evaluation-First). TDD and evaluation-first are complementary: TDD guarantees
+deterministic correctness at the unit and integration level, while evaluation
+suites guarantee behavioral safety that code-level tests cannot provide. The
+deterministic scaffolding around an agent (tool wiring, parsers, transforms,
+state reducers, API handlers) is subject to this principle; the agent's
+probabilistic outputs are subject to Principle V.
+
+**Rationale**: Test-first development keeps deterministic code correct,
+designed for testability, and safe to change. Writing the test first forces a
+specification of intent before implementation, prevents tests that merely
+confirm whatever the code happens to do, and produces a regression net that
+makes the continuous, AI-assisted refactoring this platform depends on safe
+rather than reckless.
+
 ## Architectural Constraints
 
 The following constraints are binding on all implementation work:
@@ -205,6 +236,12 @@ The following constraints are binding on all implementation work:
   enabled in staging or production without (a) a committed evaluation suite
   per Principle V, (b) telemetry conforming to Principle VI, and (c) a
   documented autonomy-level declaration per Principle III.
+- **Test-first gate**: Per Principle VIII, deterministic application and
+  library code MUST be accompanied by tests written test-first. PRs MUST
+  evidence test-first discipline (e.g., a failing test committed before or
+  alongside its implementation, or a regression test for a bug fix); code
+  merged without test coverage of its deterministic behavior is a violation,
+  not a follow-up.
 - **Visualization review**: UI work introducing a new primary surface MUST
   pass a topology-first review against Principle IV before merge.
 - **Branching & commits**: Feature branches only; never main/master. Commits
@@ -243,4 +280,4 @@ agent system prompts), this constitution wins.
 - Runtime agent and workflow behavior MUST be re-evaluated against this
   constitution whenever a NON-NEGOTIABLE principle is amended.
 
-**Version**: 1.1.0 | **Ratified**: 2026-05-17 | **Last Amended**: 2026-05-17
+**Version**: 1.2.0 | **Ratified**: 2026-05-17 | **Last Amended**: 2026-05-20

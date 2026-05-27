@@ -2,6 +2,9 @@
 
 Provides the get_current_tenant dependency that verifies Clerk JWT,
 looks up the Tenant record in DB, and returns a TenantContext.
+
+If an X-Impersonation-Token header is present and valid, the returned
+TenantContext reflects the impersonated tenant with is_impersonation=True.
 """
 
 from __future__ import annotations
@@ -9,7 +12,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from context_os.auth.middleware import verify_clerk_jwt
@@ -34,11 +37,13 @@ class TenantContext:
         tenant_id: Clerk org ID extracted from JWT (e.g. "org_abc123").
         db_tenant_id: Internal UUID primary key from the tenants table.
         user_id: Clerk user subject ID from JWT payload["sub"].
+        is_impersonation: True when request carries a valid X-Impersonation-Token.
     """
 
     tenant_id: str
     db_tenant_id: uuid.UUID
     user_id: str = ""
+    is_impersonation: bool = False
 
 
 _dev_tenant: TenantContext | None = None
@@ -58,6 +63,9 @@ def _get_dev_tenant() -> TenantContext:
 
 async def get_current_tenant(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    x_impersonation_token: str | None = Header(
+        default=None, alias="X-Impersonation-Token"
+    ),
 ) -> TenantContext:
     """FastAPI dependency: verify JWT and return TenantContext.
 
@@ -148,8 +156,93 @@ async def get_current_tenant(
 
     user_id = auth_result.get("payload", {}).get("sub", "")
 
-    return TenantContext(
+    base_ctx = TenantContext(
         tenant_id=clerk_org_id,
         db_tenant_id=tenant.id,
         user_id=user_id,
     )
+
+    # ── Impersonation header check ─────────────────────────────────────────
+    if x_impersonation_token:
+        from context_os.auth.impersonation import verify_impersonation_token
+
+        async with factory() as imp_session:
+            try:
+                claims = await verify_impersonation_token(
+                    x_impersonation_token, imp_session
+                )
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={
+                        "code": "invalid_impersonation_token",
+                        "message": "X-Impersonation-Token is invalid or revoked",
+                    },
+                )
+
+        impersonating_org_id = str(claims.get("impersonating_tenant_id", ""))
+
+        # Look up the impersonated tenant
+        async with factory() as lookup_session:
+            imp_repo = TenantRepository(lookup_session)
+            imp_tenant = await imp_repo.get_by_clerk_org_id(impersonating_org_id)
+
+        if imp_tenant is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": "impersonation_target_not_found",
+                    "message": f"Impersonated tenant not found: {impersonating_org_id}",
+                },
+            )
+
+        return TenantContext(
+            tenant_id=impersonating_org_id,
+            db_tenant_id=imp_tenant.id,
+            user_id=user_id,
+            is_impersonation=True,
+        )
+
+    return base_ctx
+
+
+async def require_platform_operator(
+    ctx: TenantContext = Depends(get_current_tenant),
+) -> TenantContext:
+    """FastAPI dependency: allow only the configured Platform Operator user.
+
+    Raises:
+        HTTPException(403): When caller is not the configured PO or PO is unconfigured.
+    """
+    settings = get_settings()
+    po_uid = settings.platform_operator_clerk_user_id
+    if not po_uid or ctx.user_id != po_uid:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "not_platform_operator",
+                "message": "Platform Operator access only",
+            },
+        )
+    return ctx
+
+
+async def check_not_impersonation(
+    ctx: TenantContext = Depends(get_current_tenant),
+) -> TenantContext:
+    """FastAPI dependency: block write operations during impersonation sessions.
+
+    Raises:
+        HTTPException(403): When the request carries an active impersonation token.
+    """
+    if ctx.is_impersonation:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "write_blocked_during_impersonation",
+                "message": (
+                    "Write operations are not allowed during tenant impersonation"
+                ),
+            },
+        )
+    return ctx

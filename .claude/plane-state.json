@@ -11,12 +11,86 @@
     "Cancelled": "502768e4-5acf-4dd1-8f5d-b69681ed13f9"
   },
   "features": {
-    "test-feature": {
-      "module_id": "a8840dfd-b269-4958-a1a1-ec0f6c02b27c",
+    "001-phase-1-foundation": {
+      "module_id": "558ec5dc-1cc8-4df0-a336-28a27b17014c",
+      "tasks": {}
+    },
+    "002-phase-2-intelligence": {
+      "module_id": "ae95ea2c-c52f-47c7-a735-4a00c0f5fa00",
+      "tasks": {}
+    },
+    "003-cognition-surface": {
+      "module_id": "4537052c-6d5b-4fb8-8d2e-6094149aa336",
+      "tasks": {}
+    },
+    "closed-beta-readiness": {
+      "module_id": "a2f37d6b-54a2-486d-a0b1-212f2de5fc9c",
+      "tasks": {}
+    },
+    "004-closed-beta-readiness": {
+      "module_id": "a2f37d6b-54a2-486d-a0b1-212f2de5fc9c",
       "tasks": {
-        "T001 verify plane connectivity via list_projects": "e54c96d1-6dd9-4789-ae43-a383790b1211",
-        "T002 confirm context-os project exists or can be created": "fb38852b-a83a-41ae-aaba-31ab6317725e",
-        "T003 confirm test-feature module is created in plane": "d446e4ef-ad54-4740-b685-a1baf8670533"
+        "T001 Create Alembic migration 0003_phase4_closed_beta.py — add onboarding_sessions, activation_events, ingest_jobs, oauth_pending_sessions, revoked_impersonation_tokens tables": "67c263ad-de4d-423c-86ae-975cba33f09f",
+        "T002 [P] Add Phase 4 environment variables to config.py Settings — resend_api_key, impersonation_secret, platform_operator_clerk_user_id": "8fd522aa-f717-4a49-8ce2-129e99b5c299",
+        "T003 [P] Add OTEL Collector, Prometheus, Grafana services to docker-compose.yml with config files": "813145c5-85d6-4569-8f76-c19cd0bdde0a",
+        "T004 Add require_platform_operator() FastAPI dependency to auth/dependencies.py with failing unit tests": "881729b6-b8d2-4aeb-a59d-bbc39ea18f0a",
+        "T005 [P] Add is_impersonation field to TenantContext + check_not_impersonation() dependency with unit tests": "dbe98678-c339-44ce-b01f-b115c3660a69",
+        "T006 Write failing unit tests for OnboardingService state machine in tests/unit/test_onboarding_service.py": "2d145e47-fa34-41c6-a0b4-a235b1b0550e",
+        "T007 Implement OnboardingService in src/context_os/services/onboarding_service.py": "4fa9ed79-80dd-4291-a4bd-cb08335ea6ce",
+        "T008 [P] Write failing unit tests for EmailService.notify_ingest_complete in tests/unit/test_email_service.py": "d111b69b-84a5-45d0-96cb-d31ef21ee734",
+        "T009 [P] Implement EmailService in src/context_os/services/email_service.py — notify_ingest_complete via Resend API": "bb957f45-3fa7-4316-9c41-9b6a6db14c33",
+        "T010 Write failing unit tests for IngestService in tests/unit/test_ingest_service.py": "e698a2f0-2c56-436b-a2a3-9f40a98f56cd",
+        "T011 Implement IngestService in src/context_os/services/ingest_service.py — create_job, update_progress, mark_complete, mark_stalled, is_stalled": "f1aab9ba-2377-4431-bdd8-888de9f397b3",
+        "T012 [P] Write failing integration test for OAuth flow in tests/integration/test_oauth.py": "13dd3472-707a-4628-9e3d-bcda6e0b8fcb",
+        "T013 [P] Implement /oauth/connect/{source}/start and /oauth/connect/{source}/callback endpoints in src/context_os/api/oauth.py": "847cab1d-7e3b-4df0-969f-fed6df830f44",
+        "T014 Write failing integration test for complete onboarding API flow in tests/integration/test_onboarding_flow.py": "ee0edfa4-e2da-4bc5-8688-850d6660fbd8",
+        "T015 Implement /onboarding/session, /survey, /scope, /ingest-status, /activation endpoints in src/context_os/api/onboarding.py": "e031d256-adee-4c2a-a0db-597067919de5",
+        "T016 [P] Write failing unit tests for useOnboardingSession hook in web/tests/unit/onboarding.test.ts": "5cde25fe-a872-496f-b08f-b34640ce780c",
+        "T017 [P] Implement useOnboardingSession TanStack Query hook in web/src/lib/hooks/useOnboardingSession.ts": "dbbb4e25-adfd-4204-b2cb-644e735f3a1e",
+        "T018 Implement OnboardingShell in web/src/onboarding/OnboardingShell.tsx — 5-step progress indicator, step routing, loading skeleton": "510aa593-22fb-4c9d-b5a0-dba68edcb290",
+        "T019 [P] Implement SurveyStep in web/src/onboarding/steps/SurveyStep.tsx — 5-option pain-point survey with free-text fallback": "07b0b9e7-12ea-4a00-b1d8-55756767c430",
+        "T020 [P] Implement ConnectStep in web/src/onboarding/steps/ConnectStep.tsx — OAuth cards for Jira/GitHub/Slack with polling": "2c833a82-3428-422e-b8e9-5111317ccae8",
+        "T021 [P] Implement ScopeStep in web/src/onboarding/steps/ScopeStep.tsx — multi-select integration resources with 90-day activity filter": "fb016bfa-d601-4351-8b3a-2c86cbf1f233",
+        "T022 [P] Implement IngestStep in web/src/onboarding/steps/IngestStep.tsx — polling progress bar with stall recovery UI": "4d74ece2-c199-4844-87b4-41b4a8d01d6d",
+        "T023 [P] Implement BriefingStep + OnboardingComplete in web/src/onboarding/ — briefing approval and activation celebration screen": "bc976c7d-f91b-4da6-9730-f8367cc3d709",
+        "T024 Wire onboarding routes into web/src/App.tsx + router.tsx — unauthenticated redirect to Clerk, first-load redirect to /onboarding": "3e093c86-1c4a-4adb-84bf-18afa244c655",
+        "T025 Write Playwright visual fixtures for onboarding in web/tests/visual/onboarding.spec.ts — 9 fixtures across 3 viewports x 3 steps": "22ed24e2-8412-42c7-a8bb-a057b86b00f6",
+        "T026 Write tenant isolation test suite in tests/integration/test_tenant_isolation.py — Org A vs Org B cross-tenant read assertions": "ffd944d7-7773-4241-98f6-5d3f79cee466",
+        "T027 Audit all existing API endpoints for missing tenant_id filter and add missing filters": "74d07563-611c-452c-8644-c7e0c7d75c9e",
+        "T028 [P] Add tenant isolation test step to .github/workflows/ci.yml — runs on every PR, failure blocks merge": "d4c3b3f1-13b4-4a01-aa3b-866bca01a0b1",
+        "T029 Write failing unit tests for admin funnel query in tests/unit/test_admin_funnel.py — AdminFunnelQuery.compute with drop-off flag logic": "e84b761f-3071-46bd-a1d3-07dc7a218cca",
+        "T030 Implement /admin/funnel endpoint in src/context_os/api/admin.py — require_platform_operator(), AdminFunnelRow Pydantic schema": "d9ffd21f-3353-417a-a8cf-1e1950fd56ae",
+        "T031 [P] Implement /admin/survey-responses endpoint in src/context_os/api/admin.py — require_platform_operator(), survey data with tenant names": "38058427-fe32-4495-83e8-f1ae04718d4d",
+        "T032 [P] Implement admin API client functions in web/src/lib/api/admin.ts — fetchFunnel, fetchSurveyResponses with TypeScript types": "0ce14434-03c2-4804-8805-47cfe464a75f",
+        "T033 Implement AdminShell in web/src/admin/AdminShell.tsx — Clerk platform_operator claim check, admin nav sidebar": "a67b70b1-a589-4721-a265-1b8272768a91",
+        "T034 [P] Implement FunnelView in web/src/admin/FunnelView.tsx — funnel table with drop-off highlighting and org row navigation": "6e5c9e7e-a648-4a39-96e1-27364f23f9b8",
+        "T035 [P] Implement SurveyResponsesTable in web/src/admin/SurveyResponsesTable.tsx — color-coded option badges, expandable free text": "b9cc726e-e2e1-4a6d-a7c4-9d24aa26bb8a",
+        "T036 [P] Implement OrgDetail in web/src/admin/OrgDetail.tsx — timing breakdown, survey answer, impersonate button at /admin/orgs/:tenantId": "e9e265d0-f90f-430b-aa67-c6103e48d8c1",
+        "T037 Write failing unit tests for impersonation JWT in tests/unit/test_impersonation.py — issue, verify, revoke, and expiry cases": "688541ec-a24b-42fd-ac7b-5f8cd44db437",
+        "T038 Implement src/context_os/auth/impersonation.py — issue_impersonation_token, verify_impersonation_token, revoke_impersonation_token (HS256 JWT)": "f2083bd4-6e7a-4e15-961a-d85286ec7bee",
+        "T039 Implement impersonation endpoints in src/context_os/api/support.py — POST /admin/impersonate, DELETE /admin/impersonate/revoke": "c0ef409c-97e2-4f17-9745-a2f31bbd3088",
+        "T040 [P] Write failing unit tests for debug trace retrieval and redaction in tests/unit/test_debug_trace.py": "be2595ee-51fc-4622-bbd8-a98f2c28f06b",
+        "T041 [P] Implement GET /support/traces/{operation_id} in src/context_os/api/support.py — DebugTraceService querying Langfuse spans": "611da87b-dec7-4861-8a99-665399082657",
+        "T042 [P] Implement POST /support/traces/{operation_id}/export — redacted trace bundle with Content-Disposition JSON download": "51f52bc5-8e22-42c8-8e68-1119a2f3a74a",
+        "T043 [P] Write failing unit tests for useImpersonation hook in web/tests/unit/impersonation.test.ts — token lifecycle and API header injection": "41bac428-4766-429a-923c-a20b62d0c36a",
+        "T044 [P] Implement useImpersonation hook in web/src/lib/hooks/useImpersonation.ts — memory-only token, auto-expiry timer, axios header injection": "652050fb-ed14-4d53-8714-c3c34d561f49",
+        "T045 Implement ImpersonationBanner in web/src/admin/ImpersonationBanner.tsx — fixed amber top banner with End button, z-index 9999": "15119586-0d01-43a4-a225-a9458013ad5f",
+        "T046 Add otel-collector, prometheus, grafana services to docker-compose.yml with config files for observability stack": "7ecfd20c-58aa-4e32-986c-d901ad4304d9",
+        "T047 Add opentelemetry-exporter-prometheus to pyproject.toml and register PrometheusMetricReader + GET /metrics endpoint": "3bc0e5d4-4089-4192-aaa0-d2c4e5cd7871",
+        "T048 Add Prometheus metric instrumentation — context_os_agent_invocations_total counter and context_os_ingest_last_record_at gauge": "6454be61-9d90-4575-a58f-29ca2f2e3caa",
+        "T049 [P] Create Grafana dashboard JSON configs — agent-health.json and ingestion-freshness.json with provisioning config": "b26cf9d3-44f9-442a-b305-609d174abed5",
+        "T050 Create .github/workflows/nightly-eval.yml — scheduled 2am UTC, runs evals with @pytest.mark.nightly_eval, uploads artifacts on failure": "9e8c264d-edab-41bc-acf6-89dcd2c43122",
+        "T051 Add @pytest.mark.nightly_eval marker to synthesizer and mapper eval tests + pytest.ini marker declaration": "4dee730c-e32a-4710-8e96-2bed17195d13",
+        "T052 [P] Add CI_GPU_AVAILABLE graceful degradation to tests/evals/conftest.py — ci_gpu_available fixture + skipif pattern": "f675cf26-9dd9-4517-b4b9-ae96ad603f1c",
+        "T053 Initialize Docusaurus 3 workspace — npx create-docusaurus docs-site, configure 3 sidebar categories, add theme-mermaid": "49fa2828-3bfd-40ce-8457-34173136f329",
+        "T054 [P] Write docs-site/docs/getting-started/ pages — 4 operator-facing prose pages: sign-up, connect integrations, scope, first briefing": "81029227-6841-4ce4-bfbd-89b7775207b6",
+        "T055 [P] Write docs-site/docs/concepts/ pages — 5 concept pages: briefing, initiative, dependency, decision, activation-moment": "70cb4c5b-3367-4ac9-9aaa-0afe86e2619a",
+        "T056 [P] Write docs-site/docs/workflow-reference/ pages — 3 reference pages with Mermaid flowchart for onboarding-flow.md": "0956d2ff-86c6-4882-8662-a8ff4b57a976",
+        "T057 Create .github/workflows/docs.yml — build on PR, deploy to GitHub Pages on main push": "177aad11-c66a-4dd9-a75c-2c2f47ede9e3",
+        "T058 Run full pytest suite — uv run pytest tests/unit tests/integration -q — must exit 0, verify test count growth from Phase 3 baseline": "8c776019-24e0-4574-aef1-f2f2766e83a9",
+        "T059 [P] Run TypeScript typecheck for web/ additions — npm run typecheck must exit 0 with zero errors for all new admin/onboarding/impersonation types": "02a6aa29-20c9-43fd-9791-5055bf067cd6",
+        "T060 Commit 9 Playwright visual baseline PNGs for onboarding — run --update-snapshots, verify PNGs in web/tests/visual/snapshots/, update SNAPSHOTS.md": "e5d85946-0d49-48ef-b28b-da1b27586d06",
+        "T061 Validate SC-001 timing — follow quickstart.md Scenario 1, record active-attention per step, document in timing-validation.md, confirm < 30 min": "e7048210-959f-4714-ae16-2fba5d7c844e"
       }
     }
   }

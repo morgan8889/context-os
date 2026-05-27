@@ -295,48 +295,93 @@ npm run benchmark:galaxy # Galaxy perf benchmark (needs 10k-node seed)
 
 ---
 
-## Phase 5 Development Context
+## Phase 4 Development Context
 
-*Added by `/speckit.plan` — 2026-05-21*
+*Added by `/speckit.plan` — 2026-05-20*
 
-Phase 5 is frontend-only (`web/`). No backend changes. All work is UI clarity
-and in-context guidance to reduce beta user confusion post-activation.
+Phase 4 adds closed-beta readiness: Workflow-First onboarding flow, multi-tenant
+hardening, admin module, support workflows, continuous eval, telemetry dashboards,
+and a doc site. Backend and frontend both extended; new `docs-site/` workspace added.
 
-### New Components
+### Active Technologies
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| `AppShell` | `web/src/components/AppShell.tsx` | 56px fixed left sidebar with nav icons, Inbox badge, docs link |
-| `FirstVisitCallout` | `web/src/design-system/primitives/FirstVisitCallout.tsx` | Per-view first-visit orientation card, localStorage-dismissed |
-| `HintTooltip` | `web/src/design-system/primitives/HintTooltip.tsx` | Inline `?` icon wrapping existing `Tooltip` component |
-| `GalaxyLegend` | `web/src/views/galaxy/GalaxyLegend.tsx` | Collapsible color legend for node types + status |
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Email | Resend.com (`resend>=2.0`) | Transactional; no-op when `RESEND_API_KEY` not set |
+| Metrics | `opentelemetry-exporter-prometheus` | Registered alongside existing Langfuse span processor |
+| Dashboards | Grafana 10.4 + Prometheus 2.52 | Added to docker-compose; no cloud dependency |
+| OTEL Collector | `otel/opentelemetry-collector-contrib:0.100.0` | Receives OTLP; exposes Prometheus scrape endpoint |
+| Doc site | Docusaurus 3 | `docs-site/` workspace; `npm` only; static build |
+| Impersonation auth | Backend-issued HS256 JWT | `X-Impersonation-Token` header; `PyJWT` for signing |
+| CI eval | GitHub Actions cron + `workflow_dispatch` | `@pytest.mark.nightly_eval`; `CI_GPU_AVAILABLE` env var |
 
 ### Key Patterns
 
-- **localStorage keys**: `ctx_os_visited_<view>` (galaxy, topology, decisions, inbox), `ctx_os_inbox_hint`, `ctx_os_legend_galaxy`
-- **AppShell layout route**: React Router v6 parent `path: "/"` with `<AppShell><Outlet /></AppShell>`; children are the 4 view routes
-- **Inbox badge query**: `useQuery(['inbox'], fetchInboxItems, { refetchInterval: 30_000 })` — same key as InboxView, TanStack Query deduplicates
-- **FirstVisitCallout position**: `fixed; bottom: 24px; left: calc(56px + 24px)` — clears AppShell sidebar; z-30
-- **HintTooltip**: Wraps `Tooltip` from `web/src/design-system/components/Tooltip.tsx`; `<button type="button" aria-label="More information">`; 300ms delay
-- **GalaxyLegend CSS tokens**: `getComputedStyle(document.documentElement).getPropertyValue('--color-node-goal')` etc.
-- **OverlayControls tooltips**: Wrap each button `div` in `<Tooltip content={copy} side="right">`
+- **Onboarding state machine**: `OnboardingService.advance_step(session, step, data)` validates legal
+  next step (no skipping), writes `step_completed_at[step]`, updates `current_step`. `revert_step`
+  on OAuth failure or ingest stall.
+- **Admin guard**: FastAPI dependency `require_platform_operator()` — checks
+  `payload["platform_operator"] == true` in Clerk JWT; raises 403 otherwise.
+- **Impersonation write-block**: dependency checks `TenantContext.is_impersonation`; any write-path
+  handler raises `HTTP 403 {"code": "write_blocked_during_impersonation"}`.
+- **Isolation test pattern**: pytest creates Org A + Org B tenants; every data-read endpoint called
+  with Org A's JWT; assert zero Org B records in any response.
+- **Nightly eval graceful degradation**: `CI_GPU_AVAILABLE` env var absent → GPU-dependent fixtures
+  call `pytest.skip(reason="infrastructure-unavailable")`, not fail.
+- **Prometheus metrics**: `get_meter("context_os").create_counter("context_os.agent.invocations")`
+  and `create_gauge("context_os.ingest.last_record_at")`.
+- **OAuth popup pattern**: `window.open('/oauth/connect/jira/start', ...)` → parent polls
+  `GET /onboarding/session` every 2s to detect `connected_integrations` update → marks card green.
 
-### Modified Files
+### Project Structure (Phase 4 additions)
 
-| File | Change |
-|------|--------|
-| `web/src/router.tsx` | Add AppShell layout route |
-| `web/src/views/galaxy/OverlayControls.tsx` | Add Tooltip per overlay button |
-| `web/src/views/galaxy/GalaxyView.tsx` | Mount FirstVisitCallout + GalaxyLegend in activated state |
-| `web/src/views/galaxy/GalaxyEmpty.tsx` | Fix CTA copy + link → /onboarding |
-| `web/src/views/topology/TopologyView.tsx` | Mount FirstVisitCallout in activated state |
-| `web/src/views/decisions/DecisionView.tsx` | Mount FirstVisitCallout in activated state |
-| `web/src/views/decisions/DecisionEmpty.tsx` | Fix copy, remove broken CTA |
-| `web/src/inbox/InboxView.tsx` | Type badge HintTooltips, failure flag hint, first-approval callout |
-| `web/src/design-system/primitives/index.ts` | Re-export new primitives |
+```text
+src/context_os/
+├── api/
+│   ├── onboarding.py          # GET /onboarding/session, POST /survey|scope|activation
+│   ├── oauth.py               # GET /oauth/connect/{source}/start|callback
+│   ├── admin.py               # GET /admin/funnel, /admin/survey-responses (PO only)
+│   └── support.py             # GET /support/traces/{id}, /export; POST /admin/impersonate/*
+├── services/
+│   ├── onboarding_service.py  # OnboardingService state machine
+│   ├── ingest_service.py      # IngestJob lifecycle
+│   └── email_service.py       # notify_ingest_complete() — Resend
+├── auth/
+│   └── impersonation.py       # HS256 impersonation JWT issue/verify/revoke
+└── db/migrations/
+    └── 0003_phase4_closed_beta.py  # onboarding_sessions, activation_events, ingest_jobs,
+                                     # oauth_pending_sessions, revoked_impersonation_tokens
 
-### CI Gates (Phase 5)
+web/src/
+├── onboarding/                # Multi-step wizard (OnboardingShell + 5 steps)
+├── admin/                     # FunnelView, SurveyResponsesTable, OrgDetail (PO only)
+└── lib/hooks/
+    ├── useOnboardingSession.ts
+    └── useImpersonation.ts    # Manages X-Impersonation-Token in memory
 
-- TypeScript: `tsc --noEmit` must pass with zero errors in strict mode
-- All new text must meet WCAG AA 4.5:1 contrast (`/verify-brand` gate)
-- Visual regression: `/verify-visual` must pass before PR
+docs-site/
+├── docusaurus.config.ts
+└── docs/
+    ├── getting-started/       # 01-sign-up → 04-your-first-briefing
+    ├── concepts/              # briefing, initiative, dependency, decision, activation-moment
+    └── workflow-reference/    # executive-briefing, dependency-scan, onboarding-flow
+
+.github/workflows/
+└── nightly-eval.yml           # cron 02:00 UTC + workflow_dispatch; -m nightly_eval
+```
+
+### New Environment Variables
+
+```bash
+IMPERSONATION_SECRET=<256-bit-hex>          # Required for impersonation endpoint
+PLATFORM_OPERATOR_CLERK_USER_ID=<id>        # Required for admin routes
+RESEND_API_KEY=re_...                        # Optional — no-op when absent
+RESEND_FROM_EMAIL=noreply@contextops.ai      # Optional — defaults as shown
+```
+
+### CI Gates (Phase 4)
+
+- Nightly eval: Synthesizer `accept_rate >= 0.40`; Mapper `recall >= 0.50` (block promotion)
+- Tenant isolation: zero cross-tenant records across 100% of isolation test runs
+- Onboarding visual: Playwright fixtures for 3 onboarding steps × 3 viewports
+- Doc site build: `npm run build` in `docs-site/` must exit 0

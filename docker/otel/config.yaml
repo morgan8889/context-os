@@ -1,0 +1,27 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: context_os
+
+processors:
+  batch:
+    timeout: 5s
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: []
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]

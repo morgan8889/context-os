@@ -13,6 +13,7 @@ import type { NodeTypes, EdgeTypes } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { animateStateEnter } from '@/lib/animations/stateTransitions';
+import { useViewState } from '@/lib/api/viewState';
 import { OverlayPanel } from '@/design-system/primitives/OverlayPanel';
 import { useDecisionGraph } from './hooks/useDecisionGraph';
 import { useDecisionLayout } from './hooks/useDecisionLayout';
@@ -332,6 +333,7 @@ function ActivatedDecisionGraph() {
  * - 'activated'  → Full React Flow decision graph
  */
 export default function DecisionView() {
+  useViewState();
   const viewState = useGraphInteractionStore(
     (s) => s.viewStates.decisionGraph.state
   );

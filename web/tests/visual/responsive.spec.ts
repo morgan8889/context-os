@@ -19,7 +19,8 @@ async function hasNoHorizontalOverflow(page: Page): Promise<boolean> {
 
 /** Navigate and wait for the app shell to be ready */
 async function goTo(page: Page, path: string): Promise<void> {
-  await page.goto(path, { waitUntil: 'networkidle' });
+  // domcontentloaded avoids waiting for Web Workers (ForceAtlas2) to go idle
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
   // Allow lazy-loaded view to render
   await page.waitForTimeout(200);
 }

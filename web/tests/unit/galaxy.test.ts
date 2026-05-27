@@ -242,8 +242,8 @@ describe('useGalaxyGraph', () => {
     expect(result.current.graph.hasNode(mockApiNode.id)).toBe(true);
     const attrs = result.current.graph.getNodeAttributes(mockApiNode.id);
     expect(attrs['label']).toBe(mockApiNode.label);
-    expect(attrs['type']).toBe('circle');
     expect(attrs['nodeType']).toBe(mockApiNode.node_type);
+    expect(attrs['type']).toBeUndefined();
   });
 
   it('returns isLoading false when data is available', async () => {

@@ -14,6 +14,13 @@ export function setTokenProvider(fn: () => Promise<string | null>) {
   getTokenFn = fn;
 }
 
+// Impersonation token provider — set from ImpersonationProvider on mount
+let getImpersonationTokenFn: (() => string | null) | null = null;
+
+export function setImpersonationTokenProvider(fn: () => string | null) {
+  getImpersonationTokenFn = fn;
+}
+
 apiClient.interceptors.request.use(async (config) => {
   if (getTokenFn) {
     try {
@@ -25,6 +32,15 @@ apiClient.interceptors.request.use(async (config) => {
       // Clerk not yet initialized — send request without token (dev bypass handles it)
     }
   }
+
+  // Inject impersonation token when active
+  if (getImpersonationTokenFn) {
+    const impersonationToken = getImpersonationTokenFn();
+    if (impersonationToken) {
+      config.headers['X-Impersonation-Token'] = impersonationToken;
+    }
+  }
+
   return config;
 });
 

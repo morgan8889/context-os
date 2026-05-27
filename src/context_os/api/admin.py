@@ -1,9 +1,11 @@
-"""Admin API endpoints for entity inspection and integration management.
+"""Admin API endpoints for entity inspection and onboarding funnel analytics.
 
 GET  /admin/entities                         — list all normalized entities
 POST /admin/integrations/github/connect      — store a GitHub PAT
+GET  /admin/funnel                           — onboarding funnel report
+GET  /admin/survey-responses                 — raw survey answers
 
-All routes require Clerk JWT authentication via get_current_tenant dependency.
+Protected routes use require_platform_operator().
 """
 
 from __future__ import annotations
@@ -13,9 +15,16 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import select, text
 
-from context_os.auth.dependencies import TenantContext, get_current_tenant
+from context_os.api.admin_funnel import build_funnel_rows
+from context_os.auth.dependencies import (
+    TenantContext,
+    get_current_tenant,
+    require_platform_operator,
+)
 from context_os.db.engine import get_session_factory
+from context_os.db.models import ActivationEvent, OnboardingSession, Tenant
 from context_os.graph.client import get_age_pool
 from context_os.graph.mutations import get_nodes_for_tenant
 from context_os.relational.repositories import OAuthTokenRepository
@@ -90,7 +99,7 @@ async def list_entities(
     source: str | None = Query(default=None, description="Filter by source"),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum results"),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
-    tenant: TenantContext = Depends(get_current_tenant),
+    tenant: TenantContext = Depends(require_platform_operator),
 ) -> EntitiesResponse:
     """List all normalized entities for the authenticated tenant.
 
@@ -129,7 +138,12 @@ async def list_entities(
         except Exception as e:
             logger.warning("Failed to serialize node: %s — %s", node_props, e)
 
-    return EntitiesResponse(items=items, total=total, limit=limit, offset=offset)
+    return EntitiesResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 # ── GitHub integration ────────────────────────────────────────────────────────
@@ -154,21 +168,7 @@ async def connect_github(
     body: GitHubConnectRequest,
     tenant: TenantContext = Depends(get_current_tenant),
 ) -> GitHubConnectResponse:
-    """Store an encrypted GitHub PAT for this tenant.
-
-    The token is encrypted with Fernet AES-256 before storage and is used
-    by the ingest pipeline when POST /ingest/github is called.
-
-    Args:
-        body: Request containing the GitHub PAT.
-        tenant: Authenticated tenant context.
-
-    Returns:
-        {"connected": true} on success.
-
-    Raises:
-        HTTPException(500): If the token could not be stored.
-    """
+    """Store an encrypted GitHub PAT for this tenant."""
     factory = get_session_factory()
     try:
         async with factory() as session:
@@ -191,3 +191,156 @@ async def connect_github(
         ) from e
 
     return GitHubConnectResponse(connected=True)
+
+
+# ── Phase 4: Admin funnel + survey-responses ───────────────────────────────────
+
+
+class AdminFunnelRowResponse(BaseModel):
+    """Response schema for a single funnel row."""
+
+    tenant_id: str
+    tenant_name: str
+    current_step: str
+    drop_off_flag: bool
+    signup_to_connect_ms: int | None
+    connect_to_ingest_ms: int | None
+    ingest_to_briefing_ms: int | None
+    total_active_attention_ms: int | None
+
+
+class AdminFunnelResponse(BaseModel):
+    """Response schema for GET /admin/funnel."""
+
+    rows: list[AdminFunnelRowResponse]
+
+
+class SurveyResponseRow(BaseModel):
+    """Single survey response row for GET /admin/survey-responses."""
+
+    tenant_id: str
+    tenant_name: str
+    option: str | None
+    free_text: str | None
+    answered_at: str | None
+
+
+class SurveyResponsesResponse(BaseModel):
+    """Response schema for GET /admin/survey-responses."""
+
+    responses: list[SurveyResponseRow]
+
+
+@router.get(
+    "/funnel",
+    response_model=AdminFunnelResponse,
+    tags=["Admin"],
+)
+async def get_onboarding_funnel(
+    _ctx: TenantContext = Depends(require_platform_operator),
+) -> AdminFunnelResponse:
+    """Return the onboarding funnel report across all tenants.
+
+    Joins onboarding_sessions with tenants and optionally activation_events
+    to compute drop-off flags and timing segments.
+
+    Args:
+        _ctx: Platform Operator context (enforced by dependency).
+
+    Returns:
+        AdminFunnelResponse with one row per org.
+    """
+    factory = get_session_factory()
+    async with factory() as db:
+        # Join onboarding_sessions + tenants + LEFT JOIN activation_events
+        stmt = (
+            select(
+                OnboardingSession.tenant_id,
+                Tenant.name.label("tenant_name"),
+                OnboardingSession.current_step,
+                OnboardingSession.updated_at,
+                OnboardingSession.step_started_at,
+                OnboardingSession.step_completed_at,
+                ActivationEvent.signup_to_connect_ms,
+                ActivationEvent.connect_to_ingest_ms,
+                ActivationEvent.ingest_to_briefing_ms,
+                ActivationEvent.total_active_attention_ms,
+            )
+            .join(Tenant, Tenant.id == OnboardingSession.tenant_id)
+            .outerjoin(
+                ActivationEvent,
+                ActivationEvent.tenant_id == OnboardingSession.tenant_id,
+            )
+        )
+        result = await db.execute(stmt)
+        raw_rows = result.all()
+
+    funnel_rows = build_funnel_rows(list(raw_rows))
+
+    rows = [
+        AdminFunnelRowResponse(
+            tenant_id=str(r.tenant_id),
+            tenant_name=r.tenant_name,
+            current_step=r.current_step,
+            drop_off_flag=r.drop_off_flag,
+            signup_to_connect_ms=r.signup_to_connect_ms,
+            connect_to_ingest_ms=r.connect_to_ingest_ms,
+            ingest_to_briefing_ms=r.ingest_to_briefing_ms,
+            total_active_attention_ms=r.total_active_attention_ms,
+        )
+        for r in funnel_rows
+    ]
+    return AdminFunnelResponse(rows=rows)
+
+
+@router.get(
+    "/survey-responses",
+    response_model=SurveyResponsesResponse,
+    tags=["Admin"],
+)
+async def get_survey_responses(
+    _ctx: TenantContext = Depends(require_platform_operator),
+) -> SurveyResponsesResponse:
+    """Return all survey answers ordered by answered_at DESC.
+
+    Args:
+        _ctx: Platform Operator context (enforced by dependency).
+
+    Returns:
+        SurveyResponsesResponse with one row per org that answered.
+    """
+    factory = get_session_factory()
+    async with factory() as db:
+        stmt = (
+            select(
+                OnboardingSession.tenant_id,
+                Tenant.name.label("tenant_name"),
+                OnboardingSession.survey_answer,
+                OnboardingSession.step_completed_at,
+            )
+            .join(Tenant, Tenant.id == OnboardingSession.tenant_id)
+            .where(OnboardingSession.survey_answer.isnot(None))
+            .order_by(
+                text(
+                    "(onboarding_sessions.step_completed_at->>'survey') DESC NULLS LAST"
+                )
+            )
+        )
+        result = await db.execute(stmt)
+        raw_rows = result.all()
+
+    responses: list[SurveyResponseRow] = []
+    for row in raw_rows:
+        survey = row.survey_answer or {}
+        completed_at = (row.step_completed_at or {}).get("survey")
+        responses.append(
+            SurveyResponseRow(
+                tenant_id=str(row.tenant_id),
+                tenant_name=row.tenant_name,
+                option=survey.get("option"),
+                free_text=survey.get("free_text"),
+                answered_at=completed_at,
+            )
+        )
+
+    return SurveyResponsesResponse(responses=responses)

@@ -4,25 +4,11 @@ import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
 import Graph from 'graphology';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { StateCTA } from '@/design-system/primitives/StateCTA';
+import { getCssVar, resolveNodeColor, withAlpha } from '@/views/galaxy/colors';
 import type { InitiativeNode } from '@/types/galaxy';
 
 /** Stub node counts to anticipate: total visual budget minus real nodes */
 const STUB_COUNT = 8;
-
-// Sigma v3 WebGL can't parse color-mix() or oklch(). Resolve CSS vars via canvas.
-const _cc = typeof document !== 'undefined'
-  ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d')
-  : null;
-
-function resolveCSSVar(varName: string): string {
-  if (!_cc) return 'var(--color-placeholder-grey)';
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-  _cc.clearRect(0, 0, 1, 1);
-  _cc.fillStyle = raw;
-  _cc.fillRect(0, 0, 1, 1);
-  const [r, g, b] = _cc.getImageData(0, 0, 1, 1).data;
-  return `${'rgba'}(${r},${g},${b},0.5)`;
-}
 
 /** Inner component that has access to Sigma context */
 function ActivatingGraphLoader({
@@ -37,26 +23,31 @@ function ActivatingGraphLoader({
 
   // Wire up ForceAtlas2 in Web Worker
   const { start, stop } = useWorkerLayoutForceAtlas2({
-    settings: { slowDown: 10, gravity: 1.0, scalingRatio: 2.0 },
+    settings: {
+      slowDown: 3,
+      gravity: 0.05,
+      scalingRatio: 2.0,
+    },
   });
 
   useEffect(() => {
     const graph = new Graph({ type: 'mixed' });
 
-    // Real nodes — 50% opacity
+    // Real nodes — resolved type color at 50% opacity (Sigma WebGL needs a
+    // concrete color, not a CSS var / color-mix expression).
     nodes.forEach((node) => {
       graph.addNode(node.id, {
         label: node.label,
         x: node.x || Math.random() * 100 - 50,
         y: node.y || Math.random() * 100 - 50,
         size: node.size,
-        color: resolveCSSVar(`--color-node-${node.type}`),
-        type: 'circle',
+        color: withAlpha(resolveNodeColor(node.type), 0.5),
         nodeType: node.type,
       });
     });
 
-    // Stub/anticipatory nodes — placeholder grey, 25% opacity
+    // Stub/anticipatory nodes — resolved placeholder grey at 25% opacity.
+    const stubColor = withAlpha(getCssVar('--color-placeholder-grey'), 0.25);
     for (let i = 0; i < stubCount; i++) {
       const stubId = `__stub_${i}`;
       graph.addNode(stubId, {
@@ -64,7 +55,7 @@ function ActivatingGraphLoader({
         x: Math.random() * 120 - 60,
         y: Math.random() * 120 - 60,
         size: 6,
-        color: 'var(--color-placeholder-grey)',
+        color: stubColor,
         isStub: true,
       });
     }
@@ -80,9 +71,10 @@ function ActivatingGraphLoader({
 
   // Apply custom nodeReducer for stubs (25% opacity) vs real nodes (50% opacity)
   useEffect(() => {
+    const stubColor = withAlpha(getCssVar('--color-placeholder-grey'), 0.25);
     sigma.setSetting('nodeReducer', (_node: string, data: Record<string, unknown>) => {
       if (data['isStub']) {
-        return { ...data, color: 'var(--color-placeholder-grey)', size: 6, label: '' };
+        return { ...data, color: stubColor, size: 6, label: '' };
       }
       return data;
     });
@@ -152,6 +144,7 @@ export default function GalaxyActivating({ initiativeCount }: GalaxyActivatingPr
             renderLabels: nodes.length <= 50,
             minCameraRatio: 0.05,
             maxCameraRatio: 4,
+            allowInvalidContainer: true,
           }}
         >
           <ActivatingGraphLoader nodes={nodes} stubCount={stubCount} />

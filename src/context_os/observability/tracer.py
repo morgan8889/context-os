@@ -14,7 +14,8 @@ import base64
 import logging
 import os
 
-from opentelemetry import trace
+from opentelemetry import metrics, trace
+from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -85,6 +86,21 @@ def init_tracer(app_version: str = "0.1.0") -> TracerProvider:
     trace.set_tracer_provider(provider)
     _tracer_provider = provider
     logger.info("OTEL TracerProvider initialized (version=%s)", app_version)
+
+    # Register Prometheus metric reader for /metrics endpoint
+    try:
+        from opentelemetry.exporter.prometheus import PrometheusMetricReader
+
+        reader = PrometheusMetricReader()
+        meter_provider = MeterProvider(
+            resource=resource,
+            metric_readers=[reader],
+        )
+        metrics.set_meter_provider(meter_provider)
+        logger.info("PrometheusMetricReader registered")
+    except Exception as e:
+        logger.warning("Failed to register PrometheusMetricReader: %s", e)
+
     return provider
 
 

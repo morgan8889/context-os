@@ -169,31 +169,62 @@ def create_app() -> FastAPI:
     from context_os.api.admin import router as admin_router
     from context_os.api.briefing import router as briefing_router
     from context_os.api.decisions_api import router as decisions_router
+    from context_os.api.dev_router import router as dev_router
     from context_os.api.eval_api import router as eval_router
     from context_os.api.graph import router as graph_router
     from context_os.api.inbox import router as inbox_router
     from context_os.api.ingest import router as ingest_router
     from context_os.api.mapper import router as mapper_router
+    from context_os.api.oauth import router as oauth_router
+    from context_os.api.onboarding import router as onboarding_router
+    from context_os.api.support import router as support_router
     from context_os.api.vector import router as vector_router
     from context_os.api.views import router as views_router
     from context_os.api.workflows import router as workflows_router
 
-    app.include_router(ingest_router, prefix="/api/v1/ingest", tags=["Ingest"])
-    app.include_router(graph_router, prefix="/api/v1/graph", tags=["Graph"])
-    app.include_router(vector_router, prefix="/api/v1/vector", tags=["Vector"])
-    app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
-    app.include_router(briefing_router, prefix="/api/v1/briefing", tags=["Briefing"])
-    app.include_router(inbox_router, prefix="/api/v1/inbox", tags=["Inbox"])
-    app.include_router(mapper_router, prefix="/api/v1/mapper", tags=["Mapper"])
-    app.include_router(eval_router, prefix="/api/v1/eval", tags=["Eval"])
-    app.include_router(views_router, prefix="/api/v1/views", tags=["Views"])
-    app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
-    app.include_router(decisions_router, prefix="/api/v1/decisions", tags=["Decisions"])
+    app.include_router(ingest_router, prefix="/ingest", tags=["Ingest"])
+    app.include_router(graph_router, prefix="/graph", tags=["Graph"])
+    app.include_router(vector_router, prefix="/vector", tags=["Vector"])
+    app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+    app.include_router(briefing_router, prefix="/briefing", tags=["Briefing"])
+    app.include_router(inbox_router, prefix="/inbox", tags=["Inbox"])
+    app.include_router(mapper_router, prefix="/mapper", tags=["Mapper"])
+    app.include_router(eval_router, prefix="/eval", tags=["Eval"])
+    app.include_router(dev_router, prefix="/api/v1", tags=["Dev"])
+    app.include_router(onboarding_router, prefix="/onboarding", tags=["Onboarding"])
+    app.include_router(oauth_router, prefix="/oauth", tags=["OAuth"])
+    app.include_router(support_router, tags=["Support"])
+
+    api_v1_routers = [
+        (ingest_router, "/api/v1/ingest", "Ingest"),
+        (graph_router, "/api/v1/graph", "Graph"),
+        (vector_router, "/api/v1/vector", "Vector"),
+        (admin_router, "/api/v1/admin", "Admin"),
+        (briefing_router, "/api/v1/briefing", "Briefing"),
+        (inbox_router, "/api/v1/inbox", "Inbox"),
+        (mapper_router, "/api/v1/mapper", "Mapper"),
+        (eval_router, "/api/v1/eval", "Eval"),
+        (views_router, "/api/v1/views", "Views"),
+        (workflows_router, "/api/v1/workflows", "Workflows"),
+        (decisions_router, "/api/v1/decisions", "Decisions"),
+        (onboarding_router, "/api/v1/onboarding", "Onboarding"),
+        (oauth_router, "/api/v1/oauth", "OAuth"),
+    ]
+    for router_obj, prefix, tag in api_v1_routers:
+        app.include_router(router_obj, prefix=prefix, tags=[tag])
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
         """Health check endpoint (no auth required)."""
         return {"status": "ok", "version": "0.1.0"}
+
+    @app.get("/metrics", include_in_schema=False)
+    async def prometheus_metrics() -> object:
+        """Expose Prometheus metrics in text format (no auth required)."""
+        from fastapi.responses import Response
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     return app
 

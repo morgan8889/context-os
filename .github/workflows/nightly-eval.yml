@@ -1,0 +1,45 @@
+name: Nightly Eval
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: '3.12'
+      - run: uv sync
+      - name: Start infrastructure
+        run: docker compose -f docker/docker-compose.yml up -d postgres langfuse
+      - name: Wait for postgres
+        run: sleep 15
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          LANGFUSE_PUBLIC_KEY: pk-lf-1234567890abcdef
+          LANGFUSE_SECRET_KEY: sk-lf-1234567890abcdef
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: uv run alembic upgrade head
+      - name: Run nightly evals
+        env:
+          CI_GPU_AVAILABLE: ""
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          LANGFUSE_PUBLIC_KEY: pk-lf-1234567890abcdef
+          LANGFUSE_SECRET_KEY: sk-lf-1234567890abcdef
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run pytest tests/evals/ -m nightly_eval -v --tb=short
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-eval-results
+          path: .pytest_results/

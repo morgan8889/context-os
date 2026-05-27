@@ -57,6 +57,10 @@ Thumbs.db
 # Project-specific
 node_modules/
 
+# Docusaurus
+docs-site/.docusaurus/
+docs-site/build/
+
 # Claude Code tooling
 .claire/
 .claude/worktrees/
@@ -65,3 +69,5 @@ node_modules/
 !.claude/visual-runs/latest
 .playwright-mcp/
 web/.env.local
+.claude/brand-runs/*/
+!.claude/brand-runs/latest

@@ -24,6 +24,9 @@ const FRAME_PAINT_P95_THRESHOLD_MS = 33;
 const FRAME_SAMPLE_COUNT = 100;
 const STABILITY_CHECK_FRAMES = 3;
 const STABILITY_TOLERANCE_PX = 0.5;
+// Hard cap on the layout-convergence polling phase so the benchmark can never
+// hang waiting for a layout that never fully settles (e.g. under SwiftShader).
+const MAX_LAYOUT_WAIT_MS = 8000;
 
 interface BenchmarkResult {
   layout_convergence_ms: number;
@@ -43,127 +46,117 @@ async function main() {
   console.log(`URL: ${GALAXY_URL}`);
 
   const browser = await chromium.launch({
-    args: ['--enable-gpu', '--no-sandbox'],
+    // SwiftShader provides software WebGL in headless mode (required for Sigma canvas)
+    args: ['--no-sandbox', '--use-gl=swiftshader', '--disable-dev-shm-usage'],
   });
 
   const page = await browser.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   try {
     await page.goto(GALAXY_URL, { waitUntil: 'domcontentloaded' });
 
-    // Wait for the Sigma renderer to appear
-    await page.waitForSelector('.sigma-renderer', { timeout: 15_000 });
+    // Wait for the galaxy view container, then for Sigma to initialise
+    await page.waitForSelector('[data-view="galaxy"]', { timeout: 10_000 });
+    // BenchmarkRef sets window.__sigma once SigmaContainer mounts; poll for it
+    await page.waitForFunction(() => !!(window as { __sigma?: unknown }).__sigma, { timeout: 20_000 });
 
-    // Inject measurement code into the page
+    // Inject measurement code into the page. Self-driven and bounded so it can
+    // never hang: layout convergence is polled (capped at maxLayoutMs), then
+    // frame-paint timing forces a fixed number of repaints via sigma.refresh()
+    // and measures inter-frame intervals (natural afterRender events stop once
+    // the layout converges, so we drive the renders ourselves).
+    //
+    // NOTE: every callback here is an anonymous argument — no named function
+    // expressions. tsx/esbuild's keepNames would otherwise wrap named functions
+    // with a `__name()` helper that is undefined in the page's eval context.
     const metrics = await page.evaluate(
-      async ({ frameCount, stabilityFrames, stabilityTolerance }) => {
-        return new Promise<{
-          layoutConvergenceMs: number;
-          frameTimesMs: number[];
-          nodeCount: number | null;
-        }>((resolve, reject) => {
-          const win = window as typeof window & {
-            __sigma?: {
-              getGraph: () => { nodes: () => string[] };
-              getNodeDisplayData: (id: string) => { x: number; y: number } | undefined;
-              on: (event: string, cb: () => void) => void;
-            };
-          };
+      async ({ frameCount, stabilityFrames, stabilityTolerance, maxLayoutMs }) => {
+        type SigmaLike = {
+          getGraph: () => { nodes: () => string[] };
+          getNodeDisplayData: (id: string) => { x: number; y: number } | undefined;
+          refresh: () => void;
+        };
+        const win = window as typeof window & { __sigma?: SigmaLike };
 
-          // Wait for sigma instance to be exposed
+        // Wait (≤10s) for the Sigma instance exposed by BenchmarkRef.
+        const sigma = await new Promise<SigmaLike>((resolve, reject) => {
           let attempts = 0;
-          const maxAttempts = 100;
-
-          const waitForSigma = setInterval(() => {
-            attempts++;
-            const sigma = win.__sigma;
-
-            if (sigma) {
-              clearInterval(waitForSigma);
-
-              const frameTimes: number[] = [];
-              const layoutStart = performance.now();
-
-              // Track node positions for convergence detection
-              let lastPositions: Record<string, { x: number; y: number }> = {};
-              let stableCount = 0;
-              let layoutConvergenceMs = -1;
-              let frameIndex = 0;
-
-              sigma.on('afterRender', () => {
-                const now = performance.now();
-
-                // Record frame time after first frame
-                if (frameIndex > 0) {
-                  const frameTime = now - lastFrameTime;
-                  frameTimes.push(frameTime);
-                }
-                lastFrameTime = now;
-                frameIndex++;
-
-                // Check layout convergence via position stability
-                if (layoutConvergenceMs === -1) {
-                  const graph = sigma.getGraph();
-                  const nodes = graph.nodes();
-                  const currentPositions: Record<string, { x: number; y: number }> = {};
-
-                  for (const nodeId of nodes.slice(0, 50)) {
-                    const data = sigma.getNodeDisplayData(nodeId);
-                    if (data) {
-                      currentPositions[nodeId] = { x: data.x, y: data.y };
-                    }
-                  }
-
-                  // Compare with previous positions
-                  if (Object.keys(lastPositions).length > 0) {
-                    let maxDelta = 0;
-                    for (const [id, pos] of Object.entries(currentPositions)) {
-                      const prev = lastPositions[id];
-                      if (prev) {
-                        const delta = Math.sqrt(
-                          Math.pow(pos.x - prev.x, 2) + Math.pow(pos.y - prev.y, 2)
-                        );
-                        maxDelta = Math.max(maxDelta, delta);
-                      }
-                    }
-
-                    if (maxDelta < stabilityTolerance) {
-                      stableCount++;
-                    } else {
-                      stableCount = 0;
-                    }
-
-                    if (stableCount >= stabilityFrames) {
-                      layoutConvergenceMs = now - layoutStart;
-                    }
-                  }
-
-                  lastPositions = currentPositions;
-                }
-
-                // Done collecting frames
-                if (frameTimes.length >= frameCount) {
-                  const nodeCount = sigma.getGraph().nodes().length;
-                  resolve({
-                    layoutConvergenceMs: layoutConvergenceMs >= 0 ? layoutConvergenceMs : now - layoutStart,
-                    frameTimesMs: frameTimes,
-                    nodeCount,
-                  });
-                }
-              });
-
-              let lastFrameTime = performance.now();
-            } else if (attempts >= maxAttempts) {
-              clearInterval(waitForSigma);
+          const iv = setInterval(() => {
+            if (win.__sigma) {
+              clearInterval(iv);
+              resolve(win.__sigma);
+            } else if (++attempts >= 100) {
+              clearInterval(iv);
               reject(new Error('Sigma instance not found on window.__sigma after 10s'));
             }
           }, 100);
         });
+
+        // Phase 1 — layout convergence via position stability (polled, capped).
+        const layoutStart = performance.now();
+        const layoutConvergenceMs = await new Promise<number>((resolve) => {
+          let lastPositions: Record<string, { x: number; y: number }> = {};
+          let stableCount = 0;
+          const iv = setInterval(() => {
+            const now = performance.now();
+            const cur: Record<string, { x: number; y: number }> = {};
+            for (const id of sigma.getGraph().nodes().slice(0, 50)) {
+              const d = sigma.getNodeDisplayData(id);
+              if (d) cur[id] = { x: d.x, y: d.y };
+            }
+            if (Object.keys(lastPositions).length > 0) {
+              let maxDelta = 0;
+              for (const id of Object.keys(cur)) {
+                const prev = lastPositions[id];
+                if (prev) {
+                  const dx = cur[id]!.x - prev.x;
+                  const dy = cur[id]!.y - prev.y;
+                  maxDelta = Math.max(maxDelta, Math.sqrt(dx * dx + dy * dy));
+                }
+              }
+              stableCount = maxDelta < stabilityTolerance ? stableCount + 1 : 0;
+              if (stableCount >= stabilityFrames) {
+                clearInterval(iv);
+                resolve(now - layoutStart);
+                return;
+              }
+            }
+            lastPositions = cur;
+            if (now - layoutStart >= maxLayoutMs) {
+              clearInterval(iv);
+              resolve(now - layoutStart);
+            }
+          }, 16);
+        });
+
+        // Phase 2 — frame paint timing: force repaints and measure intervals.
+        const frameTimesMs = await new Promise<number[]>((resolve) => {
+          const times: number[] = [];
+          let last = performance.now();
+          const iv = setInterval(() => {
+            const now = performance.now();
+            times.push(now - last);
+            last = now;
+            sigma.refresh();
+            if (times.length >= frameCount) {
+              clearInterval(iv);
+              resolve(times);
+            }
+          }, 0);
+        });
+
+        return {
+          layoutConvergenceMs,
+          frameTimesMs,
+          nodeCount: sigma.getGraph().nodes().length,
+        };
       },
       {
         frameCount: FRAME_SAMPLE_COUNT,
         stabilityFrames: STABILITY_CHECK_FRAMES,
         stabilityTolerance: STABILITY_TOLERANCE_PX,
+        maxLayoutMs: MAX_LAYOUT_WAIT_MS,
       }
     );
 

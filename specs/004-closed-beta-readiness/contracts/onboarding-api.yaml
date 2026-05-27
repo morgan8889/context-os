@@ -1,0 +1,390 @@
+openapi: "3.1.0"
+info:
+  title: Context-OS API — Phase 4 Onboarding + Admin
+  version: "0.4.0"
+  description: |
+    New endpoints for Phase 4: Workflow-First onboarding, admin module,
+    support workflows (debug trace, tenant impersonation).
+    All endpoints require a valid Clerk JWT unless noted.
+    Impersonation endpoints additionally require a Platform Operator identity
+    (Clerk custom claim `platform_operator: true`).
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - ClerkJWT: []
+
+components:
+  securitySchemes:
+    ClerkJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Clerk-issued JWT. Org ID extracted from `o.id` claim.
+    ImpersonationToken:
+      type: apiKey
+      in: header
+      name: X-Impersonation-Token
+      description: |
+        Backend-issued HS256 JWT for tenant impersonation.
+        When present, overrides the tenant context to the impersonated org.
+        All write operations return 403 when this header is active.
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+
+    OnboardingSession:
+      type: object
+      required: [tenant_id, current_step, connected_integrations]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        current_step:
+          type: string
+          enum: [survey, connect, scope, ingest, briefing, activated]
+        survey_answer:
+          type: object
+          nullable: true
+          properties:
+            option:
+              type: string
+              enum: [briefings, dependencies, decision_retrieval, architecture_review_cycle_time, something_else]
+            free_text: { type: string, nullable: true }
+        connected_integrations:
+          type: array
+          items:
+            type: string
+            enum: [jira, github, slack]
+        scope_selection:
+          type: object
+          nullable: true
+          properties:
+            jira_projects: { type: array, items: { type: string } }
+            github_repos: { type: array, items: { type: string } }
+            slack_channels: { type: array, items: { type: string } }
+        ingest_job_id: { type: string, format: uuid, nullable: true }
+        activated_at: { type: string, format: date-time, nullable: true }
+
+    IngestJob:
+      type: object
+      required: [id, tenant_id, source, status, progress_pct]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        source: { type: string, enum: [jira, github, slack, all] }
+        status: { type: string, enum: [running, completed, stalled, failed] }
+        progress_pct: { type: integer, minimum: 0, maximum: 100 }
+        record_counts:
+          type: object
+          properties:
+            initiatives: { type: integer }
+            prs: { type: integer }
+            threads: { type: integer }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        error_detail: { type: object, nullable: true }
+
+    AdminFunnelRow:
+      type: object
+      required: [tenant_id, current_step, drop_off_flag]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        tenant_name: { type: string }
+        current_step: { type: string }
+        connected_integrations: { type: array, items: { type: string } }
+        drop_off_flag: { type: boolean }
+        activated_at: { type: string, format: date-time, nullable: true }
+        activation_timing:
+          type: object
+          nullable: true
+          properties:
+            signup_to_connect_ms: { type: integer }
+            connect_to_ingest_ms: { type: integer }
+            ingest_to_briefing_ms: { type: integer }
+            total_active_attention_ms: { type: integer }
+            accept_as_is: { type: boolean }
+
+    DebugTrace:
+      type: object
+      required: [operation_id, spans]
+      properties:
+        operation_id: { type: string }
+        operation_type: { type: string, enum: [briefing_run, ingest_job, agent_invocation] }
+        spans:
+          type: array
+          items:
+            type: object
+            properties:
+              span_id: { type: string }
+              parent_span_id: { type: string, nullable: true }
+              name: { type: string }
+              agent_identity: { type: string, nullable: true }
+              autonomy_level: { type: integer, nullable: true }
+              latency_ms: { type: integer }
+              input_token_count: { type: integer, nullable: true }
+              output_token_count: { type: integer, nullable: true }
+              status: { type: string, enum: [ok, error] }
+              error_message: { type: string, nullable: true }
+              started_at: { type: string, format: date-time }
+
+paths:
+  # ─── Onboarding ───────────────────────────────────────────────────────────
+
+  /onboarding/session:
+    get:
+      summary: Get or create the onboarding session for the current tenant
+      description: |
+        Returns the existing session, or creates one at step=survey if none exists.
+        React wizard calls this on mount to restore leave-and-return position.
+      responses:
+        "200":
+          description: Session returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnboardingSession" }
+
+  /onboarding/survey:
+    post:
+      summary: Submit discovery survey answer
+      description: |
+        Advances session from survey → connect.
+        Idempotent if current_step is already past survey.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [option]
+              properties:
+                option:
+                  type: string
+                  enum: [briefings, dependencies, decision_retrieval, architecture_review_cycle_time, something_else]
+                free_text: { type: string, maxLength: 500, nullable: true }
+      responses:
+        "200":
+          description: Survey recorded; session advanced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnboardingSession" }
+        "409":
+          description: Step already completed; current state returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnboardingSession" }
+
+  /onboarding/scope:
+    post:
+      summary: Submit scope selection
+      description: |
+        Advances session from scope → ingest and starts the ingest job.
+        Returns the created IngestJob.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jira_projects: { type: array, items: { type: string } }
+                github_repos: { type: array, items: { type: string } }
+                slack_channels: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: Scope confirmed; ingest job created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestJob" }
+        "400":
+          description: No sources selected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /onboarding/ingest-status:
+    get:
+      summary: Poll ingest job status
+      description: |
+        Returns the current state of the ingest job created for this tenant's
+        onboarding session. Used by the progress surface to display estimated time.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestJob" }
+        "404":
+          description: No ingest job started yet
+
+  /onboarding/activation:
+    post:
+      summary: Record first-briefing approval and emit activation event
+      description: |
+        Called when the operator approves their first briefing.
+        Advances session to activated, writes ActivationEvent, reveals full nav.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [briefing_id, accepted_as_is]
+              properties:
+                briefing_id: { type: string, format: uuid }
+                accepted_as_is: { type: boolean }
+      responses:
+        "200":
+          description: Activation recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnboardingSession" }
+
+  # ─── OAuth Connect ─────────────────────────────────────────────────────────
+
+  /oauth/connect/{source}/start:
+    get:
+      summary: Initiate server-side OAuth flow
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema: { type: string, enum: [jira, github, slack] }
+      responses:
+        "302":
+          description: Redirect to provider authorization URL
+
+  /oauth/connect/{source}/callback:
+    get:
+      summary: OAuth callback — exchange code, store tokens, close popup
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema: { type: string, enum: [jira, github, slack] }
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "301":
+          description: Redirect to /onboarding/connect?source={source}&status=success|error
+      security: []  # No auth — callback is from provider
+
+  # ─── Admin Module ──────────────────────────────────────────────────────────
+
+  /admin/funnel:
+    get:
+      summary: Activation funnel view — all beta orgs (Platform Operator only)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminFunnelRow" }
+        "403":
+          description: Not a Platform Operator
+
+  /admin/survey-responses:
+    get:
+      summary: Discovery survey responses for all orgs (Platform Operator only)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  responses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tenant_id: { type: string, format: uuid }
+                        tenant_name: { type: string }
+                        option: { type: string }
+                        free_text: { type: string, nullable: true }
+                        answered_at: { type: string, format: date-time }
+
+  # ─── Support Workflows ─────────────────────────────────────────────────────
+
+  /support/traces/{operation_id}:
+    get:
+      summary: Retrieve debug trace for a named operation (Platform Operator only)
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Briefing run ID, ingest job ID, or agent invocation ID
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DebugTrace" }
+        "404":
+          description: No trace found for this operation ID
+
+  /support/traces/{operation_id}/export:
+    post:
+      summary: Export debug trace bundle (redacted) (Platform Operator only)
+      description: |
+        Returns a JSON export bundle with all LLM prompt/completion content
+        replaced by token counts. Safe to share externally.
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DebugTrace" }
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: attachment; filename="trace-{operation_id}.json"
+
+  /admin/impersonate/{target_clerk_org_id}:
+    post:
+      summary: Start a tenant impersonation session (Platform Operator only)
+      parameters:
+        - name: target_clerk_org_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string, description: "HS256 JWT; store in memory, not localStorage" }
+                  expires_at: { type: string, format: date-time }
+                  target_tenant_name: { type: string }
+        "403":
+          description: Not a Platform Operator
+        "501":
+          description: IMPERSONATION_SECRET not configured
+
+  /admin/impersonate/revoke:
+    delete:
+      summary: Revoke the current impersonation token
+      description: Adds the token's JTI to the blocklist. Subsequent requests with the token return 401.
+      responses:
+        "204":
+          description: Token revoked

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLoadGraph, useSigma } from '@react-sigma/core';
 import { useWorkerLayoutForceAtlas2 } from '@react-sigma/layout-forceatlas2';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+import { buildGalaxyGraph } from '@/views/galaxy/buildGalaxyGraph';
 import type Graph from 'graphology';
 
 interface ForceLayoutProps {
@@ -25,7 +26,11 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
   const prevCursorRef = useRef<string | null>(null);
 
   const { start, stop, isRunning } = useWorkerLayoutForceAtlas2({
-    settings: { slowDown: 3, gravity: 0.05, scalingRatio: 2.0 },
+    settings: {
+      slowDown: 3,
+      gravity: 0.05,
+      scalingRatio: 2.0,
+    },
   });
 
   // Load the graph when it changes
@@ -60,40 +65,7 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
       // Import the snapshot for this cursor
       const snapshot = galaxySnapshots.find((s) => s.timestamp === galaxyTimeCursor);
       if (snapshot) {
-        const Graph = graph.constructor as new (opts: { type: string; multi: boolean }) => typeof graph;
-        const snapshotGraph = new Graph({ type: 'mixed', multi: false });
-
-        for (const node of snapshot.nodes) {
-          snapshotGraph.addNode(node.id, {
-            label: node.label,
-            x: node.x,
-            y: node.y,
-            size: node.size,
-            type: 'circle',
-            nodeType: node.type,
-            status: node.status,
-            ownerTeam: node.ownerTeam,
-            actorCount: node.actorCount,
-            riskScore: node.riskScore,
-            autonomyLevel: node.autonomyLevel,
-            edgeCount: node.edgeCount,
-            viewState: node.viewState,
-          });
-        }
-
-        for (const edge of snapshot.edges) {
-          if (
-            snapshotGraph.hasNode(edge.source) &&
-            snapshotGraph.hasNode(edge.target)
-          ) {
-            snapshotGraph.addEdgeWithKey(edge.id, edge.source, edge.target, {
-              type: 'line',
-              edgeType: edge.type,
-              weight: edge.weight,
-            });
-          }
-        }
-
+        const snapshotGraph = buildGalaxyGraph(snapshot.nodes, snapshot.edges);
         loadGraph(snapshotGraph, true);
         sigma.getCamera().animate({ ratio: sigma.getCamera().ratio }, { duration: 300 });
       }
@@ -109,7 +81,7 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [galaxyTimeCursor]);
 
-  // Let layout converge, then stop it and fit the camera to frozen positions
+  // Let layout converge, then stop it and fit the camera to frozen positions.
   useEffect(() => {
     const timer = setTimeout(() => {
       stop();
@@ -130,12 +102,12 @@ export function ForceLayout({ graph }: ForceLayoutProps) {
       const normCx = ((vcx - width / 2) * cam.ratio) / width + cam.x;
       const normCy = ((vcy - height / 2) * cam.ratio) / height + cam.y;
 
-      const FILL = 0.85;
-      const R2x = (bboxW * cam.ratio) / (FILL * width);
-      const R2y = (bboxH * cam.ratio) / (FILL * height);
-      const newRatio = Math.max(R2x, R2y, 0.05);
+      const fill = 0.85;
+      const ratioX = (bboxW * cam.ratio) / (fill * width);
+      const ratioY = (bboxH * cam.ratio) / (fill * height);
+      const ratio = Math.max(ratioX, ratioY, 0.05);
 
-      camera.animate({ x: normCx, y: normCy, ratio: newRatio }, { duration: 600 });
+      camera.animate({ x: normCx, y: normCy, ratio }, { duration: 600 });
     }, 5000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
