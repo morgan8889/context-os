@@ -144,8 +144,10 @@ function GitHubConnectTab() {
               ? 'oklch(45% 0.12 145)'
               : busy
                 ? 'oklch(30% 0 0)'
-                : 'oklch(55% 0.2 250)',
-          color: 'oklch(95% 0 0)',
+                : !pat.trim()
+                  ? 'oklch(30% 0 0)'
+                  : 'oklch(55% 0.2 250)',
+          color: !pat.trim() ? 'oklch(50% 0 0)' : 'oklch(95% 0 0)',
           cursor: busy || ghStatus === 'done' || !pat.trim() ? 'default' : 'pointer',
         }}
       >
