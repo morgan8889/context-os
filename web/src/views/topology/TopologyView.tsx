@@ -2,6 +2,7 @@ import { useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useGSAP } from '@gsap/react';
 import { FirstVisitCallout } from '@/design-system/primitives/FirstVisitCallout';
+import { useViewState } from '@/lib/api/viewState';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -243,6 +244,8 @@ function LoadingState() {
  * Data is fetched once on mount. Filter changes are client-side only.
  */
 export default function TopologyView() {
+  useViewState();
+
   const viewStates = useGraphInteractionStore((s) => s.viewStates);
   const topologyViewState = viewStates.topology.state;
   const workflowCount = viewStates.topology.workflowCount;

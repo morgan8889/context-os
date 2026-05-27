@@ -50,6 +50,41 @@ export const onboardingKeys = {
   ingestStatus: () => [...onboardingKeys.all, 'ingest-status'] as const,
 } as const;
 
+function getMockStep(): OnboardingSession['current_step'] | null {
+  if (typeof window === 'undefined') return null;
+  const mock = new URLSearchParams(window.location.search).get('mock');
+  const steps: OnboardingSession['current_step'][] = [
+    'survey',
+    'connect',
+    'scope',
+    'ingest',
+    'briefing',
+    'activated',
+  ];
+  return steps.includes(mock as OnboardingSession['current_step'])
+    ? (mock as OnboardingSession['current_step'])
+    : null;
+}
+
+function mockSession(step: OnboardingSession['current_step']): OnboardingSession {
+  return {
+    tenant_id: 'org_visual_test',
+    current_step: step,
+    survey_answer: step === 'survey' ? null : { option: 'briefings' },
+    connected_integrations:
+      step === 'survey' || step === 'connect' ? [] : ['github'],
+    scope_selection:
+      step === 'scope' || step === 'ingest' || step === 'briefing' || step === 'activated'
+        ? { github_repos: ['context-os'] }
+        : null,
+    ingest_job_id:
+      step === 'ingest' || step === 'briefing' || step === 'activated'
+        ? 'ingest_visual_test'
+        : null,
+    activated_at: step === 'activated' ? new Date(0).toISOString() : null,
+  };
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -58,14 +93,19 @@ export const onboardingKeys = {
  * @returns session data, loading state, and a refetch function.
  */
 export function useOnboardingSession() {
-  const { data: session, isLoading, refetch } = useQuery<OnboardingSession, Error>({
-    queryKey: onboardingKeys.session(),
-    queryFn: async () => {
-      const response = await apiClient.get<OnboardingSession>('/onboarding/session');
-      return response.data;
-    },
-    staleTime: 0,
-  });
+  const mockStep = getMockStep();
+  const { data: session, isLoading, refetch } = useQuery<OnboardingSession, Error>(
+    {
+      queryKey: onboardingKeys.session(),
+      queryFn: async () => {
+        if (mockStep) return mockSession(mockStep);
+        const response = await apiClient.get<OnboardingSession>('/onboarding/session');
+        return response.data;
+      },
+      ...(mockStep ? { refetchInterval: false as const } : {}),
+      staleTime: 0,
+    }
+  );
 
   return { session: session ?? null, isLoading, refetch };
 }

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { StateCTA } from '@/design-system/primitives/StateCTA';
 
 /**
  * DecisionEmpty — shown when the decision graph view state is 'empty'.
@@ -217,6 +218,12 @@ export default function DecisionEmpty() {
           becomes a node here. After your first briefing cycle, decisions will
           appear automatically.
         </p>
+        <StateCTA
+          label="Capture a decision manually"
+          onClick={() => {
+            /* manual capture flow ships in a later phase */
+          }}
+        />
       </motion.div>
     </motion.div>
   );

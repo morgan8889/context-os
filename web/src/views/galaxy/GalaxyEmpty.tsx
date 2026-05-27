@@ -122,7 +122,7 @@ export default function GalaxyEmpty() {
         </div>
 
         <StateCTA
-          label="Review onboarding"
+          label="Adjust source scope"
           onClick={() => navigate('/onboarding')}
         />
       </motion.div>
