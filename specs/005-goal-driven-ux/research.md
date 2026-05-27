@@ -133,3 +133,67 @@ badge, which is not desirable (badges may have their own future click behaviour)
 A trailing `?` icon makes the tooltip opt-in without disrupting the badge.  
 **Failure flag tooltip**: The failure flag warning banner header gets a trailing
 `HintTooltip`. The banner is already rendered per-item in `InboxView`.
+
+---
+
+# Tier B Research — Process Re-Architecture (Deferred Seed for Phase 6/7)
+
+**Status**: Preliminary. These are framing decisions, not committed architecture.
+Each is a candidate to be validated, revised, or rejected in the dedicated
+Phase 6/7 `/speckit.plan`. They exist so the strategic objective is captured with
+its key open questions, not so it can be built from this pack.
+
+## Decision 9: Defer Tier B to its own spec pack rather than extend Phase 5
+
+**Decision**: Treat US6–US9 / FR-015–022 as a seed for a separate Phase 6/7
+spec, not as additional Phase 5 scope.  
+**Rationale**: Tier B touches all six NON-NEGOTIABLE constitution principles
+(new agents, autonomy declarations, durable workflows, evaluation suites,
+telemetry, graph persistence). Folding it into a frontend-only UX phase would
+force its Constitution Check, eval gate, and observability obligations to be
+either skipped or rushed — both prohibited. Keeping Phase 5 shippable while
+recording Tier B as a validated seed is the constitution-compliant path.  
+**Alternatives considered**: Extend Phase 5 to cover Tier B (rejected — violates
+the Evaluation-First and Observable-Autonomy gates for a beta UX release);
+discard the strategic requirements (rejected — loses validated product
+direction the user explicitly asked to capture).
+
+## Decision 10: Process baseline from ingested signals, not manual modelling
+
+**Decision (candidate)**: Derive the current-state baseline (US6) from existing
+ingested work signals (GitHub/Jira/Slack via the Phase 1 ingestion layer) rather
+than asking operators to draw process maps.  
+**Rationale**: An evidence-based baseline is the comparison anchor for every KPI
+claim later; a hand-drawn map cannot be audited against Principle II provenance.
+The ingestion layer already normalises vendor data into the core ontology, so
+stage/handoff/cycle-time extraction can run over graph facts.  
+**Open questions for Phase 6/7**: stage-inference accuracy and its eval set;
+how cycle-time is segmented from event timestamps; minimum signal volume for a
+trustworthy baseline.
+
+## Decision 11: Redesign + optimisation agents fit the existing 0–5 autonomy model
+
+**Decision (candidate)**: The redesign-proposal agent (US7) and optimisation-
+recommendation agent (US9) are **recommend-only** (autonomy ≤2, approval-gated),
+reusing the Phase 2 approval-inbox pattern. Per-step autonomy levels declared
+*inside* a blueprint describe the *proposed* future process, and are themselves
+human-approved before any execution.  
+**Rationale**: Keeps consequence-bearing decisions human-gated (Principle III)
+and avoids inventing a parallel autonomy taxonomy (Architectural Constraint).
+The approval-inbox and eval-runner from Phase 2 are direct precedents.  
+**Open questions for Phase 6/7**: eval golden dataset for redesign quality;
+acceptance-rate CI gate threshold; how blueprint-declared autonomy is enforced
+at execution time.
+
+## Decision 12: KPI measurement reuses OTEL telemetry; durable orchestration for rollout
+
+**Decision (candidate)**: Operational monitoring (FR-020) and before/after KPI
+windows (FR-021) are computed from the OTEL/Langfuse telemetry already mandated
+by Principle VI, not a new metrics store. Implementation tracking (US8) runs on
+a durable orchestrator (Temporal/LangGraph) per the Architectural Constraint.  
+**Rationale**: Telemetry is already the substrate for operational health views;
+KPI snapshots are time-windowed aggregations over existing traces. Rollout is a
+long-running, restart-surviving workflow — exactly the durable-orchestration
+case.  
+**Open questions for Phase 6/7**: baseline/post-change window locking and audit;
+cost-per-outcome normalisation; drift-threshold configuration surface.

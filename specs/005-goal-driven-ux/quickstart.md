@@ -133,3 +133,48 @@ Run after all changes committed:
 # or
 /verify-brand
 ```
+
+---
+
+## Strategic extension scenarios (spec target)
+
+These scenarios define acceptance intent for the AI process transformation
+objective. They are expected for follow-on phases and may not be fully
+implemented in current Phase 5 builds.
+
+## Scenario 9: Process baseline capture
+
+1. Select an existing business workflow.
+2. System produces a baseline map with stages, owners, handoffs, cycle-time,
+   and rework/failure hotspots.
+3. Operator can export or pin this baseline as the comparison anchor.
+
+## Scenario 10: AI-native process redesign proposal
+
+1. Start from a baseline process.
+2. System proposes a redesign with:
+   - human responsibilities
+   - agent responsibilities
+   - governance checkpoints
+   - expected KPI deltas
+3. Operator reviews and approves/rejects proposal.
+
+## Scenario 11: Implementation control plan
+
+1. Approve a redesign blueprint.
+2. System generates milestones with owners, dependencies, readiness gates,
+   and rollback conditions.
+3. Blockers are surfaced with explicit root-cause status.
+
+## Scenario 12: KPI before/after measurement
+
+1. Baseline KPI window is locked before rollout.
+2. Post-change KPI window is collected after rollout activation.
+3. Dashboard shows deltas for cycle time, latency, rework, override rate,
+   and cost per outcome with audit trail.
+
+## Scenario 13: Drift and optimisation loop
+
+1. Monitor transformed process for sustained KPI drift.
+2. System generates targeted optimisation recommendations.
+3. Operator accepts/rejects recommendations and tracks resulting KPI change.

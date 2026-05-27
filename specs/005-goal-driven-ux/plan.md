@@ -18,6 +18,27 @@ work is in `web/`.
 
 ---
 
+## Strategic Amendment (2026-05-22)
+
+This plan is amended to align with the product objective:
+re-architect existing processes for AI, implement safely, and measure impact.
+
+Phase 5 remains the UX comprehension layer. Additional implementation planning
+must account for cross-layer work that extends beyond frontend copy/interaction:
+
+1. Process Baseline Layer: ingest and model current-state workflows.
+2. Re-Architecture Layer: generate AI-native process blueprints.
+3. Implementation Control Layer: milestone planning, ownership, risk gates.
+4. Monitoring + Metrics Layer: KPI baseline/post-change instrumentation.
+5. Optimisation Layer: drift detection and adjustment recommendations.
+
+Impact on planning:
+- Prior "no backend changes" constraint applies only to the existing Phase 5 UX scope.
+- New transformation capabilities require backend/API/data model work in follow-on phases.
+- This spec pack should be treated as the seed for Phase 6/7 planning.
+
+---
+
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x strict  
@@ -32,7 +53,9 @@ tooltip open delay 300–500ms (Radix default); localStorage reads synchronous o
 mount (no visible flash)  
 **Constraints**: No backend API changes; no new routes; no new dependencies unless
 strictly necessary; WCAG AA 4.5:1 contrast for all new text  
-**Scale/Scope**: 11 files modified/created; 5 user stories; ≤3 new primitives
+**Scale/Scope (Tier A only)**: 11 files modified/created; 5 user stories
+(US1–US5); ≤3 new primitives. Tier B (US6–US9) is deferred and out of this
+plan's implementation scope.
 
 ---
 
@@ -40,13 +63,22 @@ strictly necessary; WCAG AA 4.5:1 contrast for all new text
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
+**Scope of this gate**: This plan implements **Tier A only** (operator-comprehension
+UX, US1–US5). Tier A is assessed below and passes cleanly. **Tier B** (process
+re-architecture, US6–US9) is explicitly **out of this plan's implementation scope**;
+its Constitution Check is **DEFERRED** to a dedicated Phase 6/7 plan. The Tier B
+principle engagements are enumerated so the deferral is explicit and auditable —
+not silently ignored.
+
+### Tier A assessment (this plan's implementation scope)
+
 **Principle I — Intent Over Tasks**: ✅ Not applicable (UI teaching surface,
 not goal/task modelling).
 
-**Principle II — Persistent Semantic Memory (NON-NEGOTIABLE)**: ✅ Not
-applicable. No new backend entities. localStorage is explicitly documented as a
-deliberate scope choice, not a violation of server-side persistence — orientation
-messages are UI state, not organisational memory.
+**Principle II — Persistent Semantic Memory (NON-NEGOTIABLE)**: ✅ Compliant.
+No new backend entities. localStorage is explicitly documented as a deliberate
+scope choice, not a violation of server-side persistence — orientation messages
+are transient UI state, not organisational memory.
 
 **Principle III — Human Governance, AI Execution (NON-NEGOTIABLE)**: ✅ Not
 applicable. No new AI agents or autonomy declarations.
@@ -69,7 +101,26 @@ primitives do not modify core ontology.
 orchestration changes; no telemetry schema changes; no integration ingestion
 changes.
 
-**Verdict**: No violations. No Complexity Tracking entries required.
+**Tier A Verdict**: No violations. No Complexity Tracking entries required.
+
+### Tier B engagements (DEFERRED — must be cleared by the Phase 6/7 plan)
+
+The strategic objective (US6–US9, FR-015–022) is **not buildable under this plan**
+because it touches every NON-NEGOTIABLE principle. The Phase 6/7 plan MUST resolve
+each before any Tier B implementation:
+
+| Principle | How Tier B engages it | Required before Tier B build |
+|-----------|----------------------|------------------------------|
+| I. Intent Over Tasks | Processes/blueprints/milestones must trace to Goals/Initiatives | Map Tier B entities onto the intent graph; no orphan process records |
+| II. Persistent Semantic Memory | ProcessBaseline, Blueprint, Milestone, KpiSnapshot are organisational memory | Model as typed graph nodes/edges with provenance (not client-side state) |
+| III. Human Governance, AI Execution | Redesign agents declare per-step autonomy (0–5); approval-gated at ≤3 | Declare autonomy levels; gate execution; publish escalation criteria for 4–5 |
+| V. Evaluation-First | New baseline/redesign/optimisation agents + workflows | Commit eval suites (golden inputs, failure modes, governance edge cases) before any non-dev deploy |
+| VI. Observable Autonomy | Monitoring (FR-020) emits override/intervention/latency telemetry | OTEL-conformant traces with agent identity, autonomy level, governance markers |
+| VII. Domain-Adapter Extensibility | "Process", "blueprint", "KPI" are domain concepts | Express as adapters onto core ontology, not core-schema forks |
+| Arch: Durable orchestration | Implementation tracking is a long-running workflow | Use Temporal/LangGraph (durable), not in-memory |
+
+**Tier B Verdict**: GATE DEFERRED. This plan does not authorise Tier B work. The
+Phase 6/7 plan is the gate of record for the table above.
 
 ---
 
@@ -80,13 +131,14 @@ changes.
 ```text
 specs/005-goal-driven-ux/
 ├── plan.md              ← This file
-├── spec.md              ← Feature specification
-├── research.md          ← Technical decisions (8 decisions documented)
-├── data-model.md        ← Client-side entities (6 entities)
-├── quickstart.md        ← Integration scenarios (8 scenarios)
+├── spec.md              ← Feature specification (Tier A + Tier B seed)
+├── research.md          ← Technical decisions (8 Tier A + 4 Tier B seed)
+├── data-model.md        ← Tier A client-side entities (6) + Tier B target entities (4)
+├── quickstart.md        ← Integration scenarios (8 Tier A + 5 Tier B target)
 ├── contracts/
-│   └── ui-components.md ← Component interface contracts (5 contracts)
-└── tasks.md             ← Generated by /speckit.tasks (not yet created)
+│   ├── ui-components.md          ← Tier A component interface contracts (5)
+│   └── process-transformation.md ← Tier B contract surface (DEFERRED stub)
+└── tasks.md             ← Tier A executable tasks + Tier B deferred planning track
 ```
 
 ### Source Code

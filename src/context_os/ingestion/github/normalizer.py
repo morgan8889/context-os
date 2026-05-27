@@ -94,10 +94,7 @@ class GitHubNormalizer:
         """
         source_id = f"{repo_full_name}/milestone/{milestone['number']}"
         now = _now_iso()
-
-        state = milestone.get("state", "open")
-        status_map = {"open": "open", "closed": "done"}
-        status = status_map.get(state, "open")
+        status = "done" if milestone.get("state") == "closed" else "open"
 
         return {
             "_age_label": "Goal",
@@ -174,45 +171,40 @@ class GitHubNormalizer:
         """
         source_id = f"{repo_full_name}/issue/{issue['number']}"
         now = _now_iso()
-        state = issue.get("state", "open")
+        created_at = issue.get("created_at", now)
 
-        if state == "closed":
+        base = {
+            "id": _make_id(source_id, self.tenant_id, "gh_issue"),
+            "tenant_id": self.tenant_id,
+            "source": "github",
+            "source_id": source_id,
+            "fetch_ts": now,
+            "created_at": created_at,
+            "updated_at": issue.get("updated_at", now),
+            "url": issue.get("html_url", ""),
+        }
+
+        if issue.get("state") == "closed":
             return {
+                **base,
                 "_age_label": "Artifact",
                 "node_type": "artifact",
-                "id": _make_id(source_id, self.tenant_id, "gh_issue"),
-                "tenant_id": self.tenant_id,
-                "source": "github",
-                "source_id": source_id,
-                "fetch_ts": now,
-                "created_at": issue.get("created_at", now),
-                "updated_at": issue.get("updated_at", now),
                 "title": issue.get("title", ""),
                 "content": issue.get("body") or "",
                 "artifact_type": "issue",
                 "status": "closed",
-                "url": issue.get("html_url", ""),
             }
-        else:
-            return {
-                "_age_label": "Signal",
-                "node_type": "signal",
-                "id": _make_id(source_id, self.tenant_id, "gh_issue"),
-                "tenant_id": self.tenant_id,
-                "source": "github",
-                "source_id": source_id,
-                "fetch_ts": now,
-                "created_at": issue.get("created_at", now),
-                "updated_at": issue.get("updated_at", now),
-                "content": (
-                    f"{issue.get('title', '')} — {issue.get('body', '') or ''}".strip(
-                        " —"
-                    )
-                ),
-                "signal_type": "comment",
-                "url": issue.get("html_url", ""),
-                "occurred_at": issue.get("created_at", now),
-            }
+
+        return {
+            **base,
+            "_age_label": "Signal",
+            "node_type": "signal",
+            "content": (
+                f"{issue.get('title', '')} — {issue.get('body', '') or ''}".strip(" —")
+            ),
+            "signal_type": "comment",
+            "occurred_at": created_at,
+        }
 
     def user_to_actor(self, user: dict[str, Any]) -> dict[str, Any]:
         """Map a GitHub user to an Actor node.

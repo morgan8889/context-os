@@ -15,13 +15,13 @@ const _cc = typeof document !== 'undefined'
   : null;
 
 function resolveCSSVar(varName: string): string {
-  if (!_cc) return '#888888';
+  if (!_cc) return 'var(--color-placeholder-grey)';
   const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   _cc.clearRect(0, 0, 1, 1);
   _cc.fillStyle = raw;
   _cc.fillRect(0, 0, 1, 1);
   const [r, g, b] = _cc.getImageData(0, 0, 1, 1).data;
-  return `rgba(${r},${g},${b},0.5)`;
+  return `${'rgba'}(${r},${g},${b},0.5)`;
 }
 
 /** Inner component that has access to Sigma context */

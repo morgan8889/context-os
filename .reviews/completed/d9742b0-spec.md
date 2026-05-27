@@ -1,0 +1,20 @@
+# Spec Review — d9742b0
+
+## Changes Reviewed
+
+### web/src/views/galaxy/ForceLayout.tsx
+- Adds auto-fit camera `useEffect` that fires 2500ms after mount
+- Uses `sigma.getBBox()` and `sigma.graphToViewport()` to measure node positions in viewport space
+- Computes normalized camera center and ratio with 85% fill factor
+- Animates camera with 600ms duration
+- Returns cleanup timer on unmount
+- Removes temporary `window.__sigma__` debug exposure
+
+## Spec Compliance
+- Satisfies user request: "can you zoom the camera to fit all nodes"
+- 2.5s delay gives ForceAtlas2 time to spread nodes from random starting positions
+- 85% fill factor provides comfortable padding
+- `Math.max(R2x, R2y, 0.05)` ensures minimum zoom ratio (never collapses to zero)
+- Cleanup timer prevents stale closure if component unmounts before timer fires
+
+## Verdict: PASS

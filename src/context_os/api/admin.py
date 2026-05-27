@@ -60,17 +60,6 @@ def _node_to_response(node_props: dict[str, Any]) -> GraphNodeResponse:
     Returns:
         GraphNodeResponse with provenance extracted.
     """
-    node_id = str(node_props.get("id", ""))
-    node_type = str(node_props.get("node_type", node_props.get("label", "Unknown")))
-    tenant_id = str(node_props.get("tenant_id", ""))
-
-    provenance = Provenance(
-        source=str(node_props.get("source", "internal")),
-        source_id=str(node_props.get("source_id", "")),
-        fetch_ts=str(node_props.get("fetch_ts", "")),
-    )
-
-    # Properties dict excludes base fields for cleaner output
     base_fields = {
         "id",
         "tenant_id",
@@ -81,14 +70,17 @@ def _node_to_response(node_props: dict[str, Any]) -> GraphNodeResponse:
         "updated_at",
         "node_type",
     }
-    properties = {k: v for k, v in node_props.items() if k not in base_fields}
 
     return GraphNodeResponse(
-        id=node_id,
-        type=node_type,
-        tenant_id=tenant_id,
-        provenance=provenance,
-        properties=properties,
+        id=str(node_props.get("id", "")),
+        type=str(node_props.get("node_type", node_props.get("label", "Unknown"))),
+        tenant_id=str(node_props.get("tenant_id", "")),
+        provenance=Provenance(
+            source=str(node_props.get("source", "internal")),
+            source_id=str(node_props.get("source_id", "")),
+            fetch_ts=str(node_props.get("fetch_ts", "")),
+        ),
+        properties={k: v for k, v in node_props.items() if k not in base_fields},
     )
 
 
@@ -130,19 +122,14 @@ async def list_entities(
         logger.error("Failed to query entities for tenant %s: %s", tenant.tenant_id, e)
         raise
 
-    items = []
+    items: list[GraphNodeResponse] = []
     for node_props in nodes_data:
         try:
             items.append(_node_to_response(node_props))
         except Exception as e:
             logger.warning("Failed to serialize node: %s — %s", node_props, e)
 
-    return EntitiesResponse(
-        items=items,
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+    return EntitiesResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 # ── GitHub integration ────────────────────────────────────────────────────────

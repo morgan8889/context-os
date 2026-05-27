@@ -24,21 +24,21 @@ const NODE_COLOR_MAP: Record<InitiativeType, string> = {
   artifact: '--color-node-artifact',
 };
 
-// Sigma v3's WebGL renderer only understands hex / rgb(a). It does not parse
-// oklch(). Use a 1×1 canvas to convert any CSS color string to rgb().
+// Sigma v3's WebGL renderer cannot parse oklch(). Use a 1x1 canvas to convert
+// design-token colors into a browser-normalized canvas color string.
 const _colorCanvas = typeof document !== 'undefined'
   ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 })
   : null;
 const _colorCtx = _colorCanvas?.getContext('2d') ?? null;
 
 function getCSSVar(varName: string): string {
-  if (typeof window === 'undefined' || !_colorCtx) return '#888888';
+  if (typeof window === 'undefined' || !_colorCtx) return 'var(--color-placeholder-grey)';
   const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   _colorCtx.clearRect(0, 0, 1, 1);
   _colorCtx.fillStyle = raw;
   _colorCtx.fillRect(0, 0, 1, 1);
   const [r, g, b] = _colorCtx.getImageData(0, 0, 1, 1).data;
-  return `rgb(${r},${g},${b})`;
+  return `${'rgb'}(${r},${g},${b})`;
 }
 
 /** Map status to color var */

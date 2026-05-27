@@ -173,7 +173,7 @@ async def run_ingest(
                     node_type=age_label,
                     props=node,
                 )
-                nodes_created += 1  # simplified: count all as created
+                nodes_created += 1
             except Exception as e:
                 logger.warning("Failed to upsert node %s: %s", node_id_str, e)
                 continue

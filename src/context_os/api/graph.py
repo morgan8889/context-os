@@ -410,6 +410,10 @@ def _safe_str_or_none(v: Any) -> str | None:
 
 def _props_to_api_node(props: dict[str, Any]) -> ApiNodeResponse | None:
     """Map AGE node property dict to ApiNodeResponse. Returns None on error."""
+    raw_autonomy = props.get("autonomy_level")
+    autonomy_level = (
+        _safe_int(raw_autonomy, 0) if raw_autonomy not in (None, "None") else None
+    )
     try:
         return ApiNodeResponse(
             id=str(props.get("id", "")),
@@ -419,9 +423,7 @@ def _props_to_api_node(props: dict[str, Any]) -> ApiNodeResponse | None:
             owner_team=_safe_str_or_none(props.get("owner_team")),
             actor_count=_safe_int(props.get("actor_count"), 0),
             risk_score=_safe_float(props.get("risk_score")),
-            autonomy_level=_safe_int(props.get("autonomy_level"), 0)
-            if props.get("autonomy_level") not in (None, "None")
-            else None,
+            autonomy_level=autonomy_level,
             edge_count=_safe_int(props.get("edge_count"), 0),
         )
     except Exception as e:
@@ -441,27 +443,14 @@ async def list_nodes(
         pool = get_age_pool()
         from context_os.graph.mutations import get_nodes_for_tenant
 
-        offset = 0
-        if cursor:
-            try:
-                offset = int(cursor)
-            except ValueError:
-                offset = 0
-
+        offset = _safe_int(cursor, 0) if cursor else 0
         limit = 500
         raw_nodes, total = await get_nodes_for_tenant(
             pool, tenant.tenant_id, node_type=None, limit=limit, offset=offset
         )
 
-        items: list[ApiNodeResponse] = []
-        for props in raw_nodes:
-            node = _props_to_api_node(props)
-            if node:
-                items.append(node)
-
-        next_cursor: str | None = None
-        if offset + limit < total:
-            next_cursor = str(offset + limit)
+        items = [n for n in (_props_to_api_node(p) for p in raw_nodes) if n]
+        next_cursor = str(offset + limit) if offset + limit < total else None
 
         return PaginatedNodes(items=items, next_cursor=next_cursor, total=total)
 

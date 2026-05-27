@@ -95,6 +95,17 @@ function GitHubConnectTab() {
   }
 
   const busy = ghStatus === 'connecting' || ghStatus === 'ingesting';
+  const hasToken = pat.trim().length > 0;
+  const disabled = busy || ghStatus === 'done' || !hasToken;
+
+  let buttonBg = 'oklch(55% 0.2 250)';
+  if (ghStatus === 'done') buttonBg = 'oklch(45% 0.12 145)';
+  else if (busy || !hasToken) buttonBg = 'oklch(30% 0 0)';
+
+  let buttonLabel = 'Connect GitHub';
+  if (ghStatus === 'connecting') buttonLabel = 'Connecting…';
+  else if (ghStatus === 'ingesting') buttonLabel = 'Syncing your repos…';
+  else if (ghStatus === 'done') buttonLabel = 'Done — opening Galaxy';
 
   return (
     <div style={card}>
@@ -136,28 +147,15 @@ function GitHubConnectTab() {
 
       <button
         onClick={handleConnect}
-        disabled={busy || ghStatus === 'done' || !pat.trim()}
+        disabled={disabled}
         className="w-full rounded-lg px-5 py-3 text-sm font-medium transition-colors"
         style={{
-          background:
-            ghStatus === 'done'
-              ? 'oklch(45% 0.12 145)'
-              : busy
-                ? 'oklch(30% 0 0)'
-                : !pat.trim()
-                  ? 'oklch(30% 0 0)'
-                  : 'oklch(55% 0.2 250)',
-          color: !pat.trim() ? 'oklch(50% 0 0)' : 'oklch(95% 0 0)',
-          cursor: busy || ghStatus === 'done' || !pat.trim() ? 'default' : 'pointer',
+          background: buttonBg,
+          color: hasToken ? 'oklch(95% 0 0)' : 'oklch(50% 0 0)',
+          cursor: disabled ? 'default' : 'pointer',
         }}
       >
-        {ghStatus === 'connecting'
-          ? 'Connecting…'
-          : ghStatus === 'ingesting'
-            ? 'Syncing your repos…'
-            : ghStatus === 'done'
-              ? 'Done — opening Galaxy'
-              : 'Connect GitHub'}
+        {buttonLabel}
       </button>
     </div>
   );
@@ -221,7 +219,7 @@ function SampleDataTab() {
                 ? 'oklch(30% 0 0)'
                 : 'oklch(38% 0 0)',
           color: 'oklch(95% 0 0)',
-          cursor: status === 'loading' || status === 'done' ? 'default' : 'pointer',
+          cursor: status === 'idle' || status === 'error' ? 'pointer' : 'default',
         }}
       >
         {status === 'loading'

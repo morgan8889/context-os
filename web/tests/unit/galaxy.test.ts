@@ -80,10 +80,12 @@ describe('toInitiativeNode', () => {
     expect(node.edgeCount).toBe(3);
   });
 
-  it('defaults x and y to 0', () => {
+  it('seeds x and y within the initial ForceAtlas2 spread range', () => {
     const node = toInitiativeNode(mockApiNode);
-    expect(node.x).toBe(0);
-    expect(node.y).toBe(0);
+    expect(node.x).toBeGreaterThanOrEqual(-200);
+    expect(node.x).toBeLessThanOrEqual(200);
+    expect(node.y).toBeGreaterThanOrEqual(-200);
+    expect(node.y).toBeLessThanOrEqual(200);
   });
 
   it('computes size clamped between 4 and 20', () => {
@@ -240,7 +242,8 @@ describe('useGalaxyGraph', () => {
     expect(result.current.graph.hasNode(mockApiNode.id)).toBe(true);
     const attrs = result.current.graph.getNodeAttributes(mockApiNode.id);
     expect(attrs['label']).toBe(mockApiNode.label);
-    expect(attrs['type']).toBe(mockApiNode.node_type);
+    expect(attrs['type']).toBe('circle');
+    expect(attrs['nodeType']).toBe(mockApiNode.node_type);
   });
 
   it('returns isLoading false when data is available', async () => {
@@ -279,8 +282,13 @@ vi.mock('@gsap/react', () => ({
 }));
 
 import React from 'react';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { OverlayControls } from '@/views/galaxy/OverlayControls';
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
+
+function renderWithTooltipProvider(element: React.ReactElement) {
+  return render(createElement(RadixTooltip.Provider, { delayDuration: 0 }, element));
+}
 
 describe('OverlayControls', () => {
   beforeEach(() => {
@@ -294,7 +302,7 @@ describe('OverlayControls', () => {
   });
 
   it('renders 4 overlay toggle buttons', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     expect(screen.getByRole('button', { name: /load overlay/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /risk overlay/i })).toBeInTheDocument();
@@ -303,7 +311,7 @@ describe('OverlayControls', () => {
   });
 
   it('renders legend labels under each button', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     expect(screen.getByText('Load')).toBeInTheDocument();
     expect(screen.getByText('Risk')).toBeInTheDocument();
@@ -312,7 +320,7 @@ describe('OverlayControls', () => {
   });
 
   it('clicking a button dispatches the correct overlay type to Zustand', () => {
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const riskButton = screen.getByRole('button', { name: /risk overlay/i });
     fireEvent.click(riskButton);
@@ -331,7 +339,7 @@ describe('OverlayControls', () => {
       });
     });
 
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const loadButton = screen.getByRole('button', { name: /load overlay \(active\)/i });
     fireEvent.click(loadButton);
@@ -348,7 +356,7 @@ describe('OverlayControls', () => {
       });
     });
 
-    render(createElement(OverlayControls));
+    renderWithTooltipProvider(createElement(OverlayControls));
 
     const autonomyButton = screen.getByRole('button', { name: /autonomy overlay \(active\)/i });
     expect(autonomyButton).toHaveAttribute('aria-pressed', 'true');
