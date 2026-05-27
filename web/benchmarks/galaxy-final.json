@@ -1,0 +1,19 @@
+{
+  "layout_convergence_ms": 64.6,
+  "frame_paint_p95_ms": 271.9,
+  "timestamp": "2026-05-21T01:06:26.971Z",
+  "url": "http://localhost:5173/galaxy?mock=activated&nodes=10000",
+  "node_count": 10000,
+  "thresholds": {
+    "layout_convergence_ms": 5000,
+    "frame_paint_p95_ms": 33
+  },
+  "gate_status": {
+    "layout_convergence_ms": "pass",
+    "frame_paint_p95_ms": "fail-local-swiftshader"
+  },
+  "environment": {
+    "renderer": "SwiftShader (software WebGL)",
+    "note": "Frame paint is software-rendered locally (headless Chromium, --use-gl=swiftshader), which is ~8x slower than GPU. The frame_paint_p95 gate (<=33ms / >=30fps, SC-001) is intended for the CI GPU runner per CLAUDE.md. layout_convergence (CPU/worker, SC-002) is GPU-independent and passes."
+  }
+}

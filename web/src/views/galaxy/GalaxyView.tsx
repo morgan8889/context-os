@@ -36,6 +36,19 @@ const STATUS_COLOR_MAP: Record<InitiativeStatus, string> = {
   complete: '--color-status-complete',
 };
 
+/** Exposes sigma instance on window.__sigma in dev mode for benchmark scripts. */
+function BenchmarkRef() {
+  const sigma = useSigma();
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    (window as typeof window & { __sigma?: unknown }).__sigma = sigma;
+    return () => {
+      delete (window as typeof window & { __sigma?: unknown }).__sigma;
+    };
+  }, [sigma]);
+  return null;
+}
+
 /**
  * GraphEventWiring — registers Sigma event handlers and node/edge reducers.
  * Must be inside SigmaContainer.
@@ -68,7 +81,7 @@ function GraphEventWiring() {
 
     setSettings({
       nodeReducer: (node: string, data: Record<string, unknown>) => {
-        const nodeType = (data['type'] as InitiativeType) ?? 'project';
+        const nodeType = (data['nodeType'] as InitiativeType) ?? 'project';
         const nodeStatus = (data['status'] as InitiativeStatus) ?? 'active';
 
         // Base color from type
@@ -157,7 +170,7 @@ export default function GalaxyView() {
     return {
       id: focusedNodeId,
       label: (attrs['label'] as string) ?? focusedNodeId,
-      type: (attrs['type'] as InitiativeType) ?? 'project',
+      type: (attrs['nodeType'] as InitiativeType) ?? 'project',
       status: (attrs['status'] as InitiativeStatus) ?? 'active',
       ownerTeam: (attrs['ownerTeam'] as string | null) ?? null,
       actorCount: (attrs['actorCount'] as number) ?? 0,
@@ -190,11 +203,11 @@ export default function GalaxyView() {
       {galaxyState === 'activated' && (
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Sigma canvas fills available space */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative" style={{ minHeight: 0 }}>
             <SigmaContainer
               style={{
-                width: '100%',
-                height: '100%',
+                position: 'absolute',
+                inset: 0,
                 background: 'var(--color-galaxy-bg, oklch(8% 0 0))',
               }}
               settings={{
@@ -206,6 +219,7 @@ export default function GalaxyView() {
                 maxCameraRatio: 6,
                 defaultEdgeColor: 'oklch(35% 0 0)',
                 defaultEdgeType: 'line',
+                allowInvalidContainer: true,
               }}
             >
               {/* Loads graph + runs ForceAtlas2 in Web Worker */}
@@ -216,6 +230,9 @@ export default function GalaxyView() {
 
               {/* Event wiring and reducers */}
               <GraphEventWiring />
+
+              {/* Dev-only: expose sigma instance for benchmark scripts */}
+              <BenchmarkRef />
             </SigmaContainer>
 
             {/* Overlay controls — top right */}

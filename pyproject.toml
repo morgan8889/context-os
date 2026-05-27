@@ -30,6 +30,8 @@ dependencies = [
     "langgraph-checkpoint-postgres",
     "anthropic>=0.30",
     "python-levenshtein>=0.25",
+    "opentelemetry-exporter-prometheus>=0.46",
+    "prometheus-client>=0.25.0",
 ]
 
 [project.optional-dependencies]
@@ -75,3 +77,6 @@ reportUnusedFunction = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests/unit", "tests/fault"]
+markers = [
+  "nightly_eval: marks tests as nightly evaluation gates (deselect with -m 'not nightly_eval')",
+]

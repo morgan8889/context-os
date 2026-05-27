@@ -40,16 +40,47 @@ function isFullyActivated(data: ViewStateContext | undefined): boolean {
   );
 }
 
+/** Read ?mock= or ?devState= URL params for local dev/test overrides. */
+function getDevOverride(): ViewStateContext | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+
+  const mock = params.get('mock');
+  if (mock && ['empty', 'activating', 'activated'].includes(mock)) {
+    const s = mock as 'empty' | 'activating' | 'activated';
+    return {
+      galaxy: { state: s, initiativeCount: 0, ingestProgress: null },
+      topology: { state: s, workflowCount: 0, discoveredCount: 0 },
+      decisionGraph: { state: s, decisionCount: 0 },
+    };
+  }
+
+  const devState = params.get('devState');
+  if (devState && ['empty', 'activating', 'activated'].includes(devState)) {
+    const s = devState as 'empty' | 'activating' | 'activated';
+    return {
+      galaxy: { state: 'activated', initiativeCount: 50, ingestProgress: null },
+      topology: { state: 'activated', workflowCount: 12, discoveredCount: 12 },
+      decisionGraph: { state: s, decisionCount: 0 },
+    };
+  }
+
+  return null;
+}
+
 export function useViewState() {
   const setViewStates = useGraphInteractionStore((s) => s.setViewStates);
+  const devOverride = getDevOverride();
 
   const query = useQuery({
     queryKey: viewStateKeys.current(),
     queryFn: async () => {
+      if (devOverride) return devOverride;
       const { data } = await apiClient.get<ApiViewState>('/api/v1/views/state');
       return transformViewState(data);
     },
     refetchInterval: (q) => {
+      if (devOverride) return false;
       return isFullyActivated(q.state.data) ? false : 30_000;
     },
     staleTime: 0,

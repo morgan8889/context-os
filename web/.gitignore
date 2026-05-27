@@ -11,7 +11,8 @@ build/
 coverage/
 playwright-report/
 test-results/
-tests/visual/snapshots/
+# Note: tests/visual/snapshots/ baselines ARE committed — they are the
+# source of truth for the CI visual-regression gate (see SNAPSHOTS.md).
 
 # Benchmarks (committed manually after runs)
 benchmarks/*.json

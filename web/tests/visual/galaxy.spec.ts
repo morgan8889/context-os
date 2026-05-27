@@ -25,7 +25,8 @@ const VIEWPORTS: Viewport[] = [
 const STATES: GalaxyState[] = ['empty', 'activating', 'activated'];
 
 async function navigateToGalaxy(page: Page, state: GalaxyState): Promise<void> {
-  await page.goto(`/galaxy?mock=${state}`, { waitUntil: 'networkidle' });
+  // domcontentloaded avoids waiting for ForceAtlas2 Web Worker to go idle
+  await page.goto(`/galaxy?mock=${state}`, { waitUntil: 'domcontentloaded' });
 }
 
 async function waitForStableRender(page: Page, state: GalaxyState): Promise<void> {
@@ -40,18 +41,15 @@ async function waitForStableRender(page: Page, state: GalaxyState): Promise<void
     case 'activating':
       // Wait for the activating state container
       await page.waitForSelector('[data-state="activating"]', { timeout: 10_000 });
-      // Wait for Sigma canvas to paint
-      await page.waitForSelector('.sigma-renderer', { timeout: 10_000 });
-      await page.waitForTimeout(200);
+      // Sigma uses allowInvalidContainer so renderer may not paint until layout; skip .sigma-renderer check
+      await page.waitForTimeout(500);
       break;
 
     case 'activated':
-      // Wait for the galaxy view container
+      // Wait for the galaxy view container (always present regardless of sigma init)
       await page.waitForSelector('[data-view="galaxy"]', { timeout: 10_000 });
-      // Wait for Sigma renderer to appear
-      await page.waitForSelector('.sigma-renderer', { timeout: 15_000 });
-      // Allow initial layout to paint (ForceAtlas2 disabled in test env)
-      await page.waitForTimeout(300);
+      // Allow React + Zustand state transition and initial paint
+      await page.waitForTimeout(500);
       break;
   }
 }

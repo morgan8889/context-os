@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/react';
 import { type ReactNode } from 'react';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
+import ImpersonationBanner from './admin/ImpersonationBanner';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   // Dev-only bypass: VITE_DEV_BYPASS_AUTH=true skips Clerk for local visual testing
@@ -31,6 +32,7 @@ export { ProtectedRoute };
 export default function App({ children }: { children?: ReactNode }) {
   return (
     <RadixTooltip.Provider delayDuration={500}>
+      <ImpersonationBanner />
       <ProtectedRoute>{children}</ProtectedRoute>
     </RadixTooltip.Provider>
   );

@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 
 import { useGraphInteractionStore } from '@/lib/stores/graphInteraction';
 import { animateStateEnter } from '@/lib/animations/stateTransitions';
+import { useViewState } from '@/lib/api/viewState';
 import { useTopologyData } from './hooks/useTopologyData';
 import { useTopologyFilters } from './hooks/useTopologyFilters';
 import TopologyEmpty from './TopologyEmpty';
@@ -242,6 +243,7 @@ function LoadingState() {
  * Data is fetched once on mount. Filter changes are client-side only.
  */
 export default function TopologyView() {
+  useViewState();
   const viewStates = useGraphInteractionStore((s) => s.viewStates);
   const topologyViewState = viewStates.topology.state;
   const workflowCount = viewStates.topology.workflowCount;
@@ -276,22 +278,18 @@ export default function TopologyView() {
       {topologyViewState === 'empty' && <TopologyEmpty />}
 
       {topologyViewState === 'activating' && (
-        isLoading ? <LoadingState /> : (
-          <TopologyActivating workflowCount={workflowCount} partialNodes={nodes} />
-        )
+        <TopologyActivating workflowCount={workflowCount} partialNodes={isLoading ? [] : nodes} />
       )}
 
       {topologyViewState === 'activated' && (
-        isLoading ? <LoadingState /> : (
-          <ReactFlowProvider>
-            <ActivatedTopologyCanvas
-              nodes={nodes}
-              edges={edges}
-              workflows={workflows}
-              filteredWorkflowIds={filteredWorkflowIds}
-            />
-          </ReactFlowProvider>
-        )
+        <ReactFlowProvider>
+          <ActivatedTopologyCanvas
+            nodes={isLoading ? [] : nodes}
+            edges={isLoading ? [] : edges}
+            workflows={isLoading ? [] : workflows}
+            filteredWorkflowIds={filteredWorkflowIds}
+          />
+        </ReactFlowProvider>
       )}
     </div>
   );

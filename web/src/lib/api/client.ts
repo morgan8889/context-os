@@ -14,6 +14,13 @@ export function setTokenProvider(fn: () => Promise<string | null>) {
   getTokenFn = fn;
 }
 
+// Impersonation token provider — set from ImpersonationProvider on mount
+let getImpersonationTokenFn: (() => string | null) | null = null;
+
+export function setImpersonationTokenProvider(fn: () => string | null) {
+  getImpersonationTokenFn = fn;
+}
+
 apiClient.interceptors.request.use(async (config) => {
   if (getTokenFn) {
     const token = await getTokenFn();
@@ -21,6 +28,15 @@ apiClient.interceptors.request.use(async (config) => {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
   }
+
+  // Inject impersonation token when active
+  if (getImpersonationTokenFn) {
+    const impersonationToken = getImpersonationTokenFn();
+    if (impersonationToken) {
+      config.headers['X-Impersonation-Token'] = impersonationToken;
+    }
+  }
+
   return config;
 });
 

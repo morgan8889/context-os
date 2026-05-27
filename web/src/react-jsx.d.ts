@@ -172,6 +172,10 @@ declare namespace JSX {
       rowSpan?: number;
     };
 
+    // ── Form grouping elements ───────────────────────────────────────────────
+    fieldset: React.HTMLAttributes<HTMLFieldSetElement> & { disabled?: boolean; form?: string; name?: string };
+    legend: React.HTMLAttributes<HTMLLegendElement>;
+
     // ── Time element ─────────────────────────────────────────────────────────
     time: React.HTMLAttributes<HTMLTimeElement> & { dateTime?: string };
 

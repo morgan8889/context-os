@@ -4,11 +4,13 @@ Provides:
 - load_golden_dataset: fixture that reads JSON files from tests/evals/golden/
 - assert_ci_gate: session-scoped accumulator that fails if any metric is below threshold
 - synthesizer_agent_fixture: mock SynthesizerAgent for unit-level eval tests
+- ci_gpu_available: fixture reporting GPU availability from CI_GPU_AVAILABLE env var
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -112,6 +114,24 @@ def assert_ci_gate():
             )
 
     return _assert
+
+
+# ── GPU availability fixture ──────────────────────────────────────────────────
+
+
+@pytest.fixture
+def ci_gpu_available() -> bool:
+    """Return True if CI_GPU_AVAILABLE env var is set to a non-empty value.
+
+    Eval tests that require GPU-accelerated rendering (e.g. visual regression
+    via Playwright) should skip when this fixture returns False in CI.
+
+    Usage:
+        def test_gpu_dependent(ci_gpu_available):
+            if not ci_gpu_available:
+                pytest.skip(reason="infrastructure-unavailable")
+    """
+    return bool(os.environ.get("CI_GPU_AVAILABLE"))
 
 
 # ── Mock agent fixtures ───────────────────────────────────────────────────────
