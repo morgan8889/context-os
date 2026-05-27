@@ -9,6 +9,21 @@ import type { InitiativeNode } from '@/types/galaxy';
 /** Stub node counts to anticipate: total visual budget minus real nodes */
 const STUB_COUNT = 8;
 
+// Sigma v3 WebGL can't parse color-mix() or oklch(). Resolve CSS vars via canvas.
+const _cc = typeof document !== 'undefined'
+  ? Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d')
+  : null;
+
+function resolveCSSVar(varName: string): string {
+  if (!_cc) return '#888888';
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  _cc.clearRect(0, 0, 1, 1);
+  _cc.fillStyle = raw;
+  _cc.fillRect(0, 0, 1, 1);
+  const [r, g, b] = _cc.getImageData(0, 0, 1, 1).data;
+  return `rgba(${r},${g},${b},0.5)`;
+}
+
 /** Inner component that has access to Sigma context */
 function ActivatingGraphLoader({
   nodes,
@@ -35,7 +50,7 @@ function ActivatingGraphLoader({
         x: node.x || Math.random() * 100 - 50,
         y: node.y || Math.random() * 100 - 50,
         size: node.size,
-        color: `color-mix(in oklch, var(--color-node-${node.type}), transparent 50%)`,
+        color: resolveCSSVar(`--color-node-${node.type}`),
         type: 'circle',
         nodeType: node.type,
       });

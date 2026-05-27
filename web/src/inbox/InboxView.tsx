@@ -6,7 +6,7 @@
  * mutations with optimistic updates.
  */
 
-import { useState, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '@/lib/api/client';
@@ -173,13 +173,8 @@ function ApprovalCard({
 
   // Extract a human-readable summary from content
   const contentSummary =
-    typeof item.content['summary'] === 'string'
-      ? (item.content['summary'] as string)
-      : typeof item.content['title'] === 'string'
-        ? (item.content['title'] as string)
-        : typeof item.content['description'] === 'string'
-          ? (item.content['description'] as string)
-          : 'No summary available.';
+    [item.content['summary'], item.content['title'], item.content['description']]
+      .find((v): v is string => typeof v === 'string') ?? 'No summary available.';
 
   function handleRejectSubmit() {
     onReject(item.id, rejectReason);
@@ -430,6 +425,9 @@ interface BriefingStatusResponse {
 function GenerateBriefingButton({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<BriefingStatus>('idle');
   const [msg, setMsg] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   async function handleGenerate() {
     setStatus('generating');
@@ -438,33 +436,31 @@ function GenerateBriefingButton({ onDone }: { onDone: () => void }) {
       const res = await apiClient.post<{ run_id: string }>('/api/v1/briefing/generate', {});
       const runId = res.data.run_id;
 
-      // Poll until complete
-      const poll = setInterval(async () => {
+      pollRef.current = setInterval(async () => {
         try {
           const statusRes = await apiClient.get<BriefingStatusResponse>(
             `/api/v1/briefing/status/${runId}`
           );
           if (statusRes.data.status === 'completed' || statusRes.data.status === 'approved') {
-            clearInterval(poll);
+            clearInterval(pollRef.current!);
             setStatus('done');
             setMsg('Briefing ready — check the list below.');
             onDone();
             setTimeout(() => { setStatus('idle'); setMsg(null); }, 4000);
           } else if (statusRes.data.status === 'failed') {
-            clearInterval(poll);
+            clearInterval(pollRef.current!);
             setStatus('error');
             setMsg('Briefing generation failed.');
           }
         } catch {
-          clearInterval(poll);
+          clearInterval(pollRef.current!);
           setStatus('error');
           setMsg('Could not check briefing status.');
         }
       }, 3000);
     } catch (err) {
       setStatus('error');
-      const detail =
-        err instanceof Error ? err.message : 'Unknown error';
+      const detail = err instanceof Error ? err.message : 'Unknown error';
       setMsg(
         detail.includes('404') || detail.includes('no ingest')
           ? 'Connect GitHub first to generate a briefing.'
@@ -626,9 +622,9 @@ export default function InboxView() {
     staleTime: 30_000,
   });
 
-  const approveMutation = useMutation({
-    mutationFn: ({ id }: { id: string }) => approveItem(id),
-    onMutate: async ({ id }) => {
+  // Shared optimistic-removal callbacks for approve/reject mutations.
+  const optimisticRemove = {
+    onMutate: async ({ id }: { id: string }) => {
       await qc.cancelQueries({ queryKey });
       const prev = qc.getQueryData<InboxListResponse>(queryKey);
       if (prev) {
@@ -637,36 +633,25 @@ export default function InboxView() {
           items: prev.items.filter((item) => item.id !== id),
         });
       }
-      return { prev };
+      return prev ? { prev } : {};
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: unknown, _vars: unknown, ctx: { prev?: InboxListResponse } | undefined) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey });
     },
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id }: { id: string }) => approveItem(id),
+    ...optimisticRemove,
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       rejectItem(id, reason),
-    onMutate: async ({ id }) => {
-      await qc.cancelQueries({ queryKey });
-      const prev = qc.getQueryData<InboxListResponse>(queryKey);
-      if (prev) {
-        qc.setQueryData<InboxListResponse>(queryKey, {
-          ...prev,
-          items: prev.items.filter((item) => item.id !== id),
-        });
-      }
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey });
-    },
+    ...optimisticRemove,
   });
 
   const items = data?.items ?? [];
